@@ -30,7 +30,8 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: starters(),
     sample: true,
-    v: 10
+    v: 11,
+    tourDone: false
   };
 }
 let snap = null; // id -> place JSON, used to notice edits/deletes for syncing
@@ -84,6 +85,7 @@ if (db.v < 8) {
   db.v = 8; save();
 }
 if (db.v < 10) { db.cities.forEach(c => { if (/^(City of Westminster|City of London|Westminster)$/i.test(c.name)) c.name = 'London'; }); if (db.v >= 9) { db.v = 10; save(); } }
+if (db.v < 11) { if (db.tourDone === undefined) db.tourDone = db.places.some(x => !x.sample) || !!localStorage.getItem('sitio.auth'); if (db.v >= 10) { db.v = 11; save(); } }
 if (db.v < 9) { db.places.forEach(p => { if (p.cuisine) p.cuisine = cuisList(p).map(q => q === 'Eastern' ? 'Middle Eastern' : q).join(', '); }); db.v = 9; save(); }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
@@ -678,6 +680,7 @@ function accountView() {
       ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
+      ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
       ${row('Privacy', '', 'privacy')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
@@ -688,7 +691,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v2.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1207,7 +1210,9 @@ function render() {
   h += dialogView();
   if (ui.install) h += installView();
   if (ui.flash) h += `<div class="banner glass">${esc(ui.flash)}</div>`;
+  if (ui.tour != null && !ui.install) h += tourView();
   uiEl.innerHTML = h;
+  if (ui.tour != null) placeTour();
   if (focus) { const el = uiEl.querySelector(`[data-input="${focus}"]`); if (el) { el.focus(); try { el.setSelectionRange(selStart, selStart); } catch (e) { } } }
 }
 function flash(text) { ui.flash = text; render(); clearTimeout(flash.t); flash.t = setTimeout(() => { ui.flash = null; render(); }, 3500); }
@@ -1222,7 +1227,39 @@ function placeFromAdd(status, price) {
 }
 function afterSave(p) { checkLevel(); if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
 // Ask people without an account to make one, so their list isn't stuck on one phone
+// Quick first-time tour: a few spotlights on Home, skippable, shown once
+const TOUR = [
+  { sel: null, title: 'Welcome to Sitio 👋', text: 'Your own map of the places you vouch for. Want a 20-second tour?', next: 'Show me' },
+  { sel: '.top-right [data-act="add"]', title: 'Add a place', text: 'Search any restaurant, bar or café, or drop a pin for a hidden spot. Save it to Spots, or to To try for later.' },
+  { sel: '.filter-wrap .filter-pill', title: 'Filter your map', text: 'Show just bars, cafés, a cuisine, your To try places or one of your lists.' },
+  { sel: '.tabbar [data-tab="spots"]', title: 'Your Spots', text: 'Everything you vouch for, nearest first. Star favourites and group places into lists.' },
+  { sel: '.tabbar [data-tab="totry"]', title: 'To try', text: 'Places you want to check out. Been? Save it to Spots and add a photo memory.' },
+  { sel: '.tabbar [data-tab="account"]', title: 'Level up', text: 'Every spot you add levels you up. Create a free account so your places are never lost.', next: 'Let’s go' }
+];
+const tourForced = /[?&]tour=1/.test(location.search);
+function startTour() { if (ui.install || ui.tour != null) return; ui.tour = 0; ui.tab = 'home'; ui.sheet = null; ui.selected = null; ui.page = null; ui.menu = null; ui.dialog = null; render(); }
+function endTour() { ui.tour = null; db.tourDone = true; save(); render(); setTimeout(() => maybeNudge('open'), 700); }
+function tourView() {
+  const s = TOUR[ui.tour]; const last = ui.tour === TOUR.length - 1;
+  return `<div class="tour" role="dialog" aria-label="Quick tour"><div class="tour-spot ${s.sel ? '' : 'none'}"></div>
+    <div class="tour-tip"><div class="tour-dots">${TOUR.map((_, k) => `<i class="${k === ui.tour ? 'on' : ''}"></i>`).join('')}</div>
+      <b>${s.title}</b><p>${s.text}</p>
+      <div class="tour-btns">${last ? '' : `<button class="link-btn" data-act="tourskip">${ui.tour === 0 ? 'No thanks' : 'Skip'}</button>`}<button class="big-btn primary-btn" data-act="tournext">${s.next || 'Next'}</button></div></div></div>`;
+}
+function placeTour() {
+  const tour = uiEl.querySelector('.tour'); if (!tour) return; const s = TOUR[ui.tour];
+  const spot = tour.querySelector('.tour-spot'), tip = tour.querySelector('.tour-tip');
+  const el = s.sel && uiEl.querySelector(s.sel);
+  if (!el) { spot.classList.add('none'); tip.style.top = '50%'; tip.style.transform = 'translateY(-50%)'; return; }
+  const r = el.getBoundingClientRect(), rootR = root.getBoundingClientRect(), pad = 6;
+  Object.assign(spot.style, { left: (r.left - rootR.left - pad) + 'px', top: (r.top - rootR.top - pad) + 'px', width: (r.width + pad * 2) + 'px', height: (r.height + pad * 2) + 'px', borderRadius: Math.min(r.height / 2 + pad, 28) + 'px' });
+  const below = r.top + r.height / 2 < rootR.height / 2;
+  tip.style.transform = 'none';
+  if (below) { tip.style.top = (r.bottom - rootR.top + 18) + 'px'; tip.style.bottom = 'auto'; } else { tip.style.bottom = (rootR.bottom - r.top + 18) + 'px'; tip.style.top = 'auto'; }
+}
 function maybeNudge(reason) {
+  if (ui.tour != null) return;
+  if (!db.tourDone && reason === 'open' && !ui.install && !auth) { startTour(); return; }
   if (!cloudOn() || auth || ui.install || ui.dialog || ui.sheet === 'add' || ui.page === 'auth') return;
   let last = 0; try { last = +localStorage.getItem('sitio.nudgeAt') || 0; } catch (e) { }
   const own = db.places.filter(p => !p.sample).length;
@@ -1382,7 +1419,7 @@ function whereAmI() {
 }
 function tryHerePrompt() {
   if (!herePrompt) return;
-  if (ui.dialog || ui.install || ui.sheet || ui.page === 'auth') { setTimeout(tryHerePrompt, 1500); return; }
+  if (ui.dialog || ui.install || ui.sheet || ui.page === 'auth' || ui.tour != null) { setTimeout(tryHerePrompt, 1500); return; }
   ui.dialog = { type: 'here', h: herePrompt }; herePrompt = null; render();
 }
 let cityTimer = null, cityToken = null;
@@ -1510,6 +1547,9 @@ uiEl.addEventListener('click', e => {
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
     case 'memchipx': try { localStorage.setItem('sitio.memAsk.' + id + '.' + new Date().toDateString(), '1'); } catch (e2) { } break;
+    case 'tournext': if (ui.tour >= TOUR.length - 1) { endTour(); return; } ui.tour++; break;
+    case 'tourskip': endTour(); return;
+    case 'tourreplay': ui.page = null; startTour(); return;
     case 'levels': ui.page = 'levels'; break;
     case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
     case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cats: catsOf(p).slice(), cuisine: p.cuisine || '' }; break;
@@ -1546,7 +1586,7 @@ uiEl.addEventListener('click', e => {
     case 'logout': ui.dialog = { type: 'logout' }; break;
     case 'dologout': ui.dialog = null; logout(); return;
     case 'installnow': if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(c => { if (c.outcome === 'accepted') ui.installed = true; installPrompt = null; render(); }); } return;
-    case 'skipinstall': ui.install = false; try { sessionStorage.setItem('sitio.skipInstall', '1'); } catch (e2) { } setTimeout(() => maybeNudge('open'), 600); break;
+    case 'skipinstall': ui.install = false; try { sessionStorage.setItem('sitio.skipInstall', '1'); } catch (e2) { } setTimeout(() => { if (tourForced) startTour(); else maybeNudge('open'); }, 600); break;
     case 'openinstall': ui.install = true; ui.installed = false; break;
     case 'copylink': navigator.clipboard.writeText(appUrl()).then(() => toast('Link copied', null)).catch(() => flash(appUrl())); return;
     case 'invite': { const text = 'This is Sitio, my map of the best spots. Add it to your home screen:'; (navigator.share ? navigator.share({ title: 'Sitio', text, url: appUrl() }) : Promise.reject()).catch(err => { if (err && err.name === 'AbortError') return; navigator.clipboard.writeText(text + ' ' + appUrl()).then(() => toast('Invite link copied', null)).catch(() => flash(appUrl())); }); return; }
@@ -1822,7 +1862,7 @@ readAuthHash();
 readShared();
 render();
 sync();
-setTimeout(() => maybeNudge('open'), 1500);
+setTimeout(() => { if (tourForced && !ui.install) startTour(); else maybeNudge('open'); }, 1500);
 var hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { hiddenAt = Date.now(); return; }
@@ -1832,6 +1872,7 @@ document.addEventListener('visibilitychange', () => {
 locate(false);
 refreshHours();
 setInterval(() => { lastMapKey = ''; render(); }, 60000);
+window.addEventListener('resize', () => { if (ui.tour != null) placeTour(); });
 window.addEventListener('hashchange', () => { readShared(); render(); });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

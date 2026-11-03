@@ -548,3 +548,19 @@ body.light .seg button.on { background: #fff; }
 body.light .acct-cta.glow::after { background: #FFFFFF; }
 body.light .acct-cta.glow::before { background: conic-gradient(from 0deg, transparent 0deg 250deg, rgba(0,0,0,0.1) 290deg, #F5B83D 335deg, #FF8A5C 350deg, transparent 360deg); }
 @keyframes ctaSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+/* First-time tour */
+.tour { position: absolute; inset: 0; z-index: 70; }
+.tour-spot { position: absolute; box-shadow: 0 0 0 9999px rgba(8,8,12,0.74); border: 2px solid rgba(255,255,255,0.9); transition: all .35s cubic-bezier(.3,1.2,.4,1); pointer-events: none; animation: tourPulse 1.8s ease-in-out infinite; }
+.tour-spot.none { left: 50% !important; top: 50% !important; width: 0 !important; height: 0 !important; border: 0; animation: none; }
+@keyframes tourPulse { 0%, 100% { outline: 0 solid rgba(255,255,255,0.0); } 50% { outline: 6px solid rgba(255,255,255,0.18); } }
+.tour-tip { position: absolute; left: 16px; right: 16px; max-width: 420px; margin: 0 auto; padding: 16px 16px 14px; border-radius: 22px; background: var(--dialog-bg); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 1px solid rgba(var(--fg),0.2); box-shadow: 0 18px 40px rgba(0,0,0,0.5); animation: tourIn .3s ease; }
+@keyframes tourIn { from { opacity: 0; } to { opacity: 1; } }
+.tour-tip b { display: block; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+.tour-tip p { margin: 0 0 14px; font-size: 14px; font-weight: 600; line-height: 1.45; color: var(--text-2); }
+.tour-dots { display: flex; gap: 5px; margin-bottom: 10px; }
+.tour-dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(var(--fg),0.22); transition: width .25s; }
+.tour-dots i.on { width: 18px; background: var(--text); }
+.tour-btns { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tour-btns .big-btn { height: 46px; padding: 0 22px; width: auto; margin-left: auto; }
+.tour-btns .link-btn { color: var(--text-2); font-size: 14px; }
