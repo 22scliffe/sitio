@@ -693,19 +693,20 @@ function accountView() {
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
+    <div class="section-label" style="margin-bottom:8px">Your recaps</div>
+    <div class="settings card" style="margin-bottom:18px">${recapSoonRows()}${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button></div>
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
-      ${row('Memory recaps', recapList().length ? plural(recapList().length, 'recap') : 'Next on ' + ordinal(new Date(releaseAt(recapPer(new Date().getFullYear(), Math.floor(new Date().getMonth() / 2)))).getDate()), 'recaps')}
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
       ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
       ${row('Directions open in', db.settings.dirApp === 'apple' ? 'Apple Maps' : 'Google Maps', 'dirapp')}
       ${row('Currency', esc(city().currency) + ' (' + esc(city().name) + ')', 'currency')}
-      ${row('Back up my spots', 'Save a file', 'backup')}
-      <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
       ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
+      ${row('Back up my spots', 'Save a file', 'backup')}
+      <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
       ${row('Import from Google Maps', importQ().length ? importQ().length + ' to add' : '', 'openimport')}
       ${row('Privacy', '', 'privacy')}
     </div>
@@ -718,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -829,6 +830,10 @@ function recapList(loc, year) {
     for (let k = 5; k >= 0; k--) { const p = recapPer(y, k); if (releaseAt(p) <= now && recapItems(p, loc).length) out.push(p); }
   }
   return out;
+}
+function recapSoonRows() {
+  const now = new Date(), cur = recapPer(now.getFullYear(), Math.floor(now.getMonth() / 2)), yr = recapYear(now.getFullYear());
+  return [cur, yr].filter(p => releaseAt(p) > Date.now()).map(p => { const r = new Date(releaseAt(p)); return `<div class="set-row rc-soon"><span>${esc(recapName(p))}</span><span class="val">Releasing ${ordinal(r.getDate())} ${MONTH_NAMES[r.getMonth()].slice(0, 3)}</span></div>`; }).join('');
 }
 const recapRow = (p, loc) => `<button class="set-row" data-act="recapshow" data-y="${p.y}" data-k="${p.k}" data-loc="${esc(loc || '')}"><span>${esc(recapName(p))}</span><span class="val">${plural(recapItems(p, loc).length, 'memory', 'memories')}${ICON.chevRight}</span></button>`;
 function recapsPage() {
@@ -1081,15 +1086,6 @@ function dialogView() {
       <input class="input card" placeholder="${mapApi.google ? 'Search, e.g. London or Sitges' : 'Name, e.g. London'}" data-input="cityQ" autocomplete="off" autocapitalize="words">
       <div id="citysug" style="margin-top:8px"></div>
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
-  }
-  if (d.type === 'recaps') {
-    const now = new Date(), y = now.getFullYear(), cur = recapPer(y, Math.floor(now.getMonth() / 2)), yr = recapYear(y);
-    const soon = [cur, yr].filter(p => releaseAt(p) > Date.now()).map(p => `<div class="set-row rc-soon"><span>${esc(recapName(p))}</span><span class="val">Releasing ${ordinal(new Date(releaseAt(p)).getDate())} ${MONTH_NAMES[new Date(releaseAt(p)).getMonth()].slice(0, 3)}</span></div>`).join('');
-    const mine = recapList('', y), past = recapList().filter(p => p.y < y).length;
-    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
-      <h3 id="dlg-t">Memory recaps</h3><p>Released on the last day of every two months, and for the whole year on 30 December.</p>
-      <div class="settings card" style="max-height:46vh;overflow-y:auto">${soon}${mine.map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${past ? plural(past, 'recap') : 'All years'}${ICON.chevRight}</span></button></div>
-      <button class="big-btn sec-btn" style="width:100%;margin-top:14px" data-act="closedialog">Close</button></div>`;
   }
   if (d.type === 'recap') {
     const items = recapItems(d.per, d.loc).filter(x => photoUrl(x.m.id)); if (!items.length) return '';
@@ -1830,7 +1826,6 @@ uiEl.addEventListener('click', e => {
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
-    case 'recaps': ui.dialog = { type: 'recaps' }; break;
     case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k; ui.dialog = { type: 'recap', per: k === 'y' ? recapYear(y) : recapPer(y, +k), loc: t.dataset.loc || '', open: false }; break; }
     case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; break;
     case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') ui.dialog.open = true; break;
