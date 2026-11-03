@@ -448,10 +448,15 @@ function accountView() {
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${row('Account details', 'Name, photo', 'profile')}
     </div>
-    <p class="page-sub" style="font-size:12px;margin-top:16px;line-height:1.5">Your spots are saved on this device for now. Once accounts are switched on, they move to your account and appear on any device you log in to.</p>
+    <p class="page-sub" style="font-size:11px;margin-top:16px;opacity:.6" id="diag">${diag()}</p>
+    <p class="page-sub" style="font-size:12px;margin-top:8px;line-height:1.5">Your spots are saved on this device for now. Once accounts are switched on, they move to your account and appear on any device you log in to.</p>
   </div>`;
 }
 
+function diag() {
+  let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
+  return `v0.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe}`;
+}
 function citiesPage() {
   return `<div class="page" style="z-index:15">
     <div class="page-head"><h1 class="page-title">Cities</h1><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Close">${ICON.close}</button></div>
