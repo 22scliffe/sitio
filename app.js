@@ -618,6 +618,16 @@ function dialogView() {
       <a class="big-btn" style="height:58px;border-radius:0;font-size:17px" href="${gLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.pin}Google Maps</a><a class="big-btn" style="height:58px;border-radius:0;font-size:17px;border-top:1px solid rgba(255,255,255,.1)" href="${aLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.nav}Apple Maps</a></div>
       <button class="group-box" data-act="closedialog" style="border-radius:20px;font-weight:700">Cancel</button></div>`;
   }
+  if (d.type === 'nudge') {
+    const n = d.own;
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
+      <div style="width:56px;height:56px;border-radius:28px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08)">${ICON.check}</div>
+      <h3 id="dlg-t">${n ? 'Don’t lose your spots' : 'Save your spots to an account'}</h3>
+      <p>${n ? 'You’ve saved ' + n + (n === 1 ? ' place' : ' places') + ', but right now ' + (n === 1 ? 'it only lives' : 'they only live') + ' on this phone. ' : ''}Create a free account and your spots are kept safe online. Log in on any phone and they’re all there.</p>
+      <button class="big-btn primary-btn" style="width:100%" data-act="nudgeyes">Create account</button>
+      <button class="big-btn sec-btn" style="width:100%;margin-top:8px" data-act="nudgelogin">I already have an account</button>
+      <button class="link-btn" style="margin:12px auto 0;color:var(--text-2)" data-act="closedialog">Not now</button></div>`;
+  }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">Log out?</h3><p>Your spots stay safe in your account. This phone goes back to the starter spots until you log in again.</p>
@@ -724,7 +734,18 @@ function placeFromAdd(status, price) {
   const jitter = () => (Math.random() - 0.5) * 0.0006;
   return { id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: a.cat, cuisine: a.cat === 'restaurant' ? a.cuisine : '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
 }
-function afterSave(p) { if (!p.hours) fetchOsmHours(p); }
+function afterSave(p) { if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
+// Ask people without an account to make one, so their list isn't stuck on one phone
+function maybeNudge(reason) {
+  if (!cloudOn() || auth || ui.install || ui.dialog || ui.sheet === 'add' || ui.page === 'auth') return;
+  let last = 0; try { last = +localStorage.getItem('sitio.nudgeAt') || 0; } catch (e) { }
+  const own = db.places.filter(p => !p.sample).length;
+  const gap = reason === 'saved' ? 864e5 : 2 * 864e5;
+  if (reason === 'saved' && !own) return;
+  if (Date.now() - last < gap) return;
+  try { localStorage.setItem('sitio.nudgeAt', String(Date.now())); } catch (e) { }
+  ui.dialog = { type: 'nudge', own }; render();
+}
 
 function openPrice(place, opts = {}) { ui.dialog = Object.assign({ type: 'price', place, value: opts.value || place.price || 0 }, opts); render(); }
 function confirmPrice() {
@@ -878,6 +899,8 @@ uiEl.addEventListener('click', e => {
     case 'backup': backup(); return;
     case 'clearsample': db.places = db.places.filter(x => !x.sample); db.sample = false; save(); toast('Starter spots removed', null); return;
     case 'profile': ui.page = 'profile'; break;
+    case 'nudgeyes': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'signup'; ui.authMsg = null; break;
+    case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
     case 'openauth': ui.page = 'auth'; ui.authMode = ui.authMode || 'signup'; ui.authMsg = null; break;
     case 'authmode': ui.authMode = t.dataset.v; ui.authMsg = null; break;
     case 'authgo': doAuth(); return;
@@ -885,7 +908,7 @@ uiEl.addEventListener('click', e => {
     case 'logout': ui.dialog = { type: 'logout' }; break;
     case 'dologout': ui.dialog = null; logout(); return;
     case 'installnow': if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(c => { if (c.outcome === 'accepted') ui.installed = true; installPrompt = null; render(); }); } return;
-    case 'skipinstall': ui.install = false; try { sessionStorage.setItem('sitio.skipInstall', '1'); } catch (e2) { } break;
+    case 'skipinstall': ui.install = false; try { sessionStorage.setItem('sitio.skipInstall', '1'); } catch (e2) { } setTimeout(() => maybeNudge('open'), 600); break;
     case 'openinstall': ui.install = true; ui.installed = false; break;
     case 'copylink': navigator.clipboard.writeText(appUrl()).then(() => toast('Link copied', null)).catch(() => flash(appUrl())); return;
     case 'invite': { const text = 'This is Sitio, my map of the best spots. Add it to your home screen:'; (navigator.share ? navigator.share({ title: 'Sitio', text, url: appUrl() }) : Promise.reject()).catch(err => { if (err && err.name === 'AbortError') return; navigator.clipboard.writeText(text + ' ' + appUrl()).then(() => toast('Invite link copied', null)).catch(() => flash(appUrl())); }); return; }
@@ -1060,6 +1083,7 @@ readAuthHash();
 readShared();
 render();
 sync();
+setTimeout(() => maybeNudge('open'), 1500);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
 locate(false);
 refreshHours();
