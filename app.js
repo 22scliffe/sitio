@@ -695,9 +695,10 @@ function accountView() {
   </div>`;
 }
 
+function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v3.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1597,7 +1598,7 @@ uiEl.addEventListener('click', e => {
   const act = t.dataset.act, id = t.dataset.id, p = id ? byId(id) : null;
   if (ui.menu && !t.closest('.menu') && act !== 'menu') ui.menu = null;
   switch (act) {
-    case 'tab': ui.tab = t.dataset.tab; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; break;
+    case 'tab': if (t.dataset.tab === 'account') setTimeout(uploadMemories, 200); ui.tab = t.dataset.tab; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; break;
     case 'pin': ui.selected = id; ui.sheet = 'spot'; break;
     case 'menu': ui.menu = ui.menu === t.dataset.menu ? null : t.dataset.menu; break;
     case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'all') ui.menu = null; break;
@@ -1921,7 +1922,7 @@ async function loadAdmin() {
 }
 // Memory photos online (Supabase Storage, private bucket "memories", one folder per person)
 const memPath = id => 'memories/' + auth.user.id + '/' + id + '.jpg';
-let uploading = false; const cloudTried = {};
+let uploading = false, upErr = ''; const cloudTried = {};
 function cloudPhoto(id) {
   if (!auth || !cloudOn() || cloudTried[id]) return; cloudTried[id] = 1;
   const isMine = db.places.some(p => (p.memories || []).some(m => m.id === id && m.cloud)); if (!isMine) return;
@@ -1935,9 +1936,9 @@ async function uploadMemories() {
       if (m.cloud) continue; const b = await idb.get(m.id).catch(() => null); if (!b) continue;
       await ensureFresh();
       const r = await fetch(SBURL + '/storage/v1/object/' + memPath(m.id), { method: 'POST', headers: { apikey: SBKEY, Authorization: 'Bearer ' + auth.access_token, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' }, body: b });
-      if (r.ok) { m.cloud = true; save(); } else break;
+      if (r.ok) { m.cloud = true; upErr = ''; save(); } else { upErr = r.status + ' ' + (await r.text().catch(() => '')).slice(0, 80); if (ui.tab === 'account') render(); break; }
     }
-  } catch (e) { } finally { uploading = false; }
+  } catch (e) { upErr = 'network: ' + (e && e.message || e); } finally { uploading = false; if (ui.tab === 'account') render(); }
 }
 function deleteCloudMemory(id) {
   if (!auth || !cloudOn()) return;
