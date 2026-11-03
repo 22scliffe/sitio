@@ -65,25 +65,9 @@ SITIO.SAMPLE = (() => {
     cityId: city.id, name, cat, lat, lng, area, status,
     cuisine: '', price: 0, note: '', photos: [], hours: null, addedAt: Date.now()
   }, extra || {});
+  // One example spot so a first-time user sees how it works. Everything else starts empty.
   const places = [
-    p('Haveli', 'restaurant', 40.4086, -3.7003, 'Lavapiés', 'spot', { cuisine: 'Indian', price: 2, note: 'Get the lamb nihari and garlic naan. Small, book on weekends.', hours: h('13:00', '23:30') }),
-    p('Masala Lane', 'restaurant', 40.4100, -3.6985, 'Lavapiés', 'spot', { cuisine: 'Indian', price: 2, note: 'Great thali at lunch.', hours: h('12:30', '23:00') }),
-    p('Tiffin Room', 'restaurant', 40.4122, -3.7058, 'La Latina', 'spot', { cuisine: 'Indian', price: 1, note: 'Cheap and fast, good dosa.', hours: h('12:00', '16:30') }),
-    p('Casa Mirlo', 'restaurant', 40.4255, -3.7062, 'Malasaña', 'spot', { cuisine: 'Spanish', price: 3, note: 'Croquetas and the steak tartare.', hours: h('13:30', '00:00') }),
-    p('Kumo Ramen', 'restaurant', 40.4152, -3.6955, 'Las Letras', 'spot', { cuisine: 'Japanese', price: 2, note: 'Tonkotsu. Queue moves fast.', hours: h('20:00', '23:30') }),
-    p('Bodega Rufino', 'bar', 40.4268, -3.7031, 'Malasaña', 'spot', { price: 1, note: 'Vermut de grifo and gildas.', hours: h('12:00', '01:00') }),
-    p('Salón Otoño', 'bar', 40.4232, -3.6968, 'Chueca', 'spot', { price: 2, note: 'Cocktails, cosy back room.', hours: h('18:00', '02:00') }),
-    p('Vermutería Sol', 'bar', 40.4160, -3.7065, 'Sol', 'spot', { price: 1, note: 'Standing room only, worth it.', hours: h('11:00', '00:30') }),
-    p('Café Brezo', 'cafe', 40.4240, -3.7000, 'Chueca', 'spot', { price: 1, note: 'Flat white and banana bread.', hours: h('08:30', '15:00') }),
-    p('Café Lirio', 'cafe', 40.4180, -3.6900, 'Retiro', 'spot', { price: 2, note: 'Quiet, good for working.', hours: h('09:00', '20:00') }),
-    p('Sala Fauna', 'club', 40.4200, -3.7080, 'Centro', 'spot', { price: 3, note: 'House on Fridays.', hours: h('00:00', '06:00') }),
-    p('Terraza Alta', 'chill', 40.4140, -3.7140, 'La Latina', 'spot', { price: 2, note: 'Sunset over the palace.', hours: h('17:00', '00:00') }),
-    p('Padel Arganzuela', 'padel', 40.4020, -3.6990, 'Arganzuela', 'spot', { price: 2, note: 'Book on Playtomic, 4 courts.', hours: h('08:00', '23:00') }),
-    p('Bar Lucero', 'bar', 40.4220, -3.6990, 'Chueca', 'totry', { note: 'Friend says the vermut on tap is the best in town.', hours: h('13:00', '01:30') }),
-    p('Panadería Ola', 'cafe', 40.4150, -3.6860, 'Retiro', 'totry', { note: 'Saw the cardamom buns on Instagram.', hours: h('08:00', '14:00') }),
-    p('Sake Nomi', 'bar', 40.4290, -3.6850, 'Salamanca', 'totry', { note: 'Tiny sake bar, walk-ins only.', hours: h('19:00', '01:00') }),
-    p('Pho Saigón', 'restaurant', 40.4105, -3.7120, 'La Latina', 'totry', { cuisine: 'Vietnamese', note: 'Walked past, queue out the door.', hours: h('13:00', '23:00') }),
-    p('Taquería 22', 'restaurant', 40.4090, -3.7110, 'La Latina', 'totry', { cuisine: 'Mexican', note: 'Al pastor recommended by a regular.', hours: h('13:00', '00:00') })
+    p('Example spot', 'restaurant', 40.4168, -3.7038, 'Sol', 'spot', { cuisine: 'Spanish', price: 2, note: 'This is just an example so you can see how Sitio works. Delete it whenever you like and add your own with +.', hours: h('00:00', '23:59') })
   ];
   return { cities: [city], places };
 })();
