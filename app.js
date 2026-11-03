@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -806,15 +806,19 @@ function dueRecaps(now = new Date()) {
 }
 function tryRecap(demo, tries = 0) {
   let per;
-  if (demo) { per = demo === 'year' ? recapYear(new Date().getFullYear()) : dueRecaps().find(p => recapItems(p).length); if (!per) return; }
+  if (demo) {
+    if (demo === 'year') per = recapYear(new Date().getFullYear());
+    else { const now = new Date(); per = recapPer(now.getFullYear(), Math.floor(now.getMonth() / 2)); for (let n = 0; n < 12 && !recapItems(per).length; n++) per = per.k ? recapPer(per.y, per.k - 1) : recapPer(per.y - 1, 5); }
+    if (!per) return;
+  }
   else per = dueRecaps().find(p => { try { if (localStorage.getItem(recapKey(p))) return false; } catch (e) { } return recapItems(p).length; });
   if (!per) return;
   const items = recapItems(per); if (!items.length) return;
   const ready = items.filter(x => photoUrl(x.m.id)).length;
-  if ((ready < items.length && tries < 6) || ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 40) setTimeout(() => tryRecap(demo, tries + 1), 2000); return; }
+  if ((ready < items.length && tries < 10) || ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 160) setTimeout(() => tryRecap(demo, tries + 1), 500); return; }
   if (!ready) return;
   if (!demo) { try { localStorage.setItem(recapKey(per), '1'); } catch (e) { } }
-  ui.dialog = { type: 'recap', per, open: false }; render();
+  ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
 }
 const releaseAt = per => per.year || per.k === 5 ? new Date(per.y, 11, 30).getTime() : new Date(per.y, per.k * 2 + 2, 0).getTime();
 const ordinal = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
@@ -836,7 +840,7 @@ function recapSoonRows() {
 }
 // Festive background behind a recap: fireworks + sparkles for the year, soft seasonal glow for two-month ones
 const SEASON = [['#7FB4FF', '#C9E3FF'], ['#FF9EC4', '#9BE3A8'], ['#FFD66B', '#FFB36B'], ['#FF8A5C', '#FFD166'], ['#F5B83D', '#E07A4E'], ['#FF5A4E', '#FFD66B']];
-function recapBg(per) {
+function recapBg(per, el = 0) {
   const r = n => { const x = Math.sin(n * 9301 + 49297) * 233280; return x - Math.floor(x); };
   const sparks = Array.from({ length: per.year ? 34 : 18 }, (_, i) => `<b style="left:${(r(i + 1) * 100).toFixed(1)}%;top:${(r(i + 50) * 100).toFixed(1)}%;--s:${(2 + r(i + 90) * 3).toFixed(1)}px;--t:${(1.8 + r(i + 7) * 2.6).toFixed(2)}s;--dl:${(r(i + 3) * 3).toFixed(2)}s"></b>`).join('');
   if (per.year) {
@@ -845,11 +849,11 @@ function recapBg(per) {
       const c = cols[b % cols.length], parts = Array.from({ length: 16 }, (_, k) => { const ang = k / 16 * Math.PI * 2, d = 46 + (k % 2) * 14; return `<i style="--dx:${Math.round(Math.cos(ang) * d)}px;--dy:${Math.round(Math.sin(ang) * d)}px"></i>`; }).join('');
       return `<div class="fw" style="left:${(12 + r(b + 200) * 76).toFixed(1)}%;top:${(8 + r(b + 300) * 70).toFixed(1)}%;--c:${c};--dl:${(b * 0.75 + r(b) * 0.5).toFixed(2)}s">${parts}</div>`;
     }).join('');
-    return `<div class="rc-bg year" aria-hidden="true">${bursts}<div class="spk">${sparks}</div></div>`;
+    return `<div class="rc-bg year" aria-hidden="true" style="--el:${el}ms">${bursts}<div class="spk">${sparks}</div></div>`;
   }
   const [c1, c2] = SEASON[per.k] || SEASON[0];
   const orbs = Array.from({ length: 9 }, (_, i) => `<u style="left:${(r(i + 400) * 100).toFixed(1)}%;--z:${Math.round(60 + r(i + 500) * 110)}px;--c:${i % 2 ? c1 : c2};--t:${(14 + r(i + 600) * 10).toFixed(1)}s;--dl:${(-r(i + 700) * 20).toFixed(1)}s"></u>`).join('');
-  return `<div class="rc-bg" aria-hidden="true" style="--c1:${c1};--c2:${c2}">${orbs}<div class="spk">${sparks}</div></div>`;
+  return `<div class="rc-bg" aria-hidden="true" style="--c1:${c1};--c2:${c2};--el:${el}ms">${orbs}<div class="spk">${sparks}</div></div>`;
 }
 const recapRow = (p, loc) => `<button class="set-row" data-act="recapshow" data-y="${p.y}" data-k="${p.k}" data-loc="${esc(loc || '')}"><span>${esc(recapName(p))}</span><span class="val">${plural(recapItems(p, loc).length, 'memory', 'memories')}${ICON.chevRight}</span></button>`;
 function recapsPage() {
@@ -1110,12 +1114,12 @@ function dialogView() {
     const head = `<div class="rc-head"><div class="rc-k">${d.per.year ? 'Your year in Sitio' : 'Your recap'}</div><div class="rc-t ${d.per.year ? 'big' : ''}" id="rc-t">${esc(d.per.label + (!d.per.year && d.per.y !== new Date().getFullYear() ? ' ' + d.per.y : ''))}</div><div class="rc-sub">${plural(items.length, 'memory', 'memories')} · ${plural(nPlaces, 'place')}</div></div>`;
     if (!d.open) {
       const back = items.slice(1, 4).map((x, k) => `<div class="rc-card back" style="--r:${[-9, 9, -4][k]}deg;--x:${[-38, 38, 0][k]}px;--y:${[10, 14, 22][k]}px;--d:${.08 + k * .06}s"><img src="${photoUrl(x.m.id)}" alt=""></div>`).reverse().join('');
-      return `<div class="dialog-scrim rc-scrim" data-act="closedialog"></div>${recapBg(d.per)}<div class="recap" role="dialog" aria-labelledby="rc-t">${head}
+      return `<div class="dialog-scrim rc-scrim" data-act="closedialog" style="--el:${d.introAt ? Date.now() - d.introAt : 0}ms"></div>${recapBg(d.per, d.introAt ? Date.now() - d.introAt : 0)}<div class="recap ${d.intro ? 'intro' : ''}" style="--el:${d.introAt ? Date.now() - d.introAt : 0}ms" role="dialog" aria-labelledby="rc-t">${head}
         <button class="rc-stack" data-act="recapopen" aria-label="Open recap">${back}<div class="rc-card front"><img src="${photoUrl(items[0].m.id)}" alt=""></div></button>
         ${cap(items[0])}
         <div class="rc-btns"><button class="big-btn sec-btn" data-act="closedialog">Skip</button><button class="big-btn primary-btn" data-act="recapopen">See all ${items.length}</button></div></div>`;
     }
-    return `<div class="dialog-scrim rc-scrim" data-act="closedialog"></div>${recapBg(d.per)}<div class="recap open" role="dialog" aria-labelledby="rc-t">${head}
+    return `<div class="dialog-scrim rc-scrim" data-act="closedialog" style="--el:${d.introAt ? Date.now() - d.introAt : 0}ms"></div>${recapBg(d.per, d.introAt ? Date.now() - d.introAt : 0)}<div class="recap open" role="dialog" aria-labelledby="rc-t">${head}
       <div class="rc-strip">${items.map(x => `<div class="rc-slide"><div class="rc-photo"><img src="${photoUrl(x.m.id)}" alt=""></div>${cap(x)}</div>`).join('')}</div>
       ${items.length > 1 ? `<div class="mv-count rc-dots">${items.map((x, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
       <button class="big-btn primary-btn" style="width:100%" data-act="closedialog">Done</button></div>`;
@@ -1842,9 +1846,9 @@ uiEl.addEventListener('click', e => {
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
-    case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k; ui.dialog = { type: 'recap', per: k === 'y' ? recapYear(y) : recapPer(y, +k), loc: t.dataset.loc || '', open: false }; break; }
+    case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k; ui.dialog = { type: 'recap', per: k === 'y' ? recapYear(y) : recapPer(y, +k), loc: t.dataset.loc || '', open: false, intro: true, introAt: Date.now() }; break; }
     case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; break;
-    case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') ui.dialog.open = true; break;
+    case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') { ui.dialog.open = true; ui.dialog.intro = false; } break;
     case 'memcover': { const q = byId(ui.dialog.id); if (q && coverOf(q) !== ui.dialog.m) { q.thumb = { id: ui.dialog.m, set: Date.now() }; save(); lastMapKey = ''; toast('Thumbnail updated', null); } break; }
     case 'memdelno': ui.dialog = { type: 'memory', id: ui.dialog.id, m: ui.dialog.m }; break;
     case 'memdelok': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); deleteCloudMemory(ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
@@ -2205,17 +2209,17 @@ resnap();
 checkLevel();
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
-  try { if (localStorage.getItem('sitio.showcase2025')) return; } catch (e) { }
-  if (!isAdmin) { if (tries < 30) setTimeout(() => adminShowcase(tries + 1), 2000); return; }
-  if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 60) setTimeout(() => adminShowcase(tries + 1), 2000); return; }
+  try { if (localStorage.getItem('sitio.showcase2025b')) return; } catch (e) { }
+  if (!isAdmin) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
+  if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   const y0 = new Date().getFullYear(); let per = null;
   for (const y of [2025, y0 - 1, y0 - 2, y0 - 3]) { const p = recapYear(y); if (recapItems(p).filter(x => photoUrl(x.m.id)).length) { per = p; break; } }
-  if (!per) { if (tries < 30) setTimeout(() => adminShowcase(tries + 1), 2000); return; }
-  try { localStorage.setItem('sitio.showcase2025', '1'); } catch (e) { }
-  ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false }; render();
+  if (!per) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
+  try { localStorage.setItem('sitio.showcase2025b', '1'); } catch (e) { }
+  ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
 }
-setTimeout(adminShowcase, 3000);
-setTimeout(() => tryRecap(/[?&]demo=year/.test(location.search) ? 'year' : /[?&]demo=recap/.test(location.search)), 2500);
+setTimeout(adminShowcase, 900);
+setTimeout(() => tryRecap(/[?&]demo=year/.test(location.search) ? 'year' : /[?&]demo=recap/.test(location.search)), 1000);
 if (/[?&]demo=levelup/.test(location.search)) setTimeout(() => { ui.install = false; showLevelUp(Math.max(1, levelOf(spotCount()) + 1) % LEVELS.length || 1, true); }, 400);
 readAuthHash();
 readShared();

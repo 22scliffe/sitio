@@ -661,3 +661,15 @@ body.light .md-row input { color-scheme: light; }
 .rc-bg u { position: absolute; bottom: calc(-1 * var(--z)); width: var(--z); height: var(--z); border-radius: 50%; background: var(--c); opacity: .14; filter: blur(14px); animation: drift var(--t) linear var(--dl) infinite; }
 @keyframes drift { from { transform: translateY(0); } to { transform: translateY(calc(-100vh - 200px)); } }
 @media (prefers-reduced-motion: reduce) { .rc-bg *, .rc-bg { animation: none !important; } .spk b { opacity: .3; } }
+
+/* Recap entrance: slow, staged reveal; --el keeps it smooth if the screen redraws mid-way */
+.rc-scrim { animation: fade .9s ease calc(0s - var(--el, 0ms)) both; }
+.rc-bg { animation: fade 1.6s ease calc(0s - var(--el, 0ms)) both; }
+.recap.intro { animation: none; }
+.recap.intro .rc-head { animation: rcRise .8s cubic-bezier(.2,.8,.2,1) calc(.35s - var(--el)) both; }
+.recap.intro .rc-stack { animation: rcRise .9s cubic-bezier(.2,.8,.2,1) calc(.8s - var(--el)) both; }
+.recap.intro .rc-stack .rc-card.front { animation: rcFront .9s cubic-bezier(.2,.8,.2,1) calc(.8s - var(--el)) both; }
+.recap.intro .rc-stack .rc-card.back { animation: rcFan 1s cubic-bezier(.2,.8,.3,1.1) calc(1.3s + var(--d) - var(--el)) both; }
+.recap.intro .rc-cap { animation: rcRise .7s ease calc(1.7s - var(--el)) both; }
+.recap.intro .rc-btns { animation: rcRise .7s ease calc(2s - var(--el)) both; }
+@keyframes rcRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
