@@ -484,7 +484,7 @@ function accountView() {
   const row = (label, val, act) => `<button class="set-row" data-act="${act}"><span>${label}</span><span class="val">${val}${ICON.chevRight}</span></button>`;
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page">
-    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="profile" aria-label="Account details" style="padding:0;color:var(--text)">${av}</button><div><div style="font-size:24px;font-weight:800">${esc(u.name || 'You')}</div><div class="page-sub">${hasSample() ? 'Showing starter spots' : 'Your places, your way'}</div></div></div>
+    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div><div class="page-sub">${hasSample() ? 'Showing starter spots' : 'Your places, your way'}</div></div></div>
     ${cloudOn() && !auth ? `<button class="card acct-cta" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
@@ -498,9 +498,9 @@ function accountView() {
       ${row('Back up my spots', 'Save a file', 'backup')}
       <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
       ${hasSample() ? row('Remove starter spots', 'Start fresh', 'clearsample') : ''}
-      ${row('Invite friends', 'Send the app link', 'invite')}
+      ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
-      ${row('Account details', auth ? 'Name, photo, email' : 'Name, photo', 'profile')}
+      ${auth ? row('Account details', 'Name, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${row('Privacy', '', 'privacy')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
@@ -511,7 +511,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe}`;
+  return `v0.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -525,6 +525,7 @@ function citiesPage() {
 }
 
 function profilePage() {
+  if (!auth) return authPage();
   const u = db.user; const av = u.photo && photoUrl(u.photo) ? `<img src="${photoUrl(u.photo)}" alt="">` : esc((u.name || 'You')[0].toUpperCase());
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Account details</span></div>
@@ -554,7 +555,7 @@ function authPage() {
       ${m === 'login' ? '<button class="link-btn" data-act="authmode" data-v="reset">Forgot password?</button>' : ''}
       ${m === 'reset' ? '<button class="link-btn" data-act="authmode" data-v="login">Back to log in</button>' : ''}
     </div>
-    ${m === 'signup' ? '<p class="page-sub" style="font-size:12px;text-align:center;margin-top:18px">By creating an account you agree to the <button class="link-btn" style="display:inline;padding:0;font-size:12px;text-decoration:underline" data-act="privacy">privacy notice</button>.</p>' : ''}
+    <p class="page-sub" style="font-size:11px;line-height:1.5;text-align:center;margin-top:18px;opacity:.8">${m === 'signup' ? 'By creating an account you agree that' : 'By logging in you agree that'} Sitio stores your email and saved places to run your account, as explained in the <button class="link-btn" style="display:inline;padding:0;font-size:11px;text-decoration:underline;color:inherit" data-act="privacy">Privacy notice</button>. You can delete your account at any time.</p>
     <p class="page-sub" style="font-size:12px;text-align:center;margin-top:14px;opacity:.7">Google and Apple sign-in coming soon.</p>
   </div>`;
 }
@@ -793,7 +794,7 @@ function maybeNudge(reason) {
   if (!cloudOn() || auth || ui.install || ui.dialog || ui.sheet === 'add' || ui.page === 'auth') return;
   let last = 0; try { last = +localStorage.getItem('sitio.nudgeAt') || 0; } catch (e) { }
   const own = db.places.filter(p => !p.sample).length;
-  const gap = reason === 'saved' ? 864e5 : 2 * 864e5;
+  const gap = reason === 'saved' ? 864e5 : 0;
   if (reason === 'saved' && !own) return;
   if (Date.now() - last < gap) return;
   try { localStorage.setItem('sitio.nudgeAt', String(Date.now())); } catch (e) { }
@@ -1160,7 +1161,12 @@ readShared();
 render();
 sync();
 setTimeout(() => maybeNudge('open'), 1500);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
+var hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  sync();
+  if (hiddenAt && Date.now() - hiddenAt > 10 * 60000) setTimeout(() => maybeNudge('open'), 800);
+});
 locate(false);
 refreshHours();
 setInterval(() => { lastMapKey = ''; render(); }, 60000);
