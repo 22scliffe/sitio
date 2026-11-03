@@ -717,7 +717,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.5.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.5.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -783,6 +783,30 @@ const LEVELS = [
 ];
 const spotCount = () => db.places.filter(p => p.status === 'spot').length;
 function levelOf(n) { let i = -1; LEVELS.forEach((l, k) => { if (n >= l.min) i = k; }); return i; }
+/* ---------- Two-month recap ---------- */
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+function recapPer(y, k) { return { y, k, start: new Date(y, k * 2, 1).getTime(), end: new Date(y, k * 2 + 2, 1).getTime(), label: MONTH_NAMES[k * 2] + ' / ' + MONTH_NAMES[k * 2 + 1] }; }
+function recapItems(per) {
+  const out = []; db.places.forEach(p => (p.memories || []).forEach(m => { if (m.at >= per.start && m.at < per.end) out.push({ m, p }); }));
+  return out.sort((x, y) => x.m.at - y.m.at);
+}
+function tryRecap(demo, tries = 0) {
+  const now = new Date(); let per;
+  if (demo) {
+    per = recapPer(now.getFullYear(), Math.floor(now.getMonth() / 2));
+    for (let n = 0; n < 12 && !recapItems(per).length; n++) per = per.k ? recapPer(per.y, per.k - 1) : recapPer(per.y - 1, 5);
+  } else {
+    const k = Math.floor(now.getMonth() / 2); per = k ? recapPer(now.getFullYear(), k - 1) : recapPer(now.getFullYear() - 1, 5);
+  }
+  const key = 'sitio.recap.' + per.y + '-' + per.k;
+  if (!demo) { try { if (localStorage.getItem(key)) return; } catch (e) { } }
+  const items = recapItems(per); if (!items.length) return;
+  const ready = items.filter(x => photoUrl(x.m.id)).length;
+  if ((ready < items.length && tries < 6) || ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 40) setTimeout(() => tryRecap(demo, tries + 1), 2000); return; }
+  if (!ready) return;
+  try { localStorage.setItem(key, '1'); } catch (e) { }
+  ui.dialog = { type: 'recap', per, open: false }; render();
+}
 function showLevelUp(i, demo) {
   const d = { type: 'levelup', i, demo }; ui.dialog = d; render();
   setTimeout(() => { if (ui.dialog === d) { const el = uiEl.querySelector('.levelup'); if (el) el.classList.add('out'); setTimeout(() => { if (ui.dialog === d) { ui.dialog = null; render(); } }, 300); } }, 4000);
@@ -1017,6 +1041,23 @@ function dialogView() {
       <input class="input card" placeholder="${mapApi.google ? 'Search, e.g. London or Sitges' : 'Name, e.g. London'}" data-input="cityQ" autocomplete="off" autocapitalize="words">
       <div id="citysug" style="margin-top:8px"></div>
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
+  }
+  if (d.type === 'recap') {
+    const items = recapItems(d.per).filter(x => photoUrl(x.m.id)); if (!items.length) return '';
+    const nPlaces = new Set(items.map(x => x.p.id)).size;
+    const cap = x => `<div class="rc-cap"><b>${esc(x.p.name)}</b><span>${esc([x.p.area, cityOf(x.p) && cityOf(x.p).name].filter(Boolean).join(', '))}</span><span class="rc-when">${esc(fmtWhen(x.m.at))}</span></div>`;
+    const head = `<div class="rc-head"><div class="rc-k">Your recap</div><div class="rc-t" id="rc-t">${esc(d.per.label)}</div><div class="rc-sub">${plural(items.length, 'memory', 'memories')} · ${plural(nPlaces, 'place')}</div></div>`;
+    if (!d.open) {
+      const back = items.slice(1, 4).map((x, k) => `<div class="rc-card back" style="--r:${[-9, 9, -4][k]}deg;--x:${[-38, 38, 0][k]}px;--y:${[10, 14, 22][k]}px;--d:${.08 + k * .06}s"><img src="${photoUrl(x.m.id)}" alt=""></div>`).reverse().join('');
+      return `<div class="dialog-scrim rc-scrim" data-act="closedialog"></div><div class="recap" role="dialog" aria-labelledby="rc-t">${head}
+        <button class="rc-stack" data-act="recapopen" aria-label="Open recap">${back}<div class="rc-card front"><img src="${photoUrl(items[0].m.id)}" alt=""></div></button>
+        ${cap(items[0])}
+        <div class="rc-btns"><button class="big-btn sec-btn" data-act="closedialog">Skip</button><button class="big-btn primary-btn" data-act="recapopen">See all ${items.length}</button></div></div>`;
+    }
+    return `<div class="dialog-scrim rc-scrim" data-act="closedialog"></div><div class="recap open" role="dialog" aria-labelledby="rc-t">${head}
+      <div class="rc-strip">${items.map(x => `<div class="rc-slide"><div class="rc-photo"><img src="${photoUrl(x.m.id)}" alt=""></div>${cap(x)}</div>`).join('')}</div>
+      ${items.length > 1 ? `<div class="mv-count rc-dots">${items.map((x, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
+      <button class="big-btn primary-btn" style="width:100%" data-act="closedialog">Done</button></div>`;
   }
   if (d.type === 'levelup') {
     const l = LEVELS[d.i], old = d.i > 0 ? LEVELS[d.i - 1].badge : '🌱';
@@ -1278,6 +1319,8 @@ function render() {
   if (ui.tour != null && !ui.install) h += tourView();
   uiEl.innerHTML = h;
   if (ui.tour != null) placeTour();
+  const rs = uiEl.querySelector('.rc-strip');
+  if (rs) { let rt = null; rs.addEventListener('scroll', () => { clearTimeout(rt); rt = setTimeout(() => { const i = Math.round(rs.scrollLeft / rs.clientWidth); uiEl.querySelectorAll('.rc-dots i').forEach((d, k) => d.classList.toggle('on', k === i)); }, 60); }); }
   const mv = uiEl.querySelector('.mv-strip');
   if (mv) {
     mv.scrollLeft = (+mv.dataset.start || 0) * mv.clientWidth;
@@ -1737,6 +1780,7 @@ uiEl.addEventListener('click', e => {
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
+    case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') ui.dialog.open = true; break;
     case 'memcover': { const q = byId(ui.dialog.id); if (q && coverOf(q) !== ui.dialog.m) { q.thumb = { id: ui.dialog.m, set: Date.now() }; save(); lastMapKey = ''; toast('Thumbnail updated', null); } break; }
     case 'memdelno': ui.dialog = { type: 'memory', id: ui.dialog.id, m: ui.dialog.m }; break;
     case 'memdelok': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); deleteCloudMemory(ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
@@ -2094,6 +2138,7 @@ root.appendChild(mapApi.el); root.appendChild(uiEl);
 mapApi.init();
 resnap();
 checkLevel();
+setTimeout(() => tryRecap(/[?&]demo=recap/.test(location.search)), 2500);
 if (/[?&]demo=levelup/.test(location.search)) setTimeout(() => { ui.install = false; showLevelUp(Math.max(1, levelOf(spotCount()) + 1) % LEVELS.length || 1, true); }, 400);
 readAuthHash();
 readShared();
