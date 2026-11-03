@@ -30,7 +30,7 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: starters(),
     sample: true,
-    v: 8
+    v: 9
   };
 }
 let snap = null; // id -> place JSON, used to notice edits/deletes for syncing
@@ -83,6 +83,7 @@ if (db.v < 8) {
   db.places.forEach(p => { if (map[p.cuisine]) p.cuisine = map[p.cuisine]; });
   db.v = 8; save();
 }
+if (db.v < 9) { db.places.forEach(p => { if (p.cuisine) p.cuisine = cuisList(p).map(q => q === 'Eastern' ? 'Middle Eastern' : q).join(', '); }); db.v = 9; save(); }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
 const pj = p => { const { updatedAt, ...r } = p; return JSON.stringify(r); };
@@ -245,13 +246,14 @@ function matches(p, filter) {
   if (p.status === 'totry') return filter.includes('totry');
   const cats = filter.filter(f => !f.startsWith('cuisine:') && f !== 'totry');
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
-  if (p.cat === 'restaurant' && cuis.length) return cuis.includes(p.cuisine);
+  if (p.cat === 'restaurant' && cuis.length) return cuis.some(q => cuisList(p).includes(q));
   return cats.includes(p.cat);
 }
+function cuisList(p) { return (p.cuisine || '').split(',').map(s => s.trim()).filter(Boolean); }
 function catMatch(p, cats) {
   cats = cats.filter(f => f !== 'totry'); if (!cats.length) return true;
   const cuis = cats.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
-  if (p.cat === 'restaurant' && cuis.length) return cuis.includes(p.cuisine);
+  if (p.cat === 'restaurant' && cuis.length) return cuis.some(q => cuisList(p).includes(q));
   return cats.includes(p.cat);
 }
 function filterLabel(filter) {
@@ -431,7 +433,7 @@ function homeView() {
 
 function filterMenu() {
   const f = ui.filter; const cuis = f.filter(x => x.startsWith('cuisine:')).map(x => x.slice(8));
-  const used = [...new Set(cityPlaces().filter(p => p.cat === 'restaurant' && p.cuisine).map(p => p.cuisine))].sort();
+  const used = [...new Set(cityPlaces().filter(p => p.cat === 'restaurant').flatMap(cuisList))].sort();
   let h = `<div class="menu" role="menu" aria-label="Show on map">`;
   h += `<button class="${!f.length ? 'on' : ''}" data-act="filt" data-f="all">All${!f.length ? ICON.check : ''}</button>`;
   CATS.forEach(c => {
@@ -455,7 +457,7 @@ function spotSheet(p) {
     <div class="sheet-photos">${photos.slice(0, 3).join('')}</div>
     <div class="name-row"><div style="display:flex;align-items:center;gap:10px;min-width:0"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}</div>
       <div class="mini-btns"><button class="round sec-btn mini" data-act="share" data-id="${p.id}" aria-label="Share">${ICON.share}</button>${isTry ? '' : `<button class="round sec-btn mini" data-act="del" data-id="${p.id}" aria-label="Delete" style="color:var(--coral-soft)">${ICON.bin}</button>`}</div></div>
-    <div class="meta">${esc(metaLine(p))}</div>
+    <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || ''}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:14px"></div>'}
@@ -521,7 +523,7 @@ function accountView() {
   const row = (label, val, act) => `<button class="set-row" data-act="${act}"><span>${label}</span><span class="val">${val}${ICON.chevRight}</span></button>`;
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page">
-    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div><div class="page-sub">${hasSample() ? 'Showing starter spots' : 'Your places, your way'}</div></div></div>
+    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div><button class="lvl-chip" data-act="levels">${levelOf(spotCount()) >= 0 ? LEVELS[levelOf(spotCount())].badge + ' ' + LEVELS[levelOf(spotCount())].name : '🌱 Add a spot to reach your first level'}${ICON.chevRight}</button></div></div>
     ${cloudOn() && !auth ? `<button class="card acct-cta" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
@@ -547,7 +549,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v0.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -597,6 +599,37 @@ function authPage() {
 }
 
 const CONTACT = 'sitio.contact@gmail.com';
+const LEVELS = [
+  { min: 2, name: 'Exploring spots', badge: '🧭' },
+  { min: 5, name: 'Local amateur', badge: '🗺️' },
+  { min: 10, name: 'Local guide', badge: '📍' },
+  { min: 20, name: 'Professional gatekeeper', badge: '🔑' },
+  { min: 50, name: 'The spot connoisseur', badge: '👑' }
+];
+const spotCount = () => db.places.filter(p => p.status === 'spot').length;
+function levelOf(n) { let i = -1; LEVELS.forEach((l, k) => { if (n >= l.min) i = k; }); return i; }
+function checkLevel() {
+  const i = levelOf(spotCount());
+  if (db.levelSeen === undefined) { db.levelSeen = i; return; }
+  if (i > db.levelSeen) { db.levelSeen = i; save(); setTimeout(() => { if (!ui.dialog) { ui.dialog = { type: 'levelup', i }; render(); } }, 1800); }
+  else if (i < db.levelSeen) db.levelSeen = i;
+}
+function levelsPage() {
+  const n = spotCount(), i = levelOf(n), next = LEVELS[i + 1];
+  const prevMin = i >= 0 ? LEVELS[i].min : 0, pct = next ? Math.max(4, Math.round((n - prevMin) / (next.min - prevMin) * 100)) : 100;
+  return `<div class="page" style="z-index:15">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Your level</span></div>
+    <div class="card lvl-hero"><div class="lvl-badge big">${i >= 0 ? LEVELS[i].badge : '🌱'}</div>
+      <div style="font-size:24px;font-weight:800;margin-top:10px">${i >= 0 ? LEVELS[i].name : 'Just getting started'}</div>
+      <div class="page-sub" style="margin-top:4px">${n} ${n === 1 ? 'spot' : 'spots'} saved</div>
+      ${next ? `<div class="lvl-bar"><span style="width:${pct}%"></span></div><div class="page-sub" style="font-size:13px">${next.min - n} more ${next.min - n === 1 ? 'spot' : 'spots'} to <b style="color:var(--text)">${next.name}</b> ${next.badge}</div>` : '<div class="page-sub" style="margin-top:12px;font-size:13px">Top level reached. You know every spot worth knowing.</div>'}
+    </div>
+    <div class="section-label" style="margin:20px 0 8px">All levels</div>
+    <div class="settings card">${LEVELS.map((l, k) => { const done = k <= i; const to = LEVELS[k + 1] ? LEVELS[k + 1].min - 1 : null;
+      return `<div class="set-row" style="min-height:66px;${k === i ? 'background:rgba(var(--fg),0.06)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="lvl-badge ${done ? '' : 'locked'}">${l.badge}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${l.name}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${to ? l.min + '–' + to : l.min + '+'} spots</span></span></span><span class="val">${k === i ? '<span style="color:var(--green);font-weight:800;font-size:12px">You’re here</span>' : done ? ICON.check : ''}</span></div>`; }).join('')}</div>
+    <p class="page-sub" style="font-size:12px;margin-top:10px">Every place in Spots counts, in every city.</p>
+  </div>`;
+}
 const EURO = 'AT BE HR CY EE FI FR DE GR IE IT LV LT LU MT NL PT SK SI ES AD MC SM VA ME XK BG'.split(' ');
 const CUR_BY_CC = { GB: '£', GI: '£', IM: '£', JE: '£', GG: '£', US: '$', CA: '$', AU: 'A$', NZ: '$', MX: '$', AR: '$', CL: '$', CO: '$', SG: '$', HK: '$', CH: 'CHF', LI: 'CHF', SE: 'kr', NO: 'kr', DK: 'kr', IS: 'kr', PL: 'zł', CZ: 'Kč', HU: 'Ft', JP: '¥', CN: '¥', KR: '₩', TH: '฿', IN: '₹', BR: 'R$', TR: '₺', AE: 'د.إ', ZA: 'R', MA: 'DH', RO: 'lei', IL: '₪', ID: 'Rp', VN: '₫', PH: '₱', MY: 'RM', EG: 'E£', PE: 'S/', UA: '₴', RS: 'din', GE: '₾' };
 const currencyFor = cc => cc ? (EURO.includes(cc) ? '€' : (CUR_BY_CC[cc] || '€')) : '€';
@@ -608,7 +641,7 @@ function privacyPage() {
     <p class="page-sub" style="line-height:1.55;font-size:14px">Sitio is a small app made and run by the Sitio team. This explains what it keeps about you and why.</p>
     ${s('What’s stored', 'If you create an account: your email, your name and the places you save (names, locations, notes, prices, cities and settings). Your password is stored encrypted and nobody can read it. Photos you add stay on your phone.')}
     ${s('Why', 'Only to keep your lists safe and let you use them on any phone you log in on. Nothing is sold, shared or used for advertising.')}
-    ${s('Who can see it', 'You. As the person who runs Sitio, the owner can also see account emails and saved lists, only to keep the app working, fix problems and help if you ask. Places you share with a link are seen by whoever you send it to.')}
+    ${s('Who can see it', 'You. We at Sitio can also see account emails and saved lists, only to keep the app working, fix problems and help if you ask. Places you share with a link are seen by whoever you send it to.')}
     ${s('Where', 'Accounts and lists are stored with Supabase on servers in the EU. Maps and place search are provided by Google, under Google’s privacy policy.')}
     ${s('Without an account', 'Everything stays on your phone only. Nothing is sent to Sitio.')}
     ${s('Your choices', 'You can see and change your data in the app, download it under Back up my spots, and delete your account at any time under Account details, which removes your email and lists for good. For anything else, email ' + CONTACT + '.')}
@@ -672,7 +705,7 @@ function spotPage(p, ro) {
     <div class="hero">${art(p)}<div class="hero-btns"><button class="round glass" data-act="closepage" aria-label="Back">${ICON.back}</button><div><button class="round glass" data-act="share" data-id="${p.id}" aria-label="Share">${ICON.share}</button><button class="round glass" data-act="del" data-id="${p.id}" aria-label="Delete" style="color:var(--coral-soft)">${ICON.bin}</button></div></div></div>
     <div class="spot-body">
       <h1 class="big-name" style="font-size:30px">${esc(p.name)}</h1>
-      <div class="meta">${esc(metaLine(p))}</div>
+      <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
       ${hoursLine(p)}
       <div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || ''}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>
       ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:16px"></div>'}
@@ -684,7 +717,7 @@ function spotPage(p, ro) {
 
 function addSheet() {
   const a = ui.add;
-  const cuisineChips = a.cat === 'restaurant' ? `<label class="field-label">Cuisine</label><div class="chips">${CUISINES.map(c => `<button class="chip ${a.cuisine === c ? 'on' : ''}" data-act="addcuisine" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
+  const cuisineChips = a.cat === 'restaurant' ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(a).includes(c) ? 'on' : ''}" data-act="addcuisine" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
   const pics = a.photos.map((id, i) => `<div style="height:76px;border-radius:14px;overflow:hidden;position:relative"><img src="${photoUrl(id)}" alt="" style="width:100%;height:100%;object-fit:cover"><button class="round" data-act="addrmphoto" data-i="${i}" aria-label="Remove photo" style="position:absolute;top:4px;right:4px;width:28px;height:28px;background:rgba(0,0,0,.6);border:0">${ICON.close}</button></div>`).join('');
   return `<div class="sheet" role="dialog" aria-label="Add a spot" style="max-height:94%">
     <div class="grab"></div>
@@ -731,7 +764,7 @@ function dialogView() {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
       <div style="width:56px;height:56px;border-radius:28px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;background:rgba(var(--fg),0.08)">${ICON.check}</div>
       <h3 id="dlg-t">${n ? 'Don’t lose your spots' : 'Save your spots to an account'}</h3>
-      <p>${n ? 'You’ve saved ' + n + (n === 1 ? ' place' : ' places') + ', but right now ' + (n === 1 ? 'it only lives' : 'they only live') + ' on this phone. ' : ''}Create a free account and your spots are kept safe online. Log in on any phone and they’re all there.</p>
+      <p>${n ? 'You’ve saved ' + n + (n === 1 ? ' place' : ' places') + ', but right now ' + (n === 1 ? 'it only lives' : 'they only live') + ' on this phone. ' : ''}Create a free account to save your spots. Log in from any device to access them anywhere!</p>
       <button class="big-btn primary-btn" style="width:100%" data-act="nudgeyes">Create account</button>
       <button class="big-btn sec-btn" style="width:100%;margin-top:8px" data-act="nudgelogin">I already have an account</button>
       <button class="link-btn" style="margin:12px auto 0;color:var(--text-2)" data-act="closedialog">Not now</button></div>`;
@@ -754,6 +787,21 @@ function dialogView() {
       <input class="input card" placeholder="${mapApi.google ? 'Search, e.g. London or Sitges' : 'Name, e.g. London'}" data-input="cityQ" autocomplete="off" autocapitalize="words">
       <div id="citysug" style="margin-top:8px"></div>
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
+  }
+  if (d.type === 'levelup') {
+    const l = LEVELS[d.i];
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
+      <div class="lvl-badge big" style="margin:4px auto 10px">${l.badge}</div>
+      <h3 id="dlg-t">New level: ${esc(l.name)}</h3><p>${spotCount()} spots saved. Keep going!</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Nice</button><button class="big-btn primary-btn" data-act="seelevels">See levels</button></div></div>`;
+  }
+  if (d.type === 'editcat') {
+    const p = byId(d.id); if (!p) return '';
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
+      <h3 id="dlg-t">Category for ${esc(p.name)}</h3>
+      <div class="cat-grid" style="margin-top:12px">${CATS.map(c => `<button class="sec-btn ${d.cat === c.id ? 'on' : ''}" data-act="ecat" data-v="${c.id}" aria-pressed="${d.cat === c.id}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
+      ${d.cat === 'restaurant' ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(d).includes(c) ? 'on' : ''}" data-act="ecuis" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
+      <div class="btn-grid" style="margin-top:16px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="ecatsave">Save</button></div></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -850,6 +898,7 @@ function render() {
   else if (ui.page === 'profile') h += profilePage();
   else if (ui.page === 'auth') h += authPage();
   else if (ui.page === 'privacy') h += privacyPage();
+  else if (ui.page === 'levels') h += levelsPage();
   else if (ui.page === 'admin') h += adminPage();
   else if (ui.page && ui.page.adminUser && ui.page.place) {
     const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), ap = au && au.data && (au.data.places || []).find(x => x.id === ui.page.place);
@@ -878,7 +927,7 @@ function placeFromAdd(status, price) {
   const jitter = () => (Math.random() - 0.5) * 0.0006;
   return { id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: a.cat, cuisine: a.cat === 'restaurant' ? a.cuisine : '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
 }
-function afterSave(p) { if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
+function afterSave(p) { checkLevel(); if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
 // Ask people without an account to make one, so their list isn't stuck on one phone
 function maybeNudge(reason) {
   if (!cloudOn() || auth || ui.install || ui.dialog || ui.sheet === 'add' || ui.page === 'auth') return;
@@ -903,7 +952,7 @@ function confirmPrice() {
   } else if (d.mode === 'totry') {
     const p = d.place; p.status = 'spot'; p.price = d.value; save();
     ui.dialog = null; if (ui.sheet === 'spot') ui.sheet = null; ui.selected = null;
-    toast(p.name + ' saved to Spots', () => { p.status = 'totry'; p.price = 0; save(); });
+    toast(p.name + ' saved to Spots', () => { p.status = 'totry'; p.price = 0; save(); }); checkLevel();
   } else if (d.mode === 'shared') {
     const p = sharedToPlace(d.data, 'spot', d.value); db.places.push(p); save(); ui.dialog = null;
     toast(p.name + ' saved to Spots', () => { db.places = db.places.filter(x => x.id !== p.id); save(); }); afterSave(p);
@@ -1049,7 +1098,7 @@ uiEl.addEventListener('click', e => {
     case 'closesheet': ui.sheet = null; ui.selected = null; ui.add = null; break;
     case 'locate': locate(true); return;
     case 'addcat': ui.add.cat = t.dataset.v; break;
-    case 'addcuisine': ui.add.cuisine = ui.add.cuisine === t.dataset.v ? '' : t.dataset.v; break;
+    case 'addcuisine': { const l = cuisList(ui.add), v = t.dataset.v; ui.add.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
     case 'addrmphoto': ui.add.photos.splice(+t.dataset.i, 1); break;
     case 'addsave': if (!ui.add.name.trim()) { flash('Add the place name first.'); return; } openPrice({ name: ui.add.name.trim() }, { mode: 'new' }); return;
     case 'addtry': { if (!ui.add.name.trim()) { flash('Add the place name first.'); return; } const np = placeFromAdd('totry', 0); db.places.push(np); save(); ui.sheet = null; ui.add = null; toast(np.name + ' added to To try', () => { db.places = db.places.filter(x => x.id !== np.id); save(); }); afterSave(np); return; }
@@ -1081,6 +1130,12 @@ uiEl.addEventListener('click', e => {
     case 'profile': ui.page = 'profile'; break;
     case 'nudgeyes': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'signup'; ui.authMsg = null; break;
     case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
+    case 'levels': ui.page = 'levels'; break;
+    case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
+    case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cat: p.cat, cuisine: p.cuisine || '' }; break;
+    case 'ecat': ui.dialog.cat = t.dataset.v; break;
+    case 'ecuis': { const l = cuisList(ui.dialog), v = t.dataset.v; ui.dialog.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
+    case 'ecatsave': { const q = byId(ui.dialog.id); if (q) { q.cat = ui.dialog.cat; q.cuisine = q.cat === 'restaurant' ? ui.dialog.cuisine : ''; save(); lastMapKey = ''; toast('Updated', null); } ui.dialog = null; break; }
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': ui.page = { adminUser: id }; break;
@@ -1286,6 +1341,7 @@ function readAuthHash() {
 root.appendChild(mapApi.el); root.appendChild(uiEl);
 mapApi.init();
 resnap();
+checkLevel();
 readAuthHash();
 readShared();
 render();
