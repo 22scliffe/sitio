@@ -258,21 +258,24 @@ function matches(p, filter) {
   if (p.status === 'totry') return filter.includes('totry');
   const cats = filter.filter(f => !f.startsWith('cuisine:') && f !== 'totry');
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
-  if (p.cat === 'restaurant' && cuis.length) return cuis.some(q => cuisList(p).includes(q));
-  return cats.includes(p.cat);
+  if (catsOf(p).includes('restaurant') && cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
+  return catsOf(p).some(c => cats.includes(c));
 }
 const myLists = () => db.lists || (db.lists = []);
 const listOf = id => myLists().find(l => l.id === id);
 const LIST_EMOJI = ['❤️', '🍷', '☀️', '🌧️', '🎉', '🧳', '🍝', '🌮', '☕', '🍸', '🌿', '🏖️', '🎶', '💸', '⭐', '👀'];
 function touchList(l) { l.updatedAt = Date.now(); save(); }
+// A place can be several categories at once (e.g. a restaurant and a cocktail bar); p.cat stays the main one
+function catsOf(p) { return p.cats && p.cats.length ? p.cats : (p.cat ? [p.cat] : []); }
+const catNames = p => catsOf(p).map(c => catOf(c).name).join(' & ');
 function cuisList(p) { return (p.cuisine || '').split(',').map(s => s.trim()).filter(Boolean); }
 function catMatch(p, cats) {
   const lt = cats.filter(f => f.startsWith('list:'));
   if (lt.length && !lt.some(t => { const l = listOf(t.slice(5)); return l && l.ids.includes(p.id); })) return false;
   cats = cats.filter(f => f !== 'totry' && !f.startsWith('list:')); if (!cats.length) return true;
   const cuis = cats.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
-  if (p.cat === 'restaurant' && cuis.length) return cuis.some(q => cuisList(p).includes(q));
-  return cats.includes(p.cat);
+  if (catsOf(p).includes('restaurant') && cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
+  return catsOf(p).some(c => cats.includes(c));
 }
 function filterLabel(filter) {
   if (!filter.length) return 'All';
@@ -305,7 +308,7 @@ const art = (p) => {
   return ART[p.cat] || ART.restaurant;
 };
 const priceHtml = (n) => `<span class="price"><span class="on">${cur().repeat(n)}</span><span class="off">${cur().repeat(3 - n)}</span></span>`;
-const metaLine = (p, withDist = true) => [catOf(p.cat).name, p.cat === 'restaurant' && p.cuisine ? p.cuisine : '', p.area, withDist ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · ');
+const metaLine = (p, withDist = true) => [catNames(p), catsOf(p).includes('restaurant') && p.cuisine ? p.cuisine : '', p.area, withDist ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · ');
 const gLink = (p) => p.googleId ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}&query_place_id=${encodeURIComponent(p.googleId)}` : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
 const aLink = (p) => `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}`;
 const dirButtons = (p) => {
@@ -464,7 +467,7 @@ function homeView() {
 
 function filterMenu() {
   const f = ui.filter; const cuis = f.filter(x => x.startsWith('cuisine:')).map(x => x.slice(8));
-  const used = [...new Set((ui.world ? worldList() : cityPlaces()).filter(p => p.cat === 'restaurant').flatMap(cuisList))].sort();
+  const used = [...new Set((ui.world ? worldList() : cityPlaces()).filter(p => catsOf(p).includes('restaurant')).flatMap(cuisList))].sort();
   let h = `<div class="menu" role="menu" aria-label="Show on map">`;
   h += `<button class="${!f.length ? 'on' : ''}" data-act="filt" data-f="all">All${!f.length ? ICON.check : ''}</button>`;
   CATS.forEach(c => {
@@ -564,7 +567,7 @@ function spotSheet(p) {
       <div class="mini-btns"><button class="round sec-btn mini" data-act="listpick" data-id="${p.id}" aria-label="Add to a list">${ICON.list}</button><button class="round sec-btn mini" data-act="share" data-id="${p.id}" aria-label="Share">${ICON.share}</button>${isTry ? '' : `<button class="round sec-btn mini" data-act="del" data-id="${p.id}" aria-label="Delete" style="color:var(--coral-soft)">${ICON.bin}</button>`}</div></div>
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${hoursLine(p)}
-    ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (p.cat === 'chill' ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
+    ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:14px"></div>'}
     ${memoriesHtml(p)}
     ${dirButtons(p)}
@@ -585,7 +588,7 @@ function spotsView() {
   if (!list.length) body = `<div class="empty card" style="border-radius:20px">${cityPlaces().some(p => p.status === 'spot') ? (ui.spotsFav && !cityPlaces().some(p => p.fav && p.status === 'spot') ? 'No favourites yet.<br>Tap the star on a spot to add it.' : 'Nothing matches right now.' + (ui.spotsOpenNow || ui.spotsFav ? '<br>Try turning off Open now or Favourites.' : '')) : 'No spots in ' + esc(city().name) + ' yet.<br>Tap + to add your first.'}</div>`;
   else if (!cats.length) {
     CATS.forEach(c => {
-      const g = list.filter(p => p.cat === c.id); if (!g.length) return;
+      const g = list.filter(p => catsOf(p).includes(c.id)); if (!g.length) return;
       const open = ui.expand[c.id]; const shown = open ? g : g.slice(0, 3);
       body += `<div class="group"><div class="group-head"><span class="section-label">${c.plural} · ${g.length > 3 && !open ? '3 nearest' : g.length}</span>${g.length > 3 ? `<button class="link-btn" data-act="expand" data-cat="${c.id}">${open ? 'Show less' : 'All ' + g.length}${open ? '' : ICON.chevRight}</button>` : ''}</div><div class="list card">${shown.map(rowSpot).join('')}</div></div>`;
     });
@@ -608,7 +611,7 @@ function listsBody() {
 }
 function listAddRows(l, q) {
   const all = db.places.filter(p => !q || (p.name + ' ' + (p.area || '') + ' ' + (db.cities.find(c => c.id === p.cityId) || {}).name).toLowerCase().includes(q));
-  const group = (title, ps) => ps.length ? `<div class="section-label" style="margin:8px 0 6px">${title} · ${ps.length}</div><div class="settings card">${ps.map(p => { const on = l.ids.includes(p.id), c = db.cities.find(x => x.id === p.cityId); return `<button class="set-row" data-act="listaddtoggle" data-id="${p.id}" style="min-height:54px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0"><span style="font-weight:800">${esc(p.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catOf(p.cat).name, c && c.name].filter(Boolean).join(' · '))}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '';
+  const group = (title, ps) => ps.length ? `<div class="section-label" style="margin:8px 0 6px">${title} · ${ps.length}</div><div class="settings card">${ps.map(p => { const on = l.ids.includes(p.id), c = db.cities.find(x => x.id === p.cityId); return `<button class="set-row" data-act="listaddtoggle" data-id="${p.id}" style="min-height:54px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0"><span style="font-weight:800">${esc(p.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catNames(p), c && c.name].filter(Boolean).join(' · '))}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '';
   const html = group('Spots', all.filter(p => p.status === 'spot')) + group('To try', all.filter(p => p.status === 'totry'));
   return `<div style="max-height:52vh;overflow-y:auto">${html || '<p style="margin:8px 0">No places match.</p>'}</div>`;
 }
@@ -678,7 +681,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v2.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -850,7 +853,7 @@ function adminUserPage(id, cityId) {
   const c = cities.find(x => x.id === cityId) || { name: 'City' }, cur = c.currency || '€';
   const ps = places.filter(p => p.cityId === cityId), sp = ps.filter(p => p.status === 'spot'), tt = ps.filter(p => p.status === 'totry');
   const catName = k => (CATS.find(x => x.id === k) || {}).name || k;
-  const line = p => `<button class="set-row" data-act="adminplace" data-id="${esc(u.user_id)}" data-city="${esc(cityId)}" data-place="${esc(p.id)}" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span style="font-weight:800">${esc(p.name)}${p.fav ? ' ★' : ''}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catName(p.cat), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? esc(cur.repeat(p.price)) : ''}${ICON.chevRight}</span></button>`;
+  const line = p => `<button class="set-row" data-act="adminplace" data-id="${esc(u.user_id)}" data-city="${esc(cityId)}" data-place="${esc(p.id)}" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span style="font-weight:800">${esc(p.name)}${p.fav ? ' ★' : ''}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catNames(p), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? esc(cur.repeat(p.price)) : ''}${ICON.chevRight}</span></button>`;
   return `<div class="page" style="z-index:17">
     <div class="page-head" style="justify-content:flex-start">${back}<span style="display:flex;flex-direction:column;min-width:0"><span style="font-size:22px;font-weight:800">${esc(c.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(name)} · ${esc(u.email || '')}</span></span></div>
     <div class="section-label" style="margin:10px 0 8px">Spots (${sp.length})</div>${sp.length ? `<div class="settings card">${sp.map(line).join('')}</div>` : '<div class="card note" style="margin:0">No spots here yet.</div>'}
@@ -879,7 +882,7 @@ function spotPage(p, ro) {
       <h1 class="big-name" style="font-size:30px">${esc(p.name)}</h1>
       <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
       ${hoursLine(p)}
-      <div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (p.cat === 'chill' ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>
+      <div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>
       ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:16px"></div>'}
       ${memoriesHtml(p)}
       <div class="section-label" style="margin-bottom:8px">Photos</div>
@@ -890,7 +893,7 @@ function spotPage(p, ro) {
 
 function addSheet() {
   const a = ui.add;
-  const cuisineChips = a.cat === 'restaurant' ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(a).includes(c) ? 'on' : ''}" data-act="addcuisine" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
+  const cuisineChips = catsOf(a).includes('restaurant') ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(a).includes(c) ? 'on' : ''}" data-act="addcuisine" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
   const pics = a.photos.map((id, i) => `<div style="height:76px;border-radius:14px;overflow:hidden;position:relative"><img src="${photoUrl(id)}" alt="" style="width:100%;height:100%;object-fit:cover"><button class="round" data-act="addrmphoto" data-i="${i}" aria-label="Remove photo" style="position:absolute;top:4px;right:4px;width:28px;height:28px;background:rgba(0,0,0,.6);border:0">${ICON.close}</button></div>`).join('');
   return `<div class="sheet" role="dialog" aria-label="Add a spot" style="max-height:94%">
     <div class="grab"></div>
@@ -899,8 +902,8 @@ function addSheet() {
     <div style="position:relative;${a.custom ? 'display:flex;gap:8px;align-items:center' : ''}"><input id="a-name" class="input card" ${a.custom ? 'style="flex:1;min-width:0"' : ''} placeholder="${a.custom ? 'Give the spot a name' : (mapApi.google ? 'Search for a place' : 'Name of the place')}" value="${esc(a.name)}" data-input="addName" autocomplete="off" maxlength="80">${a.custom ? `<button class="round sec-btn unpin-x" data-act="unpin" aria-label="Remove the pin and search for a place instead">${ICON.close}</button>` : ''}
       <div id="suggest"></div></div>
     <div class="loc-line">${a.googleId ? `<span class="muted">✓ Location from Google</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button>` : a.custom ? `<span style="color:var(--green)">✓ Pin dropped</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button></div><div class="muted" style="font-size:12px;font-weight:600;margin-top:2px">Tap × to remove the pin and search Google instead` : `<span class="muted">Not on Google Maps?</span><button class="link-btn" data-act="droppin">${ICON.pin}Drop a pin</button>`}</div>
-    <label class="field-label">Category</label>
-    <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${a.cat === c.id ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${a.cat === c.id}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
+    <label class="field-label">Category <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick one or more</span></label>
+    <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${catsOf(a).includes(c.id) ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${catsOf(a).includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
     ${cuisineChips}
     <label class="field-label">Photos</label>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${pics}<label class="add-photo" style="height:76px;border-radius:14px;cursor:pointer">${ICON.plus}Add yours<input type="file" accept="image/*" hidden data-addphoto="1"></label></div>
@@ -976,9 +979,9 @@ function dialogView() {
   if (d.type === 'editcat') {
     const p = byId(d.id); if (!p) return '';
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
-      <h3 id="dlg-t">Category for ${esc(p.name)}</h3>
-      <div class="cat-grid" style="margin-top:12px">${CATS.map(c => `<button class="sec-btn ${d.cat === c.id ? 'on' : ''}" data-act="ecat" data-v="${c.id}" aria-pressed="${d.cat === c.id}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
-      ${d.cat === 'restaurant' ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(d).includes(c) ? 'on' : ''}" data-act="ecuis" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
+      <h3 id="dlg-t">Categories for ${esc(p.name)}</h3>
+      <p style="margin:6px 0 0">Pick one or more.</p><div class="cat-grid" style="margin-top:10px">${CATS.map(c => `<button class="sec-btn ${d.cats.includes(c.id) ? 'on' : ''}" data-act="ecat" data-v="${c.id}" aria-pressed="${d.cats.includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
+      ${d.cats.includes('restaurant') ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(d).includes(c) ? 'on' : ''}" data-act="ecuis" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
       <div class="btn-grid" style="margin-top:16px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="ecatsave">Save</button></div></div>`;
   }
   if (d.type === 'here') {
@@ -1204,11 +1207,11 @@ function flash(text) { ui.flash = text; render(); clearTimeout(flash.t); flash.t
 function toast(text, undo, ok = true) { ui.toast = { text, undo, ok }; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { ui.toast = null; render(); }, 5000); }
 
 /* ---------- actions ---------- */
-function newAdd() { return { name: '', area: '', cat: 'restaurant', cuisine: '', note: '', photos: [], lat: null, lng: null, googleId: null }; }
+function newAdd() { return { name: '', area: '', cat: 'restaurant', cats: ['restaurant'], cuisine: '', note: '', photos: [], lat: null, lng: null, googleId: null }; }
 function placeFromAdd(status, price) {
   const a = ui.add;
   const jitter = () => (Math.random() - 0.5) * 0.0006;
-  return { id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: a.cat, cuisine: a.cat === 'restaurant' ? a.cuisine : '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
+  return { id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: catsOf(a)[0], cats: catsOf(a), cuisine: catsOf(a).includes('restaurant') ? a.cuisine : '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
 }
 function afterSave(p) { checkLevel(); if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
 // Ask people without an account to make one, so their list isn't stuck on one phone
@@ -1225,8 +1228,8 @@ function maybeNudge(reason) {
 
 function openPrice(place, opts = {}) {
   const d = Object.assign({ type: 'price', place, value: opts.value || place.price || 0 }, opts);
-  d.cat = place.cat || (opts.mode === 'new' && ui.add ? ui.add.cat : opts.mode === 'copy' ? opts.src.cat : opts.mode === 'shared' ? opts.data.c : '');
-  d.allowFree = d.cat === 'chill'; d.free = d.allowFree && opts.edit && !place.price;
+  const cs = place.cat ? catsOf(place) : opts.mode === 'new' && ui.add ? catsOf(ui.add) : opts.mode === 'copy' ? catsOf(opts.src) : opts.mode === 'shared' ? (opts.data.cs || [opts.data.c]) : [];
+  d.allowFree = cs.includes('chill'); d.free = d.allowFree && opts.edit && !place.price;
   ui.dialog = d; render();
 }
 function confirmPrice() {
@@ -1254,18 +1257,18 @@ function confirmPrice() {
 function copyPlace(src, srcCity, status, price) {
   let c = db.cities.find(x => srcCity && x.name.toLowerCase() === (srcCity.name || '').toLowerCase());
   if (!c && srcCity) { c = Object.assign({}, srcCity, { id: db.cities.some(x => x.id === srcCity.id) ? 'c-' + uid() : srcCity.id }); db.cities.push(c); }
-  const p = { id: uid(), cityId: c ? c.id : db.currentCityId, name: src.name, area: src.area || '', cat: src.cat, cuisine: src.cuisine || '', status, price: status === 'spot' ? price : 0, note: '', photos: [], lat: src.lat, lng: src.lng, googleId: src.googleId || null, hours: src.hours || null, hoursSrc: src.hoursSrc || null, addedAt: Date.now() };
+  const p = { id: uid(), cityId: c ? c.id : db.currentCityId, name: src.name, area: src.area || '', cat: src.cat, cats: catsOf(src), cuisine: src.cuisine || '', status, price: status === 'spot' ? price : 0, note: '', photos: [], lat: src.lat, lng: src.lng, googleId: src.googleId || null, hours: src.hours || null, hoursSrc: src.hoursSrc || null, addedAt: Date.now() };
   db.places.push(p); save(); return p;
 }
 function delPlace(p) { db.places = db.places.filter(x => x.id !== p.id); (p.photos || []).forEach(id => idb.del(id).catch(() => {})); save(); if (ui.selected === p.id) { ui.selected = null; ui.sheet = null; } if (ui.page && ui.page.spot === p.id) ui.page = null; ui.dialog = null; render(); }
 
 function shareLink(p) {
-  const data = { n: p.name, c: p.cat, q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), p: p.status === 'spot' ? p.price : 0, o: p.note || '', g: p.googleId || '', f: db.user.name || '', cu: cur() };
+  const data = { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), p: p.status === 'spot' ? p.price : 0, o: p.note || '', g: p.googleId || '', f: db.user.name || '', cu: cur() };
   const b = btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   return location.origin + location.pathname + '#share=' + b;
 }
 async function share(p) {
-  const url = shareLink(p); const text = `${p.name} · ${[catOf(p.cat).name, p.area].filter(Boolean).join(', ')}${p.note ? ' — "' + p.note + '"' : ''}`;
+  const url = shareLink(p); const text = `${p.name} · ${[catNames(p), p.area].filter(Boolean).join(', ')}${p.note ? ' — "' + p.note + '"' : ''}`;
   try { if (navigator.share) { await navigator.share({ title: p.name, text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(text + '\n' + url); toast('Link copied', null); } catch (e) { flash('Couldn’t open sharing here.'); }
 }
@@ -1275,12 +1278,12 @@ function readShared() {
     const s = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
     const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
     const num = (v, lo, hi) => typeof v === 'number' && isFinite(v) && v >= lo && v <= hi ? v : null;
-    const clean = { n: str(s.n, 80), c: CATS.some(c => c.id === s.c) ? s.c : 'restaurant', q: cuisList({ cuisine: str(s.q, 120) }).filter(q => CUISINES.includes(q)).join(', '), a: str(s.a, 60), la: num(s.la, -90, 90), ln: num(s.ln, -180, 180), p: [0, 1, 2, 3].includes(s.p) ? s.p : 0, o: str(s.o, 500), g: /^[A-Za-z0-9_-]{0,300}$/.test(s.g || '') ? (s.g || '') : '', f: str(s.f, 20), cu: str(s.cu, 4) };
+    const clean = { n: str(s.n, 80), c: CATS.some(c => c.id === s.c) ? s.c : 'restaurant', cs: Array.isArray(s.cs) ? s.cs.filter(x => CATS.some(c => c.id === x)).slice(0, 6) : [], q: cuisList({ cuisine: str(s.q, 120) }).filter(q => CUISINES.includes(q)).join(', '), a: str(s.a, 60), la: num(s.la, -90, 90), ln: num(s.ln, -180, 180), p: [0, 1, 2, 3].includes(s.p) ? s.p : 0, o: str(s.o, 500), g: /^[A-Za-z0-9_-]{0,300}$/.test(s.g || '') ? (s.g || '') : '', f: str(s.f, 20), cu: str(s.cu, 4) };
     if (clean.n && clean.la !== null && clean.ln !== null) ui.dialog = { type: 'shared', data: clean };
   } catch (e) { /* bad link */ }
   history.replaceState(null, '', location.pathname);
 }
-function sharedToPlace(s, status, price) { return { id: uid(), cityId: db.currentCityId, name: s.n, area: s.a, cat: s.c, cuisine: s.q, status, price: status === 'spot' ? price : 0, note: '', photos: [], lat: s.la, lng: s.ln, googleId: s.g || null, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() }; }
+function sharedToPlace(s, status, price) { return { id: uid(), cityId: db.currentCityId, name: s.n, area: s.a, cat: s.c, cats: s.cs && s.cs.length ? s.cs : [s.c], cuisine: s.q, status, price: status === 'spot' ? price : 0, note: '', photos: [], lat: s.la, lng: s.ln, googleId: s.g || null, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() }; }
 
 function backup() {
   Promise.all(db.places.flatMap(p => (p.photos || []).map(id => idb.get(id).then(b => b ? new Promise(r => { const fr = new FileReader(); fr.onload = () => r([id, fr.result]); fr.readAsDataURL(b); }) : null)))).then(pairs => {
@@ -1438,7 +1441,7 @@ uiEl.addEventListener('click', e => {
     case 'pincancel': ui.pinMode = false; break;
     case 'unpin': Object.assign(ui.add, { custom: false, lat: null, lng: null, name: '' }); break;
     case 'pinok': { const c = mapApi.getCenter(); const wasGoogle = !!ui.add.googleId; Object.assign(ui.add, { lat: c.lat, lng: c.lng, googleId: null, custom: true }); if (!wasGoogle) ui.add.name = ui.add.name || ''; ui.pinMode = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="addName"]'); if (i && !ui.add.name) i.focus(); }, 60); return; }
-    case 'addcat': ui.add.cat = t.dataset.v; break;
+    case 'addcat': { const l = catsOf(ui.add), v = t.dataset.v; const n = l.includes(v) ? (l.length > 1 ? l.filter(x => x !== v) : l) : l.concat(v); ui.add.cats = n; ui.add.cat = n[0]; break; }
     case 'addcuisine': { const l = cuisList(ui.add), v = t.dataset.v; ui.add.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
     case 'addrmphoto': ui.add.photos.splice(+t.dataset.i, 1); break;
     case 'addsave': if (!ui.add.name.trim()) { flash('Add the place name first.'); return; } openPrice({ name: ui.add.name.trim() }, { mode: 'new' }); return;
@@ -1496,10 +1499,10 @@ uiEl.addEventListener('click', e => {
     case 'memchipx': try { localStorage.setItem('sitio.memAsk.' + id + '.' + new Date().toDateString(), '1'); } catch (e2) { } break;
     case 'levels': ui.page = 'levels'; break;
     case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
-    case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cat: p.cat, cuisine: p.cuisine || '' }; break;
-    case 'ecat': ui.dialog.cat = t.dataset.v; break;
+    case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cats: catsOf(p).slice(), cuisine: p.cuisine || '' }; break;
+    case 'ecat': { const l = ui.dialog.cats, v = t.dataset.v; ui.dialog.cats = l.includes(v) ? (l.length > 1 ? l.filter(x => x !== v) : l) : l.concat(v); break; }
     case 'ecuis': { const l = cuisList(ui.dialog), v = t.dataset.v; ui.dialog.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
-    case 'ecatsave': { const q = byId(ui.dialog.id); if (q) { q.cat = ui.dialog.cat; q.cuisine = q.cat === 'restaurant' ? ui.dialog.cuisine : ''; save(); lastMapKey = ''; toast('Updated', null); } ui.dialog = null; break; }
+    case 'ecatsave': { const q = byId(ui.dialog.id); if (q) { q.cats = ui.dialog.cats.slice(); q.cat = q.cats[0]; q.cuisine = q.cats.includes('restaurant') ? ui.dialog.cuisine : ''; save(); lastMapKey = ''; toast('Updated', null); } ui.dialog = null; break; }
     case 'hereyes': { const h = ui.dialog.h; let c = h.city || db.cities.find(x => x.name.toLowerCase() === h.name.toLowerCase());
       if (!c) { c = { id: 'c-' + uid(), name: h.name.slice(0, 40), country: h.country, cc: h.cc, currency: currencyFor(h.cc), lat: h.lat, lng: h.lng }; db.cities.push(c); }
       db.currentCityId = c.id; save(); ui.dialog = null; ui.tab = 'home'; ui.filter = []; ui.selected = null; lastMapKey = ''; mapApi.view(me, 15);
