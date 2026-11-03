@@ -17,6 +17,7 @@ const toMin = (t) => { const [h, m] = String(t).split(':').map(Number); return (
 const fmtMin = (m) => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 
 /* ---------- storage ---------- */
+const starters = () => SAMPLE.places.map(p => Object.assign({}, p, { sample: true, hours: null, hoursSrc: 'osm', hoursAt: 0, addedAt: Date.now() }));
 function loadDb() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -27,9 +28,9 @@ function loadDb() {
     settings: { hours: true, darkMap: true, dirApp: 'google' },
     cities: SAMPLE.cities.slice(),
     currentCityId: SAMPLE.cities[0].id,
-    places: SAMPLE.places.map(p => Object.assign({}, p, { sample: true, hours: p.hours ? weekFrom(p.hours.open, p.hours.close) : null, hoursSrc: p.hours ? 'sample' : null })),
+    places: starters(),
     sample: true,
-    v: 4
+    v: 5
   };
 }
 let db = loadDb();
@@ -37,7 +38,7 @@ let db = loadDb();
 if (!db.v || db.v < 2) {
   const hadSample = db.places.some(x => x.sample);
   db.places = db.places.filter(x => !x.sample);
-  if (hadSample) db.places.unshift(...SAMPLE.places.map(p => Object.assign({}, p, { sample: true, hours: weekFrom(p.hours.open, p.hours.close), hoursSrc: 'sample' })));
+  if (hadSample) db.places.unshift(...starters());
   db.v = 2; save();
 }
 // v3: the owner's own phone (the install from before this version) starts clean with his first two places
@@ -57,6 +58,11 @@ if (db.v < 4) {
   const l = db.places.find(x => x.id === 'p-leinerhaus');
   if (l) Object.assign(l, { cat: 'bar', cuisine: '', price: 1 });
   db.v = 4; save();
+}
+// v5: anyone still on the old example spot gets the two starter places instead
+if (db.v < 5) {
+  if (db.places.some(x => x.sample)) db.places = db.places.filter(x => !x.sample).concat(starters());
+  db.v = 5; save();
 }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } }
@@ -459,7 +465,7 @@ function accountView() {
   const row = (label, val, act) => `<button class="set-row" data-act="${act}"><span>${label}</span><span class="val">${val}${ICON.chevRight}</span></button>`;
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page">
-    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="profile" aria-label="Account details" style="padding:0;color:var(--text)">${av}</button><div><div style="font-size:24px;font-weight:800">${esc(u.name || 'You')}</div><div class="page-sub">${hasSample() ? 'Showing an example spot' : 'Your places, your way'}</div></div></div>
+    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="profile" aria-label="Account details" style="padding:0;color:var(--text)">${av}</button><div><div style="font-size:24px;font-weight:800">${esc(u.name || 'You')}</div><div class="page-sub">${hasSample() ? 'Showing starter spots' : 'Your places, your way'}</div></div></div>
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${cityPlaces().filter(p => p.status === 'spot').length} spots · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
@@ -471,7 +477,7 @@ function accountView() {
       ${row('Currency', esc(city().currency) + ' (' + esc(city().name) + ')', 'currency')}
       ${row('Back up my spots', 'Save a file', 'backup')}
       <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
-      ${hasSample() ? row('Remove example spot', 'Start fresh', 'clearsample') : ''}
+      ${hasSample() ? row('Remove starter spots', 'Start fresh', 'clearsample') : ''}
       ${row('Invite friends', 'Send the app link', 'invite')}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${row('Account details', 'Name, photo', 'profile')}
@@ -822,7 +828,7 @@ uiEl.addEventListener('click', e => {
     case 'dirapp': db.settings.dirApp = db.settings.dirApp === 'apple' ? 'google' : 'apple'; save(); break;
     case 'currency': ui.dialog = { type: 'text', title: 'Currency for ' + city().name, text: 'Used for prices in this city.', fields: [{ ph: '€, £, $…', value: city().currency }], ok: v => { city().currency = (v[0].trim() || '€').slice(0, 3); save(); } }; break;
     case 'backup': backup(); return;
-    case 'clearsample': db.places = db.places.filter(x => !x.sample); db.sample = false; save(); toast('Example spot removed', null); return;
+    case 'clearsample': db.places = db.places.filter(x => !x.sample); db.sample = false; save(); toast('Starter spots removed', null); return;
     case 'profile': ui.page = 'profile'; break;
     case 'installnow': if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(c => { if (c.outcome === 'accepted') ui.installed = true; installPrompt = null; render(); }); } return;
     case 'skipinstall': ui.install = false; try { sessionStorage.setItem('sitio.skipInstall', '1'); } catch (e2) { } break;

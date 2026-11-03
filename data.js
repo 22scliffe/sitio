@@ -65,9 +65,10 @@ SITIO.SAMPLE = (() => {
     cityId: city.id, name, cat, lat, lng, area, status,
     cuisine: '', price: 0, note: '', photos: [], hours: null, addedAt: Date.now()
   }, extra || {});
-  // One example spot so a first-time user sees how it works. Everything else starts empty.
+  // Starter places every new user sees (the owner's picks). They can remove them in Account.
   const places = [
-    p('Example spot', 'restaurant', 40.4168, -3.7038, 'Sol', 'spot', { cuisine: 'Spanish', price: 2, note: 'This is just an example so you can see how Sitio works. Delete it whenever you like and add your own with +.', hours: h('00:00', '23:59') })
+    p('Pez Tortilla', 'bar', 40.41085, -3.70945, 'La Latina', 'spot', { price: 1, note: 'Tapas bar. Tortilla and croquetas.' }),
+    p('Leinerhaus', 'bar', 40.42175, -3.70395, 'Centro', 'totry', { price: 1, note: 'La Casa Alemana.' })
   ];
   return { cities: [city], places };
 })();
