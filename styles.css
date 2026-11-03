@@ -327,3 +327,26 @@ body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
 .lvl-chip.start { background: rgba(var(--fg),0.08); color: var(--text); box-shadow: 0 0 0 1px rgba(var(--fg),0.16); }
 .lvl-chip.start::after { display: none; }
 .lvl-chip.start .lvl-ico { background: rgba(var(--fg),0.10); }
+
+/* Level-up celebration */
+.levelup { position: absolute; z-index: 41; left: 50%; top: 50%; width: min(300px, calc(100% - 60px)); aspect-ratio: 1 / 1.08; transform: translate(-50%,-50%); border-radius: 32px; padding: 18px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 30%, rgba(255,200,90,0.28), rgba(255,90,78,0.08) 55%, transparent 75%), var(--dialog-bg); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255,214,120,0.5); box-shadow: 0 0 0 1px rgba(255,214,120,0.15), 0 24px 60px rgba(0,0,0,0.55), 0 0 60px rgba(245,184,61,0.25); animation: luPop .45s cubic-bezier(.2,1.4,.4,1); cursor: pointer; }
+.lu-stage { position: relative; width: 150px; height: 150px; margin-top: 6px; display: flex; align-items: center; justify-content: center; }
+.lu-b { position: absolute; width: 110px; height: 110px; border-radius: 34px; display: flex; align-items: center; justify-content: center; font-size: 62px; background: linear-gradient(145deg, rgba(255,224,138,0.45), rgba(255,138,92,0.28)); border: 1px solid rgba(255,214,120,0.6); box-shadow: inset 0 1px 1px rgba(255,255,255,0.5); }
+.lu-old { animation: luOut .5s .75s cubic-bezier(.6,0,.8,.4) forwards; }
+.lu-new { opacity: 0; transform: scale(0) rotate(-120deg); animation: luIn .8s 1.15s cubic-bezier(.2,1.6,.4,1) forwards; }
+.lu-rays { position: absolute; inset: -40px; border-radius: 50%; opacity: 0; background: repeating-conic-gradient(from 0deg, rgba(255,214,120,0.35) 0 10deg, transparent 10deg 30deg); -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); animation: luRaysIn .6s 1.15s forwards, luSpin 12s 1.15s linear infinite; }
+.lu-conf { position: absolute; inset: 0; pointer-events: none; }
+.lu-conf i { position: absolute; left: 50%; top: 50%; width: 8px; height: 12px; margin: -6px 0 0 -4px; border-radius: 2px; background: var(--c); opacity: 0; transform: rotate(var(--r)); animation: luConf 1.1s 1.2s cubic-bezier(.1,.7,.3,1) forwards; }
+.lu-text { opacity: 0; transform: translateY(10px); animation: luText .5s 1.5s ease forwards; }
+.lu-k { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: #F5B83D; }
+.lu-name { font-size: 24px; font-weight: 800; margin: 4px 0 4px; }
+.lu-sub { font-size: 13px; font-weight: 600; color: var(--text-2); }
+@keyframes luPop { from { transform: translate(-50%,-50%) scale(.7); opacity: 0; } to { transform: translate(-50%,-50%) scale(1); opacity: 1; } }
+@keyframes luOut { to { transform: scale(0) rotate(140deg); opacity: 0; } }
+@keyframes luIn { to { transform: scale(1) rotate(0); opacity: 1; } }
+@keyframes luRaysIn { to { opacity: 1; } }
+@keyframes luSpin { to { transform: rotate(360deg); } }
+@keyframes luConf { 0% { opacity: 1; transform: translate(0,0) rotate(var(--r)); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(calc(var(--r) + 220deg)); } }
+@keyframes luText { to { opacity: 1; transform: none; } }

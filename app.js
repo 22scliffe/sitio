@@ -30,7 +30,7 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: starters(),
     sample: true,
-    v: 9
+    v: 10
   };
 }
 let snap = null; // id -> place JSON, used to notice edits/deletes for syncing
@@ -83,6 +83,7 @@ if (db.v < 8) {
   db.places.forEach(p => { if (map[p.cuisine]) p.cuisine = map[p.cuisine]; });
   db.v = 8; save();
 }
+if (db.v < 10) { db.cities.forEach(c => { if (/^(City of Westminster|City of London|Westminster)$/i.test(c.name)) c.name = 'London'; }); if (db.v >= 9) { db.v = 10; save(); } }
 if (db.v < 9) { db.places.forEach(p => { if (p.cuisine) p.cuisine = cuisList(p).map(q => q === 'Eastern' ? 'Middle Eastern' : q).join(', '); }); db.v = 9; save(); }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
@@ -552,7 +553,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -615,7 +616,7 @@ function levelOf(n) { let i = -1; LEVELS.forEach((l, k) => { if (n >= l.min) i =
 function checkLevel() {
   const i = levelOf(spotCount());
   if (db.levelSeen === undefined) { db.levelSeen = i; return; }
-  if (i > db.levelSeen) { db.levelSeen = i; save(); setTimeout(() => { if (!ui.dialog) { ui.dialog = { type: 'levelup', i }; render(); } }, 1800); }
+  if (i > db.levelSeen) { db.levelSeen = i; save(); setTimeout(() => { if (!ui.dialog) { ui.dialog = { type: 'levelup', i }; render(); } }, 900); }
   else if (i < db.levelSeen) db.levelSeen = i;
 }
 function levelsPage() {
@@ -796,11 +797,12 @@ function dialogView() {
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
   }
   if (d.type === 'levelup') {
-    const l = LEVELS[d.i];
-    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
-      <div class="lvl-badge big" style="margin:4px auto 10px">${l.badge}</div>
-      <h3 id="dlg-t">New level: ${esc(l.name)}</h3><p>${spotCount()} spots saved. Keep going!</p>
-      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Nice</button><button class="big-btn primary-btn" data-act="seelevels">See levels</button></div></div>`;
+    const l = LEVELS[d.i], old = d.i > 0 ? LEVELS[d.i - 1].badge : '🌱';
+    const conf = Array.from({ length: 18 }, (_, k) => { const ang = k / 18 * 360, dx = Math.round(Math.cos(ang * Math.PI / 180) * (90 + (k % 3) * 22)), dy = Math.round(Math.sin(ang * Math.PI / 180) * (90 + (k % 3) * 22)); return `<i style="--dx:${dx}px;--dy:${dy}px;--c:${['#FFD166', '#FF8A5C', '#F5B83D', '#8FD99A', '#FF5A4E', '#FFFFFF'][k % 6]};--r:${k * 37}deg"></i>`; }).join('');
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="levelup" role="dialog" aria-labelledby="lu-t" data-act="closedialog">
+      <div class="lu-stage"><div class="lu-rays"></div><div class="lu-conf">${conf}</div><div class="lu-b lu-old">${old}</div><div class="lu-b lu-new">${l.badge}</div></div>
+      <div class="lu-text"><div class="lu-k">Level ${d.i + 1} unlocked</div><div class="lu-name" id="lu-t">${esc(l.name)}</div><div class="lu-sub">Congratulations! You’ve saved ${d.demo ? l.min : spotCount()} spots.</div></div>
+    </div>`;
   }
   if (d.type === 'editcat') {
     const p = byId(d.id); if (!p) return '';
@@ -1071,12 +1073,21 @@ function whereAmI() {
   if (near) { herePrompt = { city: near }; return tryHerePrompt(); }
   const key = 'sitio.hereSkip.' + me.lat.toFixed(1) + ',' + me.lng.toFixed(1);
   try { if (+localStorage.getItem(key) > Date.now()) return; } catch (e) { }
-  fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=en&lat=' + me.lat + '&lon=' + me.lng)
+  const osm = () => fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=en&lat=' + me.lat + '&lon=' + me.lng)
     .then(r => r.json()).then(j => {
-      const ad = j.address || {}; const name = ad.city || ad.town || ad.village || ad.municipality || ad.county; if (!name) return;
+      const ad = j.address || {}; const greater = /^Greater (.+)$/.exec(ad.state_district || ad.county || '');
+      const name = greater ? greater[1] : (ad.city || ad.town || ad.village || ad.municipality || ad.county); if (!name) return;
       const cc = (ad.country_code || '').toUpperCase();
-      herePrompt = { name, country: ad.country || '', cc, lat: +j.lat || me.lat, lng: +j.lon || me.lng, key }; tryHerePrompt();
+      herePrompt = { name, country: ad.country || '', cc, lat: me.lat, lng: me.lng, key }; tryHerePrompt();
     }).catch(() => { });
+  // Google knows the proper town/city (e.g. "London", not a borough); fall back to OpenStreetMap
+  if (!mapApi.google) return osm();
+  google.maps.importLibrary('places').then(({ Place, SearchNearbyRankPreference }) => Place.searchNearby({ fields: ['displayName', 'location', 'addressComponents'], locationRestriction: { center: me, radius: 25000 }, includedPrimaryTypes: ['locality'], maxResultCount: 1, rankPreference: SearchNearbyRankPreference.DISTANCE }))
+    .then(({ places }) => {
+      const pl = places && places[0]; if (!pl) return osm();
+      const country = (pl.addressComponents || []).find(c => c.types.includes('country'));
+      herePrompt = { name: pl.displayName, country: country ? country.longText : '', cc: country ? country.shortText : '', lat: pl.location.lat(), lng: pl.location.lng(), key }; tryHerePrompt();
+    }).catch(osm);
 }
 function tryHerePrompt() {
   if (!herePrompt) return;
@@ -1399,6 +1410,7 @@ root.appendChild(mapApi.el); root.appendChild(uiEl);
 mapApi.init();
 resnap();
 checkLevel();
+if (/[?&]demo=levelup/.test(location.search)) setTimeout(() => { ui.install = false; ui.dialog = { type: 'levelup', i: Math.max(1, levelOf(spotCount()) + 1) % LEVELS.length || 1, demo: true }; render(); }, 400);
 readAuthHash();
 readShared();
 render();
