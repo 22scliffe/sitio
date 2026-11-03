@@ -2,6 +2,6 @@
 // googleMapsKey: browser key restricted to this site's address (Maps JavaScript API + Places API (New)).
 window.SITIO_CONFIG = {
   googleMapsKey: 'AIzaSyBZyGy_RhEBqpcffCx4z4DKI-onRW0Cs7U',
-  supabaseUrl: '',
-  supabaseAnonKey: ''
+  supabaseUrl: 'https://bkucombtgrvoesviyxct.supabase.co',
+  supabaseAnonKey: 'sb_publishable_lng4WGiqDHi8GC8Hnff25Q_mCUSXMwx'
 };

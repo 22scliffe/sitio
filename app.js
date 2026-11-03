@@ -33,6 +33,7 @@ function loadDb() {
     v: 6
   };
 }
+let snap = null; // id -> place JSON, used to notice edits/deletes for syncing
 let db = loadDb();
 // v2: older installs had 18 sample places; swap them for the single example spot
 if (!db.v || db.v < 2) {
@@ -70,7 +71,20 @@ if (db.v < 6) {
   db.v = 6; save();
 }
 const hasSample = () => db.places.some(x => x.sample);
-function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } }
+function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
+const pj = p => { const { updatedAt, ...r } = p; return JSON.stringify(r); };
+let metaSnap = '';
+const metaJson = () => JSON.stringify([db.user, db.settings, db.cities, db.currentCityId]);
+function resnap() { snap = {}; db.places.forEach(p => { snap[p.id] = pj(p); }); metaSnap = metaJson(); }
+// Stamp edited places with a time, remember deleted ones, so two phones can be merged correctly
+function stamp() {
+  const now = Date.now(), seen = {}; db.deleted = db.deleted || {};
+  db.places.forEach(p => { const j = pj(p); seen[p.id] = j; if (snap[p.id] !== j || !p.updatedAt) p.updatedAt = snap[p.id] === undefined ? (p.updatedAt || now) : now; });
+  Object.keys(snap).forEach(id => { if (!seen[id]) db.deleted[id] = now; });
+  Object.keys(db.deleted).forEach(id => { if (now - db.deleted[id] > 120 * 864e5) delete db.deleted[id]; });
+  snap = seen;
+  const m = metaJson(); if (m !== metaSnap) { db.metaAt = now; metaSnap = m; }
+}
 
 // Photos in IndexedDB (blobs), referenced by id from place.photos / user.photo
 const idb = (() => {
@@ -471,6 +485,7 @@ function accountView() {
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page">
     <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="profile" aria-label="Account details" style="padding:0;color:var(--text)">${av}</button><div><div style="font-size:24px;font-weight:800">${esc(u.name || 'You')}</div><div class="page-sub">${hasSample() ? 'Showing starter spots' : 'Your places, your way'}</div></div></div>
+    ${cloudOn() && !auth ? `<button class="card acct-cta" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${cityPlaces().filter(p => p.status === 'spot').length} spots · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
@@ -485,16 +500,16 @@ function accountView() {
       ${hasSample() ? row('Remove starter spots', 'Start fresh', 'clearsample') : ''}
       ${row('Invite friends', 'Send the app link', 'invite')}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
-      ${row('Account details', 'Name, photo', 'profile')}
+      ${row('Account details', auth ? 'Name, photo, email' : 'Name, photo', 'profile')}
     </div>
     <p class="page-sub" style="font-size:11px;margin-top:16px;opacity:.6" id="diag">${diag()}</p>
-    <p class="page-sub" style="font-size:12px;margin-top:8px;line-height:1.5">Your spots are saved on this device for now. Once accounts are switched on, they move to your account and appear on any device you log in to.</p>
+    <p class="page-sub" style="font-size:12px;margin-top:8px;line-height:1.5">${auth ? 'Logged in as ' + esc(auth.user.email) + ' · ' + (syncState === 'error' ? 'Couldn’t reach your account just now. Your changes are safe on this phone and will sync when you’re back online.' : 'Your spots are saved to your account.') : 'Your spots are only on this phone until you create an account.'}</p>
   </div>`;
 }
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe}`;
+  return `v0.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -514,8 +529,30 @@ function profilePage() {
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin:18px 0 22px"><div class="avatar" style="width:104px;height:104px;border-radius:52px;font-size:42px">${av}</div>
       <label class="link-btn" style="text-decoration:underline;cursor:pointer">Change photo<input type="file" accept="image/*" hidden data-userphoto="1"></label></div>
     <label class="field-label" for="nm">Name</label><input id="nm" class="input card" value="${esc(u.name || '')}" data-input="userName" maxlength="40">
-    <label class="field-label">Email and password</label>
-    <div class="card note" style="margin:0">Available once accounts are switched on. Your spots will move into your account, and you'll log in with email, Google or Apple.</div>
+    ${auth ? `<label class="field-label">Email</label><div class="input card" style="display:flex;align-items:center;color:var(--text-2)">${esc(auth.user.email)}</div>
+    <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button></div>`
+    : `<label class="field-label">Account</label><button class="card acct-cta" data-act="openauth" style="width:100%"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account or log in</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>`}
+  </div>`;
+}
+
+function authPage() {
+  const m = ui.authMode || 'signup', f = ui.authF || (ui.authF = {});
+  const title = m === 'signup' ? 'Create your account' : m === 'login' ? 'Log in' : 'Reset password';
+  const btn = ui.authBusy ? 'One moment…' : m === 'signup' ? 'Create account' : m === 'login' ? 'Log in' : 'Send reset link';
+  return `<div class="page" style="z-index:15">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">${title}</span></div>
+    <p class="page-sub" style="margin:4px 0 18px;line-height:1.45">${m === 'reset' ? 'Enter your email and we’ll send you a link to choose a new password.' : 'Your spots are saved online, so they’re safe and show up on any phone you log in on.'}</p>
+    ${m === 'signup' ? `<label class="field-label" for="an">Name</label><input id="an" class="input card" data-input="authName" value="${esc(f.name || '')}" autocomplete="given-name" maxlength="40" placeholder="Your first name">` : ''}
+    <label class="field-label" for="ae">Email</label><input id="ae" class="input card" type="email" inputmode="email" autocapitalize="off" autocomplete="email" data-input="authEmail" value="${esc(f.email || '')}" placeholder="you@example.com">
+    ${m !== 'reset' ? `<label class="field-label" for="ap">Password</label><input id="ap" class="input card" type="password" autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}" data-input="authPass" value="${esc(f.pass || '')}" placeholder="${m === 'signup' ? 'At least 6 characters' : ''}">` : ''}
+    ${ui.authMsg ? `<div class="card note" style="margin:14px 0 0;${ui.authMsg.ok ? '' : 'color:var(--coral-soft)'}">${esc(ui.authMsg.text)}</div>` : ''}
+    <button class="big-btn primary-btn" style="width:100%;margin-top:18px" data-act="authgo" ${ui.authBusy ? 'disabled' : ''}>${btn}</button>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:18px">
+      ${m === 'signup' ? '<button class="link-btn" data-act="authmode" data-v="login">Already have an account? Log in</button>' : '<button class="link-btn" data-act="authmode" data-v="signup">New here? Create an account</button>'}
+      ${m === 'login' ? '<button class="link-btn" data-act="authmode" data-v="reset">Forgot password?</button>' : ''}
+      ${m === 'reset' ? '<button class="link-btn" data-act="authmode" data-v="login">Back to log in</button>' : ''}
+    </div>
+    <p class="page-sub" style="font-size:12px;text-align:center;margin-top:22px;opacity:.7">Google and Apple sign-in coming soon.</p>
   </div>`;
 }
 
@@ -581,9 +618,14 @@ function dialogView() {
       <a class="big-btn" style="height:58px;border-radius:0;font-size:17px" href="${gLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.pin}Google Maps</a><a class="big-btn" style="height:58px;border-radius:0;font-size:17px;border-top:1px solid rgba(255,255,255,.1)" href="${aLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.nav}Apple Maps</a></div>
       <button class="group-box" data-act="closedialog" style="border-radius:20px;font-weight:700">Cancel</button></div>`;
   }
+  if (d.type === 'logout') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
+      <h3 id="dlg-t">Log out?</h3><p>Your spots stay safe in your account. This phone goes back to the starter spots until you log in again.</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dologout">Log out</button></div></div>`;
+  }
   if (d.type === 'text') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
-      <h3 id="dlg-t">${esc(d.title)}</h3><p>${esc(d.text)}</p>${d.fields.map((f, i) => `<input class="input card" style="margin-bottom:8px" placeholder="${esc(f.ph)}" value="${esc(f.value || '')}" data-dlgfield="${i}">`).join('')}
+      <h3 id="dlg-t">${esc(d.title)}</h3><p>${esc(d.text)}</p>${d.fields.map((f, i) => `<input class="input card" style="margin-bottom:8px" type="${f.type || 'text'}" ${f.type === 'password' ? 'autocomplete="new-password"' : ''} placeholder="${esc(f.ph)}" value="${esc(f.value || '')}" data-dlgfield="${i}">`).join('')}
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="dlgok">Save</button></div></div>`;
   }
   if (d.type === 'shared') {
@@ -660,6 +702,7 @@ function render() {
   if (ui.tab === 'account') h += accountView();
   if (ui.page === 'cities') h += citiesPage();
   else if (ui.page === 'profile') h += profilePage();
+  else if (ui.page === 'auth') h += authPage();
   else if (ui.page && ui.page.spot) { const p = byId(ui.page.spot); if (p) h += spotPage(p); else ui.page = null; }
   if ((!ui.page || ui.page === 'cities') && !ui.sheet) h += tabbar();
   if (ui.sheet === 'spot' && ui.selected && byId(ui.selected)) h += (ui.tab === 'home' ? '' : '<div class="scrim" data-act="closesheet"></div>') + spotSheet(byId(ui.selected));
@@ -835,6 +878,12 @@ uiEl.addEventListener('click', e => {
     case 'backup': backup(); return;
     case 'clearsample': db.places = db.places.filter(x => !x.sample); db.sample = false; save(); toast('Starter spots removed', null); return;
     case 'profile': ui.page = 'profile'; break;
+    case 'openauth': ui.page = 'auth'; ui.authMode = ui.authMode || 'signup'; ui.authMsg = null; break;
+    case 'authmode': ui.authMode = t.dataset.v; ui.authMsg = null; break;
+    case 'authgo': doAuth(); return;
+    case 'chpass': ui.dialog = { type: 'text', title: 'Change password', text: 'At least 6 characters.', fields: [{ ph: 'New password', type: 'password' }], ok: v => changePassword(v[0]) }; break;
+    case 'logout': ui.dialog = { type: 'logout' }; break;
+    case 'dologout': ui.dialog = null; logout(); return;
     case 'installnow': if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(c => { if (c.outcome === 'accepted') ui.installed = true; installPrompt = null; render(); }); } return;
     case 'skipinstall': ui.install = false; try { sessionStorage.setItem('sitio.skipInstall', '1'); } catch (e2) { } break;
     case 'openinstall': ui.install = true; ui.installed = false; break;
@@ -854,6 +903,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'addArea') ui.add.area = v;
   if (k === 'addNote') ui.add.note = v;
   if (k === 'userName') { db.user.name = v; save(); }
+  if (k === 'authName' || k === 'authEmail' || k === 'authPass') { ui.authF = ui.authF || {}; ui.authF[{ authName: 'name', authEmail: 'email', authPass: 'pass' }[k]] = v; }
 });
 uiEl.addEventListener('change', async e => {
   const el = e.target; const f = el.files && el.files[0]; if (!f) return;
@@ -884,11 +934,133 @@ const swEnd = () => {
 };
 uiEl.addEventListener('pointerup', swEnd); uiEl.addEventListener('pointercancel', swEnd);
 
+/* ---------- accounts and syncing (Supabase) ---------- */
+// One row per person in table sitio_data holding their whole list. Photos stay on the phone for now.
+const SBURL = ((window.SITIO_CONFIG || {}).supabaseUrl || '').replace(/\/$/, ''), SBKEY = (window.SITIO_CONFIG || {}).supabaseAnonKey || '';
+function cloudOn() { return !!(SBURL && SBKEY); }
+var auth = null; try { auth = JSON.parse(localStorage.getItem('sitio.auth')); } catch (e) { auth = null; }
+var syncState = '', pushTimer = null, syncing = null, syncAgain = false;
+function setAuth(s) {
+  auth = s ? { access_token: s.access_token, refresh_token: s.refresh_token, expires_at: s.expires_at || Math.floor(Date.now() / 1000) + (s.expires_in || 3600), user: { id: s.user.id, email: s.user.email } } : null;
+  try { if (auth) localStorage.setItem('sitio.auth', JSON.stringify(auth)); else localStorage.removeItem('sitio.auth'); } catch (e) { }
+}
+async function sbFetch(path, opts = {}, needUser) {
+  const headers = Object.assign({ apikey: SBKEY, 'Content-Type': 'application/json' }, opts.headers || {});
+  if (needUser) { await ensureFresh(); if (!auth) { const e = new Error('Please log in again.'); e.status = 401; throw e; } headers.Authorization = 'Bearer ' + auth.access_token; }
+  const r = await fetch(SBURL + path, Object.assign({}, opts, { headers }));
+  const text = await r.text(); let j = null; try { j = text ? JSON.parse(text) : null; } catch (e) { }
+  if (!r.ok) { const e = new Error((j && (j.msg || j.error_description || j.message || j.error)) || ('Error ' + r.status)); e.status = r.status; e.code = j && (j.error_code || j.code); throw e; }
+  return j;
+}
+async function ensureFresh() {
+  if (!auth || auth.expires_at * 1000 - Date.now() > 60000) return;
+  try { setAuth(await sbFetch('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: JSON.stringify({ refresh_token: auth.refresh_token }) })); }
+  catch (e) { if (e.status === 400 || e.status === 401 || e.status === 403) { setAuth(null); render(); } throw e; }
+}
+function friendly(e) {
+  const m = (e && e.message) || '';
+  if (e && e.status === 429) return 'Too many tries. Wait a minute and try again.';
+  if (/invalid login credentials/i.test(m)) return 'Wrong email or password.';
+  if (/already registered|already exists/i.test(m)) return 'There’s already an account with that email. Log in instead.';
+  if (/not confirmed/i.test(m)) return 'Confirm your email first (check your inbox), then log in.';
+  if (/failed to fetch|network|load failed/i.test(m)) return 'No connection. Check your internet and try again.';
+  return m || 'Something went wrong. Try again.';
+}
+const tAt = p => p.updatedAt || p.addedAt || 0;
+function mergeData(local, remote) {
+  const del = Object.assign({}, local.deleted || {});
+  Object.entries(remote.deleted || {}).forEach(([k, v]) => { del[k] = Math.max(del[k] || 0, v); });
+  const rPlaces = remote.places || [];
+  const lPlaces = rPlaces.some(p => !p.sample) ? local.places.filter(p => !p.sample) : local.places;
+  const map = {}; rPlaces.forEach(p => { map[p.id] = p; });
+  lPlaces.forEach(p => { const r = map[p.id]; if (!r || tAt(p) >= tAt(r)) map[p.id] = p; });
+  const places = Object.values(map).filter(p => !(del[p.id] && del[p.id] >= tAt(p)));
+  const lm = local.metaAt || 0, rm = remote.metaAt || 0, win = lm >= rm ? local : remote, lose = win === local ? remote : local;
+  const cities = (win.cities || []).slice(); (lose.cities || []).forEach(c => { if (!cities.some(x => x.id === c.id)) cities.push(c); });
+  const user = Object.assign({}, lose.user || {}, win.user || {}); if (!user.name && lose.user && lose.user.name) user.name = lose.user.name;
+  return Object.assign({}, local, { user, settings: Object.assign({}, local.settings, win.settings || {}), cities, currentCityId: cities.some(c => c.id === win.currentCityId) ? win.currentCityId : cities[0].id, places, deleted: del, metaAt: Math.max(lm, rm) });
+}
+function queuePush() { if (!auth || !cloudOn()) return; clearTimeout(pushTimer); pushTimer = setTimeout(sync, 1500); }
+function sync() {
+  if (!auth || !cloudOn()) return Promise.resolve();
+  if (syncing) { syncAgain = true; return syncing; }
+  syncing = (async () => {
+    try {
+      const rows = await sbFetch('/rest/v1/sitio_data?select=data&user_id=eq.' + auth.user.id, {}, true);
+      const remote = rows && rows[0] && rows[0].data;
+      const before = JSON.stringify(db);
+      if (remote && remote.places) { db = mergeData(db, remote); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
+      await sbFetch('/rest/v1/sitio_data?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ user_id: auth.user.id, data: db, updated_at: new Date().toISOString() }) }, true);
+      const changed = JSON.stringify(db) !== before;
+      const was = syncState; syncState = 'ok';
+      if (changed || was !== 'ok') { lastMapKey = ''; render(); }
+    } catch (e) { syncState = 'error'; if (e.status === 401) setAuth(null); if (ui.tab === 'account') render(); }
+    finally { syncing = null; if (syncAgain) { syncAgain = false; queuePush(); } }
+  })();
+  return syncing;
+}
+async function doAuth() {
+  const f = ui.authF || {}, m = ui.authMode || 'signup', email = (f.email || '').trim().toLowerCase();
+  const msg = (text, ok) => { ui.authMsg = { text, ok }; render(); };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return msg('Enter a valid email.');
+  if (m !== 'reset' && (f.pass || '').length < 6) return msg('Your password needs at least 6 characters.');
+  ui.authBusy = true; ui.authMsg = null; render();
+  try {
+    if (m === 'reset') {
+      await sbFetch('/auth/v1/recover?redirect_to=' + encodeURIComponent(appUrl()), { method: 'POST', body: JSON.stringify({ email }) });
+      ui.authMsg = { ok: true, text: 'If there’s an account for that email, a reset link is on its way. Open it, choose a new password, then log in here.' };
+    } else {
+      const name = (f.name || '').trim();
+      const s = m === 'signup'
+        ? await sbFetch('/auth/v1/signup', { method: 'POST', body: JSON.stringify({ email, password: f.pass, data: { name } }) })
+        : await sbFetch('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password: f.pass }) });
+      if (m === 'signup' && name) db.user.name = name;
+      if (!s || !s.access_token) { save(); ui.authMode = 'login'; ui.authMsg = { ok: true, text: 'Almost there: check your email and tap the link to confirm, then log in here.' }; }
+      else {
+        if (!db.user.name && s.user && s.user.user_metadata && s.user.user_metadata.name) db.user.name = s.user.user_metadata.name;
+        setAuth(s); save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
+        toast(m === 'signup' ? 'Account created. Your spots are saved.' : 'Logged in', null);
+        sync();
+      }
+    }
+  } catch (e) { ui.authMsg = { text: friendly(e) }; }
+  ui.authBusy = false; render();
+}
+async function changePassword(pw) {
+  if (!pw || pw.length < 6) { flash('Your password needs at least 6 characters.'); return; }
+  try { await sbFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: pw }) }, true); toast('Password changed', null); }
+  catch (e) { flash(friendly(e)); }
+}
+async function logout() {
+  try { await sbFetch('/auth/v1/logout', { method: 'POST' }, true); } catch (e) { }
+  setAuth(null); syncState = '';
+  try { localStorage.removeItem(STORE_KEY); } catch (e) { }
+  db = loadDb(); resnap(); save(); ui.page = null; ui.selected = null; ui.sheet = null; lastMapKey = '';
+  toast('Logged out', null); render();
+}
+// Links from emails (confirm sign-up, reset password) arrive with the login in the address
+function readAuthHash() {
+  const h = location.hash; if (!/access_token=|error_description=/.test(h)) return;
+  const q = new URLSearchParams(h.slice(1)); history.replaceState(null, '', location.pathname);
+  if (q.get('error_description')) { flash(q.get('error_description')); return; }
+  const s = { access_token: q.get('access_token'), refresh_token: q.get('refresh_token'), expires_in: +q.get('expires_in') || 3600, expires_at: +q.get('expires_at') || 0 };
+  sbFetch('/auth/v1/user', { headers: { Authorization: 'Bearer ' + s.access_token } }).then(u => {
+    s.user = u; setAuth(s);
+    if (q.get('type') === 'recovery') ui.dialog = { type: 'text', title: 'Choose a new password', text: 'At least 6 characters.', fields: [{ ph: 'New password', type: 'password' }], ok: v => changePassword(v[0]) };
+    else toast('Email confirmed. You’re logged in.', null);
+    sync(); render();
+  }).catch(e => flash(friendly(e)));
+}
+
 /* ---------- start ---------- */
 root.appendChild(mapApi.el); root.appendChild(uiEl);
 mapApi.init();
+resnap();
+readAuthHash();
 readShared();
 render();
+sync();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
 locate(false);
 refreshHours();
 setInterval(() => { lastMapKey = ''; render(); }, 60000);
