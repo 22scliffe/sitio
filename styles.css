@@ -388,3 +388,9 @@ body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
 .tl.here .tl-dot { width: 18px; height: 18px; margin-top: -9px; border-radius: 9px; background: #FFFFFF; border: 3px solid #F5B83D; box-shadow: 0 0 0 4px rgba(245,184,61,0.3), 0 0 14px rgba(255,214,120,0.8); }
 
 .sheet { touch-action: pan-y; }
+
+.cur .cur-code { font-size: 9px; font-weight: 800; letter-spacing: .5px; color: var(--text-3); }
+.cur { height: 72px; }
+/* Levels: the gold "you are here" dot breathes slowly */
+.tl.here .tl-dot { animation: tlPulse 2.6s ease-in-out infinite; }
+@keyframes tlPulse { 0%, 100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 4px rgba(245,184,61,0.3), 0 0 14px rgba(255,214,120,0.7); } 50% { transform: translateX(-50%) scale(1.22); box-shadow: 0 0 0 6px rgba(245,184,61,0.22), 0 0 22px rgba(255,214,120,0.95); } }

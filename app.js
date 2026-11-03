@@ -517,7 +517,7 @@ function rowSpot(p) {
     <div class="fg"><div class="thumb">${art(p)}</div>
       <div class="row-main" data-act="open" data-id="${p.id}"><span class="row-name">${esc(p.name)}</span><span class="row-meta">${esc([p.cat === 'restaurant' ? p.cuisine : '', p.area, fmtDist(dist(p))].filter(Boolean).join(' · '))}</span>
         <span class="row-line ${s && !s.open ? 'closed' : ''}">${s ? `<span class="dot"></span>${esc(s.text.replace('Open · until', 'Until').replace('Closed · opens', 'Opens'))}<span style="color:#6A6A72">·</span>` : ''}${priceHtml(p.price)}</span></div>
-      <div class="mini-btns"><button class="round sec-btn mini" data-act="dirs" data-id="${p.id}" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</button><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button></div></div></div>`;
+      <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button><button class="round sec-btn mini" data-act="dirs" data-id="${p.id}" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</button></div></div></div>`;
 }
 
 function tryView() {
@@ -557,7 +557,7 @@ function accountView() {
       <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
       ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
-      ${auth ? row('Account details', 'Username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
+      ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${row('Privacy', '', 'privacy')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
@@ -568,7 +568,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -628,7 +628,7 @@ const LEVELS = [
   { min: 5, name: 'Local amateur', badge: '🗺️' },
   { min: 10, name: 'Local guide', badge: '📍' },
   { min: 20, name: 'Professional gatekeeper', badge: '🔑' },
-  { min: 50, name: 'The spot connoisseur', badge: '👑' }
+  { min: 50, name: 'Spot connoisseur', badge: '👑' }
 ];
 const spotCount = () => db.places.filter(p => p.status === 'spot').length;
 function levelOf(n) { let i = -1; LEVELS.forEach((l, k) => { if (n >= l.min) i = k; }); return i; }
@@ -660,6 +660,37 @@ function levelsPage() {
 }
 const EURO = 'AT BE HR CY EE FI FR DE GR IE IT LV LT LU MT NL PT SK SI ES AD MC SM VA ME XK BG'.split(' ');
 const CUR_BY_CC = { GB: '£', GI: '£', IM: '£', JE: '£', GG: '£', US: '$', CA: '$', AU: 'A$', NZ: '$', MX: '$', AR: '$', CL: '$', CO: '$', SG: '$', HK: '$', CH: 'CHF', LI: 'CHF', SE: 'kr', NO: 'kr', DK: 'kr', IS: 'kr', PL: 'zł', CZ: 'Kč', HU: 'Ft', JP: '¥', CN: '¥', KR: '₩', TH: '฿', IN: '₹', BR: 'R$', TR: '₺', AE: 'د.إ', ZA: 'R', MA: 'DH', RO: 'lei', IL: '₪', ID: 'Rp', VN: '₫', PH: '₱', MY: 'RM', EG: 'E£', PE: 'S/', UA: '₴', RS: 'din', GE: '₾' };
+// Every official currency (from the phone's own currency data), with a short symbol and English name
+const ALL_CUR = (() => {
+  try {
+    const dn = new Intl.DisplayNames(['en'], { type: 'currency' });
+    const sym = c => { try { return new Intl.NumberFormat('en', { style: 'currency', currency: c, currencyDisplay: 'narrowSymbol' }).formatToParts(1).find(p => p.type === 'currency').value; } catch (e) { return c; } };
+    return Intl.supportedValuesOf('currency').filter(c => !/^X(AU|AG|PT|PD|DR|SU|UA|TS|XX|BA|BB|BC|BD|FO|FU|RE)$/.test(c) && !/\(|Fund|Unit|Equivalent|Bond/.test(dn.of(c)))
+      .map(code => ({ code, name: dn.of(code), sym: sym(code) }));
+  } catch (e) { return null; }
+})();
+function curResults(d, c) { const res = curSearch(d.q || ''); if (res && !res.length) return '<p style="margin:6px 0 4px">No currency found. Check the spelling.</p>';
+        const items = res || CURRENCIES.map(([sym, name]) => ({ sym, name, code: '' }));
+        return `<div class="cur-grid">${items.map(x => `<button class="cur ${c.currency === x.sym ? 'on' : ''}" data-act="pickcur" data-v="${esc(x.sym)}"><b>${esc(x.sym)}</b><span>${esc(x.name)}</span>${res && x.code !== x.sym ? `<span class="cur-code">${esc(x.code)}</span>` : ''}</button>`).join('')}</div>${res ? '' : `<p style="margin:10px 0 0;font-size:12px">${ALL_CUR ? ALL_CUR.length : CURRENCIES.length} currencies. Search to see them all.</p>`}`; }
+function lev(a, b) { // edit distance where swapping two letters counts as one typo
+  const m = a.length, n = b.length, d = []; for (let i = 0; i <= m; i++) { d[i] = [i]; } for (let j = 0; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) { const c = a[i - 1] === b[j - 1] ? 0 : 1; d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c); if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1); }
+  return d[m][n];
+}
+const POPULAR_CUR = ['EUR', 'GBP', 'USD', 'CHF', 'JPY', 'AUD', 'CAD', 'MXN', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'TRY', 'MAD', 'BRL', 'INR', 'THB', 'AED', 'ZAR'];
+// Search currencies by name, code or symbol, forgiving typos ("uero" finds Euro)
+function curSearch(q) {
+  q = q.trim().toLowerCase(); const list = ALL_CUR || CURRENCIES.map(([sym, name]) => ({ code: sym, name, sym }));
+  if (!q) return null;
+  return list.map(c => {
+    const words = (c.name + ' ' + c.code).toLowerCase().split(/[\s-]+/);
+    let s = 99;
+    if (c.code.toLowerCase() === q || c.sym.toLowerCase() === q) s = 0;
+    else if (c.name.toLowerCase().includes(q)) s = 1;
+    else if (q.length >= 3) words.forEach(w => { const d = Math.min(lev(q, w), lev(q, w.slice(0, q.length))); const tol = q.length <= 4 ? 1 : 2; if (d <= tol) s = Math.min(s, 2 + d); });
+    return { c, s, pop: POPULAR_CUR.indexOf(c.code) < 0 ? 99 : POPULAR_CUR.indexOf(c.code) };
+  }).filter(x => x.s < 99).sort((a, b) => a.s - b.s || a.pop - b.pop || a.c.name.localeCompare(b.c.name)).slice(0, 16).map(x => x.c);
+}
 const currencyFor = cc => cc ? (EURO.includes(cc) ? '€' : (CUR_BY_CC[cc] || '€')) : '€';
 const CURRENCIES = [['€', 'Euro'], ['£', 'Pound'], ['$', 'Dollar'], ['A$', 'Aus dollar'], ['DH', 'Dirham (MA)'], ['lei', 'Leu'], ['₪', 'Shekel'], ['Rp', 'Rupiah'], ['CHF', 'Swiss franc'], ['kr', 'Krona / krone'], ['zł', 'Złoty'], ['Kč', 'Koruna'], ['Ft', 'Forint'], ['¥', 'Yen / yuan'], ['₩', 'Won'], ['฿', 'Baht'], ['₹', 'Rupee'], ['R$', 'Real'], ['₺', 'Lira'], ['د.إ', 'Dirham'], ['R', 'Rand']];
 function privacyPage() {
@@ -809,7 +840,8 @@ function dialogView() {
     const c = db.cities.find(x => x.id === d.cityId) || city();
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">Currency for ${esc(c.name)}</h3><p>Used for prices in this city.</p>
-      <div class="cur-grid">${CURRENCIES.map(([sym, label]) => `<button class="cur ${c.currency === sym ? 'on' : ''}" data-act="pickcur" data-v="${esc(sym)}"><b>${esc(sym)}</b><span>${esc(label)}</span></button>`).join('')}</div>
+      <label class="search card" style="margin-bottom:10px">${ICON.search}<input type="search" placeholder="Search, e.g. euro, peso, JPY" data-input="curQ" value="${esc(d.q || '')}" autocomplete="off" autocapitalize="off"></label>
+      <div id="curres">${curResults(d, c)}</div>
       <button class="big-btn sec-btn" style="width:100%;margin-top:12px" data-act="closedialog">Cancel</button></div>`;
   }
   if (d.type === 'addcity') {
@@ -1300,6 +1332,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'addNote') ui.add.note = v;
   if (k === 'userName') { db.user.name = v; save(); }
   if (k === 'unameDraft') ui.unameDraft = v;
+  if (k === 'curQ' && ui.dialog && ui.dialog.type === 'currency') { ui.dialog.q = v; const box = $('#curres'); if (box) box.innerHTML = curResults(ui.dialog, db.cities.find(x => x.id === ui.dialog.cityId) || city()); }
   if (k === 'cityQ') { clearTimeout(cityTimer); cityTimer = setTimeout(() => citySuggest(v), 250); }
   if (k === 'authName' || k === 'authEmail' || k === 'authPass') { ui.authF = ui.authF || {}; ui.authF[{ authName: 'name', authEmail: 'email', authPass: 'pass' }[k]] = v; }
 });
