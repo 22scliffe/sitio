@@ -507,6 +507,8 @@ function worldView() {
   ${ui.menu === 'world' ? filterMenu().replace('class="menu"', 'class="menu" style="top:calc(var(--safe-top) + 126px)"') : ''}`;
 }
 // Memories: photos of you at the place, kept with the date they were taken
+const toLocalInput = t => { const d = new Date(t || Date.now()); const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); };
+const fromLocalInput = v => { const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(v || ''); return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5]).getTime() : null; };
 const fmtWhen = t => { const d = new Date(t); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); };
 // Top of a place: your memories first, with a big "add" tile; the place's illustration only until you add one
 function memoryStrip(p) {
@@ -691,7 +693,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v3.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1048,12 +1050,20 @@ function dialogView() {
       <h3 id="dlg-t">Delete “${esc(l.name)}”?</h3><p>Only the list goes. The places stay in your Spots and To try.</p>
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dellistok">Delete</button></div></div>`;
   }
+  if (d.type === 'memdate') {
+    const q = byId(d.id); if (!q) return '';
+    const ms = d.ms.map(id => (q.memories || []).find(m => m.id === id)).filter(Boolean);
+    return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
+      <h3 id="dlg-t">${ms.length === 1 ? 'When was this?' : 'When were these?'}</h3><p>We used the date the photo was taken. Change it if you went another time.</p>
+      <div style="display:flex;flex-direction:column;gap:10px;max-height:52vh;overflow-y:auto">${ms.map(m => { const u = photoUrl(m.id); return `<div class="md-row">${u ? `<img src="${u}" alt="">` : '<span class="md-ph"></span>'}<input class="input card" type="datetime-local" data-memdate="${m.id}" value="${toLocalInput(m.at)}" max="${toLocalInput(Date.now() + 864e5)}"></div>`; }).join('')}</div>
+      <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="memdatesave">Save ${ms.length === 1 ? 'memory' : ms.length + ' memories'}</button></div>`;
+  }
   if (d.type === 'memory') {
     const q = byId(d.id), m = q && ((q.memories || []).find(x => x.id === d.m) || ((q.photos || []).includes(d.m) ? { id: d.m, at: 0 } : null)); if (!m) return '';
     const u = photoUrl(m.id);
     return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.88)"></div><div class="mem-view" role="dialog" aria-label="Memory">
       ${u ? `<img src="${u}" alt="">` : '<div class="mem-gone" style="height:260px">This photo is on another phone</div>'}
-      <div class="mem-meta"><div><b>${esc(q.name)}</b><span>${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
+      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}>${m.at ? esc(fmtWhen(m.at)) : 'No date'} ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -1229,16 +1239,22 @@ function afterSave(p) { checkLevel(); if (!p.hours) fetchOsmHours(p); setTimeout
 // Ask people without an account to make one, so their list isn't stuck on one phone
 // Quick first-time tour: a few spotlights on Home, skippable, shown once
 const TOUR = [
-  { sel: null, title: 'Welcome to Sitio 👋', text: 'Your own map of the places you vouch for. Want a 20-second tour?', next: 'Show me' },
+  { sel: null, title: 'You’re in 🎉', text: 'Your account is set up. Want a 20-second tour of how Sitio works?', next: 'Show me' },
   { sel: '.top-right [data-act="add"]', title: 'Add a place', text: 'Search any restaurant, bar or café, or drop a pin for a hidden spot. Save it to Spots, or to To try for later.' },
   { sel: '.filter-wrap .filter-pill', title: 'Filter your map', text: 'Show just bars, cafés, a cuisine, your To try places or one of your lists.' },
+  { sel: '.sheet .ms-wrap', open: 'spot', title: 'Keep memories 📸', text: 'Every spot has a memories row. Add a photo of you there, with the date, and build a diary of everywhere you’ve been and who with.' },
   { sel: '.tabbar [data-tab="spots"]', title: 'Your Spots', text: 'Everything you vouch for, nearest first. Star favourites and group places into lists.' },
   { sel: '.tabbar [data-tab="totry"]', title: 'To try', text: 'Places you want to check out. Been? Save it to Spots and add a photo memory.' },
-  { sel: '.tabbar [data-tab="account"]', title: 'Level up', text: 'Every spot you add levels you up. Create a free account so your places are never lost.', next: 'Let’s go' }
+  { sel: '.tabbar [data-tab="account"]', title: 'Level up', text: 'Every spot you add levels you up, from Exploring spots to Spot connoisseur. Your progress is in Account.', next: 'Let’s go' }
 ];
 const tourForced = /[?&]tour=1/.test(location.search);
 function startTour() { if (ui.install || ui.tour != null) return; ui.tour = 0; ui.tab = 'home'; ui.sheet = null; ui.selected = null; ui.page = null; ui.menu = null; ui.dialog = null; render(); }
-function endTour() { ui.tour = null; db.tourDone = true; save(); render(); setTimeout(() => maybeNudge('open'), 700); }
+function endTour() { ui.tour = null; ui.sheet = null; ui.selected = null; db.tourDone = true; save(); render(); }
+function tourSetup() {
+  const s = TOUR[ui.tour];
+  if (s && s.open === 'spot') { const sp = cityPlaces().find(p => p.status === 'spot') || db.places.find(p => p.status === 'spot'); if (sp) { ui.selected = sp.id; ui.sheet = 'spot'; } }
+  else { ui.sheet = null; ui.selected = null; }
+}
 function tourView() {
   const s = TOUR[ui.tour]; const last = ui.tour === TOUR.length - 1;
   return `<div class="tour" role="dialog" aria-label="Quick tour"><div class="tour-spot ${s.sel ? '' : 'none'}"></div>
@@ -1259,7 +1275,6 @@ function placeTour() {
 }
 function maybeNudge(reason) {
   if (ui.tour != null) return;
-  if (!db.tourDone && reason === 'open' && !ui.install && !auth) { startTour(); return; }
   if (!cloudOn() || auth || ui.install || ui.dialog || ui.sheet === 'add' || ui.page === 'auth') return;
   let last = 0; try { last = +localStorage.getItem('sitio.nudgeAt') || 0; } catch (e) { }
   const own = db.places.filter(p => !p.sample).length;
@@ -1544,10 +1559,12 @@ uiEl.addEventListener('click', e => {
     case 'listmap': ui.filter = ['list:' + id]; ui.page = null; ui.tab = 'home'; ui.selected = null; ui.sheet = null; lastMapKey = ''; break;
     case 'trymapone': ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p) mapApi.focus(p); break;
     case 'notetoggle': ui.noteOpen = ui.noteOpen === id ? null : id; break;
+    case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; break; }
+    case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
     case 'memchipx': try { localStorage.setItem('sitio.memAsk.' + id + '.' + new Date().toDateString(), '1'); } catch (e2) { } break;
-    case 'tournext': if (ui.tour >= TOUR.length - 1) { endTour(); return; } ui.tour++; break;
+    case 'tournext': if (ui.tour >= TOUR.length - 1) { endTour(); return; } ui.tour++; tourSetup(); break;
     case 'tourskip': endTour(); return;
     case 'tourreplay': ui.page = null; startTour(); return;
     case 'levels': ui.page = 'levels'; break;
@@ -1620,7 +1637,7 @@ uiEl.addEventListener('change', async e => {
       const p = byId(el.dataset.memory); if (!p) return; let n = 0;
       for (const file of [...el.files].slice(0, 10)) { const at = await photoDate(file); const b = await compress(file); const mid = 'ph-' + uid(); await idb.put(mid, b); photoUrls[mid] = URL.createObjectURL(b); p.memories = (p.memories || []).concat({ id: mid, at }); n++; }
       try { localStorage.setItem('sitio.memAsk.' + p.id + '.' + new Date().toDateString(), '1'); } catch (e2) { }
-      save(); lastMapKey = ''; toast(n === 1 ? 'Memory saved · ' + fmtWhen(p.memories[p.memories.length - 1].at) : n + ' memories saved', null); render(); return;
+      save(); lastMapKey = ''; ui.dialog = { type: 'memdate', id: p.id, ms: p.memories.slice(-n).map(m => m.id) }; render(); return;
     }
     const blob = await compress(f); const id = 'ph-' + uid(); await idb.put(id, blob); photoUrls[id] = URL.createObjectURL(blob);
     if (el.dataset.addphoto) ui.add.photos.push(id);
@@ -1738,6 +1755,7 @@ async function doAuth() {
         if (!db.user.name && s.user && s.user.user_metadata && s.user.user_metadata.name) db.user.name = s.user.user_metadata.name;
         setAuth(s); if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
         toast(m === 'signup' ? 'Account created. Your spots are saved.' : 'Logged in', null);
+        if (m === 'signup' && !db.tourDone) setTimeout(startTour, 900);
         sync();
       }
     }

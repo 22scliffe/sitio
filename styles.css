@@ -564,3 +564,10 @@ body.light .acct-cta.glow::before { background: conic-gradient(from 0deg, transp
 .tour-btns { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .tour-btns .big-btn { height: 46px; padding: 0 22px; width: auto; margin-left: auto; }
 .tour-btns .link-btn { color: var(--text-2); font-size: 14px; }
+
+.md-row { display: flex; align-items: center; gap: 10px; }
+.md-row img, .md-ph { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; flex: none; background: var(--surface); }
+.md-row input { flex: 1; min-width: 0; height: 52px; font-size: 15px; color-scheme: dark; }
+body.light .md-row input { color-scheme: light; }
+.mem-when { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 2px 0; color: #fff; font-size: 13px; font-weight: 700; opacity: .85; }
+.mem-when .icon { width: 13px; height: 13px; }
