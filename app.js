@@ -199,6 +199,7 @@ const UA = navigator.userAgent || '';
 const IS_IOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const IS_ANDROID = /Android/i.test(UA);
 const IN_APP = /FBAN|FBAV|Instagram|Line\/|Snapchat|TikTok|LinkedInApp|GSA\//.test(UA);
+const IOS26 = +((UA.match(/Version\/(\d+)/) || [])[1] || 0) >= 26;
 const IOS_OTHER = IS_IOS && /CriOS|FxiOS|EdgiOS/.test(UA);
 let STANDALONE = false; try { STANDALONE = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { }
 let installPrompt = null;
@@ -499,7 +500,7 @@ function accountView() {
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
-      ${tog('Dark map', '', 'darkMap')}
+      ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
       ${row('Directions open in', db.settings.dirApp === 'apple' ? 'Apple Maps' : 'Google Maps', 'dirapp')}
       ${row('Currency', esc(city().currency) + ' (' + esc(city().name) + ')', 'currency')}
       ${row('Back up my spots', 'Save a file', 'backup')}
@@ -517,15 +518,15 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v0.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
     <div class="page-head"><h1 class="page-title">Cities</h1><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Close">${ICON.close}</button></div>
     <div class="section-label" style="margin-bottom:8px">Your cities</div>
     <div class="settings card">${db.cities.map(c => { const n = db.places.filter(p => p.cityId === c.id); const curr = c.id === db.currentCityId;
-      return `<button class="set-row" data-act="pickcity" data-id="${c.id}" style="min-height:72px;${curr ? 'background:rgba(255,255,255,0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;font-size:18px">${esc(c.name[0])}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">${esc(c.name)}</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${esc(c.country || '')} · ${n.filter(p => p.status === 'spot').length} spots · ${n.filter(p => p.status === 'totry').length} to try · ${esc(c.currency)}</span></span></span>${curr ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button>`; }).join('')}
-      <button class="set-row" data-act="addcity" style="min-height:64px"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;background:transparent;border:1.5px dashed rgba(255,255,255,0.28)">${ICON.plus}</span><span style="font-size:16px;font-weight:800">Add a city</span></span></button></div>
+      return `<button class="set-row" data-act="pickcity" data-id="${c.id}" style="min-height:72px;${curr ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;font-size:18px">${esc(c.name[0])}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">${esc(c.name)}</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${esc(c.country || '')} · ${n.filter(p => p.status === 'spot').length} spots · ${n.filter(p => p.status === 'totry').length} to try · ${esc(c.currency)}</span></span></span>${curr ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button>`; }).join('')}
+      <button class="set-row" data-act="addcity" style="min-height:64px"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;background:transparent;border:1.5px dashed rgba(var(--fg),0.28)">${ICON.plus}</span><span style="font-size:16px;font-weight:800">Add a city</span></span></button></div>
     <p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:10px">Each city keeps its own Spots and To try lists. Prices use that city's currency.</p>
   </div>`;
 }
@@ -567,6 +568,7 @@ function authPage() {
 }
 
 const CONTACT = 'sitio.contact@gmail.com';
+const CURRENCIES = [['€', 'Euro'], ['£', 'Pound'], ['$', 'Dollar'], ['CHF', 'Swiss franc'], ['kr', 'Krona / krone'], ['zł', 'Złoty'], ['Kč', 'Koruna'], ['Ft', 'Forint'], ['¥', 'Yen / yuan'], ['₩', 'Won'], ['฿', 'Baht'], ['₹', 'Rupee'], ['R$', 'Real'], ['₺', 'Lira'], ['د.إ', 'Dirham'], ['R', 'Rand']];
 function privacyPage() {
   const s = (h, t) => `<div class="section-label" style="margin:18px 0 6px">${h}</div><p class="page-sub" style="line-height:1.55;font-size:14px">${t}</p>`;
   return `<div class="page" style="z-index:16">
@@ -590,28 +592,39 @@ function adminPage() {
   const cnt = (d, st) => ((d && d.places) || []).filter(p => p.status === st).length;
   return `<div class="page" style="z-index:15">${head}
     <p class="page-sub" style="margin-bottom:14px">${users.length} ${users.length === 1 ? 'account' : 'accounts'} · only you can see this</p>
-    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc((u.data && u.data.user && u.data.user.name) || 'No name')} · joined ${fmtDate(u.created_at)} · ${u.data ? cnt(u.data, 'spot') + ' spots · ' + cnt(u.data, 'totry') + ' to try · ' + ((u.data.cities || []).length) + ((u.data.cities || []).length === 1 ? ' city' : ' cities') : 'nothing synced yet'}</span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
+    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis">${esc((u.data && u.data.user && u.data.user.name) || 'No name yet')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-3)">Joined ${fmtDate(u.created_at)} · ${u.data ? cnt(u.data, 'spot') + ' spots · ' + cnt(u.data, 'totry') + ' to try · ' + ((u.data.cities || []).length) + ((u.data.cities || []).length === 1 ? ' city' : ' cities') : 'nothing synced yet'}</span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
   </div>`;
 }
-function adminUserPage(id) {
+function adminUserPage(id, cityId) {
   const u = (ui.adminData || []).find(x => x.user_id === id); if (!u) return '';
   const d = u.data || {}, places = d.places || [], cities = (d.cities || []).slice();
   places.forEach(p => { if (!cities.some(c => c.id === p.cityId)) cities.push({ id: p.cityId, name: 'Other' }); });
-  const catName = c => (CATS.find(x => x.id === c) || {}).name || c;
-  const line = p => `<div class="set-row" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${esc(p.name)}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catName(p.cat), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? '€'.repeat(p.price) : ''}</span></div>`;
-  const byCity = cities.map(c => { const ps = places.filter(p => p.cityId === c.id); if (!ps.length) return `<div class="section-label" style="margin:18px 0 8px">${esc(c.name)}</div><div class="card note" style="margin:0">No places in ${esc(c.name)} yet.</div>`;
-    const sp = ps.filter(p => p.status === 'spot'), tt = ps.filter(p => p.status === 'totry');
-    return `<div class="section-label" style="margin:18px 0 8px">${esc(c.name)}</div>${sp.length ? `<div class="page-sub" style="margin:0 0 6px;font-size:12px">Spots (${sp.length})</div><div class="settings card">${sp.map(line).join('')}</div>` : ''}${tt.length ? `<div class="page-sub" style="margin:12px 0 6px;font-size:12px">To try (${tt.length})</div><div class="settings card">${tt.map(line).join('')}</div>` : ''}`; }).join('');
-  return `<div class="page" style="z-index:16">
-    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:18px;font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(u.email || '')}</span></div>
-    <p class="page-sub">${esc((d.user && d.user.name) || 'No name')} · joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}</p>
-    ${u.data ? (byCity || '<div class="card note">No places saved yet.</div>') : '<div class="card note">Nothing has synced to this account yet. It appears once they open Sitio while logged in and online.</div>'}
+  const name = (d.user && d.user.name) || 'No name yet';
+  const back = `<button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button>`;
+  if (!cityId) {
+    return `<div class="page" style="z-index:16">
+      <div class="page-head" style="justify-content:flex-start">${back}<span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(name)}</span></div>
+      <p class="page-sub" style="margin:0 0 2px">${esc(u.email || '')}</p>
+      <p class="page-sub" style="font-size:12px;margin:0 0 16px">Joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}</p>
+      ${!u.data ? '<div class="card note">Nothing has synced to this account yet. It appears once they open Sitio while logged in and online.</div>'
+      : `<div class="section-label" style="margin-bottom:8px">Cities</div><div class="settings card">${cities.map(c => { const ps = places.filter(p => p.cityId === c.id);
+          return `<button class="set-row" data-act="admincity" data-id="${esc(u.user_id)}" data-city="${esc(c.id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><span style="font-weight:800;font-size:16px">${esc(c.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${ps.filter(p => p.status === 'spot').length} spots · ${ps.filter(p => p.status === 'totry').length} to try</span></span><span class="val">${ICON.chevRight}</span></button>`; }).join('')}</div>`}
+    </div>`;
+  }
+  const c = cities.find(x => x.id === cityId) || { name: 'City' }, cur = c.currency || '€';
+  const ps = places.filter(p => p.cityId === cityId), sp = ps.filter(p => p.status === 'spot'), tt = ps.filter(p => p.status === 'totry');
+  const catName = k => (CATS.find(x => x.id === k) || {}).name || k;
+  const line = p => `<div class="set-row" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${esc(p.name)}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catName(p.cat), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? esc(cur.repeat(p.price)) : ''}</span></div>`;
+  return `<div class="page" style="z-index:17">
+    <div class="page-head" style="justify-content:flex-start">${back}<span style="display:flex;flex-direction:column;min-width:0"><span style="font-size:22px;font-weight:800">${esc(c.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(name)} · ${esc(u.email || '')}</span></span></div>
+    <div class="section-label" style="margin:10px 0 8px">Spots (${sp.length})</div>${sp.length ? `<div class="settings card">${sp.map(line).join('')}</div>` : '<div class="card note" style="margin:0">No spots here yet.</div>'}
+    <div class="section-label" style="margin:18px 0 8px">To try (${tt.length})</div>${tt.length ? `<div class="settings card">${tt.map(line).join('')}</div>` : '<div class="card note" style="margin:0">Nothing to try here yet.</div>'}
   </div>`;
 }
 
 function spotPage(p) {
   const photos = (p.photos || []);
-  const strip = photos.map((id, i) => { const u = photoUrl(id); return `<div style="height:72px;border-radius:12px;overflow:hidden;background:#2A2A31">${u ? `<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">` : ''}</div>`; }).join('');
+  const strip = photos.map((id, i) => { const u = photoUrl(id); return `<div style="height:72px;border-radius:12px;overflow:hidden;background:var(--surface)">${u ? `<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">` : ''}</div>`; }).join('');
   return `<div class="page" style="z-index:15;padding-bottom:calc(var(--safe-bottom) + 30px)">
     <div class="hero">${art(p)}<div class="hero-btns"><button class="round glass" data-act="closepage" aria-label="Back">${ICON.back}</button><div><button class="round glass" data-act="share" data-id="${p.id}" aria-label="Share">${ICON.share}</button><button class="round glass" data-act="del" data-id="${p.id}" aria-label="Delete" style="color:var(--coral-soft)">${ICON.bin}</button></div></div></div>
     <div class="spot-body">
@@ -657,7 +670,7 @@ function dialogView() {
       <h3 id="dlg-t">${d.edit ? 'Edit price for ' + esc(p.name) : 'How expensive is ' + esc(p.name) + '?'}</h3><p>${d.edit ? 'Currently ' + (PRICE_WORDS[p.price] || 'not set') : (d.hint ? esc(d.hint) : 'Tap to rate the price')}</p>
       <div class="euro-bar" role="radiogroup" aria-label="Price">${[1, 2, 3].map(i => `<button class="${i <= n ? 'on' : ''}" role="radio" aria-checked="${i === n}" aria-label="${PRICE_WORDS[i]}" data-act="setprice" data-v="${i}">${esc(cur())}</button>`).join('')}</div>
       <span class="price-word">${PRICE_WORDS[n] || ''}</span>
-      <div class="stack"><button class="big-btn primary-btn" data-act="pricesave" ${n ? '' : 'style="opacity:.45"'}>${d.edit ? 'Save' : 'Save to Spots'}</button><button class="big-btn" style="background:none;border:0;height:44px;color:#D8D5D0" data-act="closedialog">Cancel</button></div></div>`;
+      <div class="stack"><button class="big-btn primary-btn" data-act="pricesave" ${n ? '' : 'style="opacity:.45"'}>${d.edit ? 'Save' : 'Save to Spots'}</button><button class="big-btn" style="background:none;border:0;height:44px;color:var(--text-soft)" data-act="closedialog">Cancel</button></div></div>`;
   }
   if (d.type === 'confirm') {
     const p = d.place; const isTry = p.status === 'totry';
@@ -668,13 +681,13 @@ function dialogView() {
   if (d.type === 'dirs') {
     const p = d.place;
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="action-sheet" role="dialog" aria-label="Directions"><div class="group-box"><div class="head"><div style="font-size:15px;font-weight:800">Directions to ${esc(p.name)}</div><div class="muted" style="font-size:13px;font-weight:600">${esc([p.area, fmtDist(dist(p))].filter(Boolean).join(' · '))}</div></div>
-      <a class="big-btn" style="height:58px;border-radius:0;font-size:17px" href="${gLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.pin}Google Maps</a><a class="big-btn" style="height:58px;border-radius:0;font-size:17px;border-top:1px solid rgba(255,255,255,.1)" href="${aLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.nav}Apple Maps</a></div>
+      <a class="big-btn" style="height:58px;border-radius:0;font-size:17px" href="${gLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.pin}Google Maps</a><a class="big-btn" style="height:58px;border-radius:0;font-size:17px;border-top:1px solid rgba(var(--fg),.1)" href="${aLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.nav}Apple Maps</a></div>
       <button class="group-box" data-act="closedialog" style="border-radius:20px;font-weight:700">Cancel</button></div>`;
   }
   if (d.type === 'nudge') {
     const n = d.own;
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
-      <div style="width:56px;height:56px;border-radius:28px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.08)">${ICON.check}</div>
+      <div style="width:56px;height:56px;border-radius:28px;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;background:rgba(var(--fg),0.08)">${ICON.check}</div>
       <h3 id="dlg-t">${n ? 'Don’t lose your spots' : 'Save your spots to an account'}</h3>
       <p>${n ? 'You’ve saved ' + n + (n === 1 ? ' place' : ' places') + ', but right now ' + (n === 1 ? 'it only lives' : 'they only live') + ' on this phone. ' : ''}Create a free account and your spots are kept safe online. Log in on any phone and they’re all there.</p>
       <button class="big-btn primary-btn" style="width:100%" data-act="nudgeyes">Create account</button>
@@ -685,6 +698,13 @@ function dialogView() {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">Delete your account?</h3><p>Your email and all your saved places are removed for good. This can’t be undone. Tip: use Back up my spots first if you want a copy.</p>
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dodelacct">Delete</button></div></div>`;
+  }
+  if (d.type === 'currency') {
+    const c = db.cities.find(x => x.id === d.cityId) || city();
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
+      <h3 id="dlg-t">Currency for ${esc(c.name)}</h3><p>Used for prices in this city.</p>
+      <div class="cur-grid">${CURRENCIES.map(([sym, label]) => `<button class="cur ${c.currency === sym ? 'on' : ''}" data-act="pickcur" data-v="${esc(sym)}"><b>${esc(sym)}</b><span>${esc(label)}</span></button>`).join('')}</div>
+      <button class="big-btn sec-btn" style="width:100%;margin-top:12px" data-act="closedialog">Cancel</button></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -704,7 +724,7 @@ function dialogView() {
       <div class="meta" style="margin:0">${esc([catOf(s.c).name, s.q, s.a].filter(Boolean).join(' · '))}</div>
       ${s.p ? `<div class="price-line">${priceHtml(s.p)}${PRICE_WORDS[s.p]}, says ${esc(s.f || 'your friend')}</div>` : ''}
       ${s.o ? `<div class="note card" style="margin:10px 0"><b>${esc(s.f || 'Note')}:</b> ${esc(s.o)}</div>` : ''}
-      <div class="stack" style="margin-top:10px"><button class="big-btn primary-btn" data-act="sharedspot">Add to Spots</button><button class="big-btn coral-btn" data-act="sharedtry">Add to To try</button><button class="big-btn" style="background:none;border:0;height:40px;color:#D8D5D0" data-act="closedialog">Not now</button></div></div></div>`;
+      <div class="stack" style="margin-top:10px"><button class="big-btn primary-btn" data-act="sharedspot">Add to Spots</button><button class="big-btn coral-btn" data-act="sharedtry">Add to To try</button><button class="big-btn" style="background:none;border:0;height:40px;color:var(--text-soft)" data-act="closedialog">Not now</button></div></div></div>`;
   }
   return '';
 }
@@ -721,9 +741,17 @@ function installView() {
   } else if (IS_IOS && (IN_APP || IOS_OTHER && !/CriOS/.test(UA))) {
     body = `<div class="i-card card"><div class="i-h">First, open this page in Safari</div><ol class="i-steps">${step(1, `Tap ${dots} or the menu in this screen`)}${step(2, 'Choose <b>Open in Safari</b> (or Open in browser)')}${step(3, 'Then follow the steps shown there')}</ol>
       <button class="big-btn sec-btn" style="width:100%;margin-top:10px" data-act="copylink">Copy link instead</button></div>`;
+  } else if (IS_IOS && IOS26 && !/CriOS/.test(UA)) {
+    body = `<div class="i-card card"><div class="i-h">Add Sitio to your home screen</div><ol class="i-steps">
+      ${step(1, `Tap ${dots} in the bottom right corner`)}
+      ${step(2, `Tap <b>Share</b> ${shareIc}`)}
+      ${step(3, `Scroll down and tap <b>Add to Home Screen</b> ${plusIc}`)}
+      ${step(4, 'Tap <b>Add</b>')}</ol>
+      <div class="muted" style="font-size:12px;font-weight:600;margin-top:12px;line-height:1.4">iPhones don’t let websites add themselves, so it takes these taps. You only do it once.</div></div>`;
+    arrow = `<div class="i-arrow right" aria-hidden="true">${ICON.chevDown}</div>`;
   } else if (IS_IOS) {
     body = `<div class="i-card card"><div class="i-h">Add Sitio to your home screen</div><ol class="i-steps">
-      ${step(1, `Tap the Share button ${shareIc} ${/CriOS/.test(UA) ? 'next to the address bar' : 'in the bar at the bottom'}. <span class="muted">On newer iPhones, tap ${dots} first.</span>`)}
+      ${step(1, `Tap the Share button ${shareIc} ${/CriOS/.test(UA) ? 'next to the address bar' : 'at the bottom of the screen'}`)}
       ${step(2, `Scroll down and tap <b>Add to Home Screen</b> ${plusIc}`)}
       ${step(3, 'Tap <b>Add</b> in the top corner')}</ol></div>`;
     if (!/CriOS/.test(UA)) arrow = `<div class="i-arrow" aria-hidden="true">${ICON.chevDown}</div>`;
@@ -755,6 +783,7 @@ const root = document.getElementById('app');
 const uiEl = document.createElement('div');
 let lastMapKey = '';
 function render() {
+  document.body.classList.toggle('light', !db.settings.darkMap);
   // Map pins
   const list = cityPlaces().filter(p => matches(p, ui.filter));
   const key = JSON.stringify([list.map(p => p.id + p.status + p.price + (p.photos || []).join() + (photoUrls[(p.photos || [])[0]] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
@@ -773,7 +802,7 @@ function render() {
   else if (ui.page === 'auth') h += authPage();
   else if (ui.page === 'privacy') h += privacyPage();
   else if (ui.page === 'admin') h += adminPage();
-  else if (ui.page && ui.page.adminUser) h += adminUserPage(ui.page.adminUser);
+  else if (ui.page && ui.page.adminUser) h += adminUserPage(ui.page.adminUser, ui.page.city);
   else if (ui.page && ui.page.spot) { const p = byId(ui.page.spot); if (p) h += spotPage(p); else ui.page = null; }
   if ((!ui.page || ui.page === 'cities') && !ui.sheet) h += tabbar();
   if (ui.sheet === 'spot' && ui.selected && byId(ui.selected)) h += (ui.tab === 'home' ? '' : '<div class="scrim" data-act="closesheet"></div>') + spotSheet(byId(ui.selected));
@@ -925,9 +954,9 @@ uiEl.addEventListener('click', e => {
     case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'all') ui.menu = null; break;
     case 'cuisines': e.stopPropagation(); ui.cuisineOpen = !ui.cuisineOpen; break;
     case 'cities': ui.page = 'cities'; break;
-    case 'closepage': ui.page = ui.prevPage || null; ui.prevPage = null; break;
+    case 'closepage': if (ui.page && ui.page.adminUser) { ui.page = ui.page.city ? { adminUser: ui.page.adminUser } : 'admin'; break; } ui.page = ui.prevPage || null; ui.prevPage = null; break;
     case 'pickcity': db.currentCityId = id; save(); ui.page = null; ui.filter = []; ui.selected = null; { const c = cityPlaces(); if (c.length) mapApi.center({ lat: c.reduce((s, x) => s + x.lat, 0) / c.length, lng: c.reduce((s, x) => s + x.lng, 0) / c.length }); } break;
-    case 'addcity': ui.dialog = { type: 'text', title: 'Add a city', text: 'Its spots and To try list stay separate from other cities.', fields: [{ ph: 'City (e.g. Lisbon)' }, { ph: 'Country (e.g. Portugal)' }, { ph: 'Currency symbol (e.g. €, £, $)', value: '€' }], ok: v => { if (!v[0].trim()) return; const c = { id: 'c-' + uid(), name: v[0].trim(), country: v[1].trim(), currency: (v[2].trim() || '€').slice(0, 3) }; db.cities.push(c); db.currentCityId = c.id; save(); ui.page = null; ui.tab = 'home'; } }; break;
+    case 'addcity': ui.dialog = { type: 'text', title: 'Add a city', text: 'Its spots and To try list stay separate from other cities.', fields: [{ ph: 'City (e.g. Lisbon)' }, { ph: 'Country (e.g. Portugal)' }], ok: v => { const name = v[0].trim().slice(0, 40); if (!name) return; const c = { id: 'c-' + uid(), name, country: v[1].trim().slice(0, 40), currency: '€' }; db.cities.push(c); db.currentCityId = c.id; save(); ui.page = null; ui.tab = 'home'; setTimeout(() => { ui.dialog = { type: 'currency', cityId: c.id }; render(); }, 50); } }; break;
     case 'search': ui.tab = 'spots'; ui.spotsOpenNow = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="spotsSearch"]'); if (i) i.focus(); }, 50); return;
     case 'add': ui.add = newAdd(); ui.sheet = 'add'; ui.selected = null; break;
     case 'closesheet': ui.sheet = null; ui.selected = null; ui.add = null; break;
@@ -956,7 +985,8 @@ uiEl.addEventListener('click', e => {
     case 'undo': if (ui.toast && ui.toast.undo) ui.toast.undo(); ui.toast = null; break;
     case 'toggle': db.settings[t.dataset.key] = !db.settings[t.dataset.key]; save(); if (t.dataset.key === 'darkMap') mapApi.setStyle(); lastMapKey = ''; break;
     case 'dirapp': db.settings.dirApp = db.settings.dirApp === 'apple' ? 'google' : 'apple'; save(); break;
-    case 'currency': ui.dialog = { type: 'text', title: 'Currency for ' + city().name, text: 'Used for prices in this city.', fields: [{ ph: '€, £, $…', value: city().currency }], ok: v => { city().currency = (v[0].trim() || '€').slice(0, 3); save(); } }; break;
+    case 'currency': ui.dialog = { type: 'currency', cityId: city().id }; break;
+    case 'pickcur': { const c = db.cities.find(x => x.id === ui.dialog.cityId); if (c) { c.currency = t.dataset.v; save(); } ui.dialog = null; break; }
     case 'backup': backup(); return;
     case 'clearsample': db.places = db.places.filter(x => !x.sample); db.sample = false; save(); toast('Starter spots removed', null); return;
     case 'profile': ui.page = 'profile'; break;
@@ -964,7 +994,8 @@ uiEl.addEventListener('click', e => {
     case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
-    case 'adminuser': ui.prevPage = 'admin'; ui.page = { adminUser: id }; break;
+    case 'adminuser': ui.page = { adminUser: id }; break;
+    case 'admincity': ui.page = { adminUser: id, city: t.dataset.city }; break;
     case 'delacct': ui.dialog = { type: 'delacct' }; break;
     case 'dodelacct': ui.dialog = null; deleteAccount(); return;
     case 'openauth': ui.page = 'auth'; ui.authMode = ui.authMode || 'signup'; ui.authMsg = null; break;
