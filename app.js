@@ -554,7 +554,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -835,6 +835,15 @@ function dialogView() {
       <h3 id="dlg-t">${d.taken ? 'Pick a new username' : 'Choose a username'}</h3><p>${d.taken ? '“' + esc(d.cur) + '” is already taken or not allowed. ' : ''}Usernames are unique on Sitio. ${USER_HINT}</p>
       <input class="input card" data-input="unameDraft" maxlength="20" autocapitalize="off" spellcheck="false" placeholder="e.g. liaa" value="${esc(ui.unameDraft || '')}">
       <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="closedialog">Later</button><button class="big-btn primary-btn" data-act="unamedlg">Save</button></div></div>`;
+  }
+  if (d.type === 'chpass') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
+      <h3 id="dlg-t">Change password</h3><p>Enter your current password, then your new one (at least 6 characters).</p>
+      <input class="input card" style="margin-bottom:8px" type="password" autocomplete="current-password" placeholder="Current password" data-dlgfield="0" value="${esc((d.v || [])[0] || '')}">
+      <input class="input card" style="margin-bottom:8px" type="password" autocomplete="new-password" placeholder="New password" data-dlgfield="1" value="${esc((d.v || [])[1] || '')}">
+      ${d.err ? `<p style="color:var(--coral-soft);margin:4px 0 8px">${esc(d.err)}</p>` : ''}
+      <button class="link-btn" style="margin:2px 0 12px;color:var(--blue)" data-act="resetmail">Forgot your current password? Email me a reset link</button>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="chpassgo" ${d.busy ? 'disabled' : ''}>${d.busy ? 'Checking…' : 'Save'}</button></div></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -1246,7 +1255,9 @@ uiEl.addEventListener('click', e => {
     case 'openauth': ui.page = 'auth'; ui.authMode = ui.authMode || 'signup'; ui.authMsg = null; break;
     case 'authmode': ui.authMode = t.dataset.v; ui.authMsg = null; break;
     case 'authgo': doAuth(); return;
-    case 'chpass': ui.dialog = { type: 'text', title: 'Change password', text: 'At least 6 characters.', fields: [{ ph: 'New password', type: 'password' }], ok: v => changePassword(v[0]) }; break;
+    case 'chpass': ui.dialog = { type: 'chpass' }; break;
+    case 'chpassgo': { const f = [...uiEl.querySelectorAll('[data-dlgfield]')].map(i => i.value); ui.dialog.v = f; changePasswordChecked(f[0], f[1]); return; }
+    case 'resetmail': sendResetEmail(); return;
     case 'logout': ui.dialog = { type: 'logout' }; break;
     case 'dologout': ui.dialog = null; logout(); return;
     case 'installnow': if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(c => { if (c.outcome === 'accepted') ui.installed = true; installPrompt = null; render(); }); } return;
@@ -1436,6 +1447,24 @@ async function deleteAccount() {
   try { localStorage.removeItem(STORE_KEY); } catch (e) { }
   db = loadDb(); resnap(); save(); ui.page = null; lastMapKey = '';
   toast('Account deleted', null); render();
+}
+// Changing the password from Account needs the current one first, so a borrowed phone can't take over the account
+async function changePasswordChecked(cur, pw) {
+  const d = ui.dialog; if (!d || d.type !== 'chpass' || !auth) return;
+  const err = m => { d.err = m; d.busy = false; render(); };
+  if (!cur) return err('Enter your current password.');
+  if (!pw || pw.length < 6) return err('Your new password needs at least 6 characters.');
+  if (pw === cur) return err('Choose a password different from your current one.');
+  d.busy = true; d.err = null; render();
+  try { setAuth(await sbFetch('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email: auth.user.email, password: cur }) })); }
+  catch (e) { return err(/invalid login credentials/i.test(e.message) ? 'Your current password isn’t right.' : friendly(e)); }
+  try { await sbFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: pw }) }, true); ui.dialog = null; toast('Password changed', null); render(); }
+  catch (e) { err(friendly(e)); }
+}
+async function sendResetEmail() {
+  if (!auth) return;
+  try { await sbFetch('/auth/v1/recover?redirect_to=' + encodeURIComponent(appUrl()), { method: 'POST', body: JSON.stringify({ email: auth.user.email }) }); ui.dialog = null; toast('Reset link sent to ' + auth.user.email, null); render(); }
+  catch (e) { flash(friendly(e)); }
 }
 async function changePassword(pw) {
   if (!pw || pw.length < 6) { flash('Your password needs at least 6 characters.'); return; }
