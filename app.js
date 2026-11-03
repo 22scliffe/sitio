@@ -725,7 +725,18 @@ async function googleSuggest(text) {
   try {
     const { AutocompleteSuggestion, AutocompleteSessionToken } = await google.maps.importLibrary('places');
     gToken = gToken || new AutocompleteSessionToken();
-    const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({ input: text, sessionToken: gToken, locationBias: { center: me, radius: 8000 }, includedPrimaryTypes: undefined });
+    // Keep results inside the current city: centre on its spots (or you, if you're there), ~25 km around
+    const cp = cityPlaces();
+    let c = cp.length ? { lat: cp.reduce((s, x) => s + x.lat, 0) / cp.length, lng: cp.reduce((s, x) => s + x.lng, 0) / cp.length } : (haveLocation ? me : null);
+    if (c && haveLocation && dist(c) < 40000) c = me;
+    const req = { input: text, sessionToken: gToken };
+    if (haveLocation) req.origin = me;
+    let suggestions = [];
+    if (c) {
+      const dLat = 0.23, dLng = 0.23 / Math.cos(c.lat * Math.PI / 180);
+      ({ suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({ ...req, locationRestriction: { south: c.lat - dLat, north: c.lat + dLat, west: c.lng - dLng, east: c.lng + dLng } }));
+    }
+    if (!suggestions.length) ({ suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({ ...req, locationBias: { center: c || me, radius: 20000 } }));
     box.innerHTML = `<div class="menu" style="position:absolute;top:52px;left:0;right:0;width:auto;z-index:5">${suggestions.slice(0, 5).map((s, i) => `<button data-act="gpick" data-i="${i}" style="height:auto;padding:10px 12px;flex-direction:column;align-items:flex-start;gap:2px"><span style="font-weight:800">${esc(s.placePrediction.mainText.text)}</span><span class="sub">${esc(s.placePrediction.secondaryText ? s.placePrediction.secondaryText.text : '')}</span></button>`).join('')}</div>`;
     googleSuggest.last = suggestions;
   } catch (e) { box.innerHTML = ''; }
