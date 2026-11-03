@@ -401,3 +401,27 @@ body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
 .head2 { align-items: center; }
 .head2 .page-sub { margin-top: 2px; }
 .lvl-count { font-size: 12px; font-weight: 800; color: #F5B83D; margin: -2px 0 6px; text-align: right; }
+
+/* Places | Lists switch */
+.seg { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 14px; background: rgba(var(--fg),0.08); margin-bottom: 14px; }
+.seg button { height: 36px; border: 0; border-radius: 11px; background: transparent; font-size: 14px; font-weight: 800; color: var(--text-2); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+body.light .seg button.on { background: #fff; }
+.seg-n { font-size: 11px; font-weight: 800; padding: 1px 7px; border-radius: 10px; background: rgba(var(--fg),0.12); }
+/* Lists */
+.list-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.list-card { border-radius: 20px; padding: 14px; min-height: 120px; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-end; gap: 2px; text-align: left; color: var(--text); }
+.list-card.new { background: transparent; border: 1.5px dashed rgba(var(--fg),0.25); }
+.lc-emoji { font-size: 30px; margin-bottom: auto; display: flex; }
+.lc-emoji .icon { width: 26px; height: 26px; }
+.lc-name { font-size: 16px; font-weight: 800; }
+.lc-n { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; margin-top: 12px; }
+.emoji-grid button { aspect-ratio: 1; border: 1px solid transparent; border-radius: 10px; background: rgba(var(--fg),0.05); font-size: 18px; padding: 0; }
+.emoji-grid button.on { border-color: var(--text); background: rgba(var(--fg),0.14); }
+.check-box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid rgba(var(--fg),0.25); display: flex; align-items: center; justify-content: center; flex: none; }
+.check-box.on { background: var(--green); border-color: var(--green); color: #141418; }
+.check-box .icon { width: 16px; height: 16px; }
+.menu-head { font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--text-2); padding: 8px 12px 4px; }
+/* World map header */
+.world-head { position: absolute; left: 16px; right: 16px; top: 0; display: flex; align-items: center; gap: 12px; padding: 8px 14px 8px 8px; border-radius: 22px; }
