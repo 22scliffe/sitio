@@ -575,21 +575,27 @@ function roSheet(p, ro) {
 }
 function spotSheet(p) {
   const isTry = p.status === 'totry';
+  const more = `<button class="act act-more" data-act="more" data-id="${p.id}" aria-label="More">•••</button>`;
+  const first = isTry
+    ? `<button class="act act-save" data-act="savetry" data-id="${p.id}">${ICON.check}<span>Save to Spots</span></button>`
+    : `<button class="act ${p.fav ? 'fav-on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}">${ICON.star}<span>Favourite</span></button>`;
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
-    ${isTry ? '' : memoryStrip(p)}
+    ${isTry ? tryCover(p) : memoryStrip(p)}
     <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}</div>
-    <div class="act-row">${isTry ? '' : `<button class="act ${p.fav ? 'fav-on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}">${ICON.star}<span>${p.fav ? 'Favourite' : 'Favourite'}</span></button>`}<button class="act" data-act="listpick" data-id="${p.id}">${ICON.list}<span>List</span></button><button class="act" data-act="share" data-id="${p.id}">${ICON.share}<span>Share</span></button>${isTry ? '' : `<button class="act act-del" data-act="del" data-id="${p.id}" aria-label="Delete">${ICON.bin}</button>`}</div>
+    <div class="act-row">${first}${more}</div>
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button>` : '<div style="height:12px"></div>'}
     ${dirButtons(p)}
-    ${isTry && ui.tab !== 'home' ? `<button class="big-btn sec-btn" style="width:100%;height:44px;margin-top:8px" data-act="trymapone" data-id="${p.id}">${ICON.map}Show on map</button>` : ''}
-    ${isTry ? `<div style="display:flex;gap:8px;margin-top:8px"><button class="big-btn sec-btn" style="flex:1;height:46px" data-act="savetry" data-id="${p.id}">${ICON.check}Save to Spots</button><button class="round x-btn" style="width:46px;height:46px;border-radius:16px;color:var(--coral-soft)" data-act="del" data-id="${p.id}" aria-label="Remove">${ICON.close}</button></div>` : ''}
   </div>`;
 }
-
+// To try places: same layout as Spots, with the place's picture where memories would be
+function tryCover(p) {
+  return `<div class="ms-wrap"><div class="ms-head"><span>📍 On your To try list</span>${p.addedAt ? `<span class="ms-last">Added ${esc(new Date(p.addedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</div>
+    <div class="try-cover">${ART[p.cat] || ART.restaurant}<span class="ms-hint">Been? Tap Save to Spots, then add a memory</span></div></div>`;
+}
 function spotsView() {
   const q = ui.spotsSearch.trim().toLowerCase();
   const cats = ui.filter.filter(f => f !== 'totry');
@@ -698,7 +704,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v3.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -946,6 +952,13 @@ function dialogView() {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">${isTry ? 'Remove ' + esc(p.name) + '?' : 'Delete ' + esc(p.name) + ' from Spots?'}</h3><p>${isTry ? 'It’ll be deleted from To try.' : 'It’ll come off your map and list, with its photos and note.'} You can’t undo this.</p>
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="confirmdel">${isTry ? 'Remove' : 'Delete'}</button></div></div>`;
+  }
+  if (d.type === 'more') {
+    const p = byId(d.id); if (!p) return ''; const isTry = p.status === 'totry';
+    const opt = (act, icon, label, extra = '') => `<button class="big-btn" style="height:56px;border-radius:0;font-size:16px;justify-content:flex-start;padding:0 20px;gap:12px;border-top:1px solid rgba(var(--fg),.1);${extra}" data-act="${act}" data-id="${p.id}">${icon}${label}</button>`;
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="action-sheet" role="dialog" aria-label="More"><div class="group-box"><div class="head"><div style="font-size:15px;font-weight:800">${esc(p.name)}</div></div>
+      ${opt('listpick', ICON.list, 'Add to a list')}${opt('share', ICON.share, 'Share')}${isTry && ui.tab !== 'home' ? opt('trymapone', ICON.map, 'Show on map') : ''}${opt('del', ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'color:var(--coral-soft)')}</div>
+      <button class="group-box" data-act="closedialog" style="border-radius:20px;font-weight:700">Cancel</button></div>`;
   }
   if (d.type === 'dirs') {
     const p = d.place;
@@ -1645,7 +1658,7 @@ uiEl.addEventListener('click', e => {
     case 'confirmdel': delPlace(ui.dialog.place); return;
     case 'closedialog': if (t.tagName === 'A') { setTimeout(() => { ui.dialog = null; render(); }, 50); return; } ui.dialog = null; break;
     case 'dirs': ui.dialog = { type: 'dirs', place: p }; break;
-    case 'share': share(p); return;
+    case 'share': if (ui.dialog && ui.dialog.type === 'more') { ui.dialog = null; render(); } share(p); return;
     case 'open': ui.selected = id; ui.sheet = 'spot'; break;
     case 'showtry': ui.selected = id; ui.sheet = 'spot'; break;
     case 'trymap': ui.tab = 'home'; ui.filter = ['totry']; break;
@@ -1668,7 +1681,7 @@ uiEl.addEventListener('click', e => {
     case 'unamedlg': saveUsername(((uiEl.querySelector('[data-input="unameDraft"]') || {}).value || '').trim(), true); return;
     case 'spview': ui.spotsView = t.dataset.v; ui.menu = null; break;
     case 'openlist': ui.page = { list: id }; break;
-    case 'listpick': if (p) ui.dialog = { type: 'listpick', id: p.id }; break;
+    case 'listpick': if (p) ui.dialog = { type: 'listpick', id: p.id }; break; // replaces the More sheet
     case 'listtoggle': { const l = listOf(id), pid = ui.dialog.id; if (l) { l.ids = l.ids.includes(pid) ? l.ids.filter(x => x !== pid) : l.ids.concat(pid); touchList(l); } break; }
     case 'newlist': ui.dialog = { type: 'listedit', name: '', emoji: LIST_EMOJI[0], forPlace: (ui.dialog && ui.dialog.type === 'listpick') ? ui.dialog.id : null }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="listName"]'); if (i) i.focus(); }, 60); return;
     case 'editlist': { const l = listOf(id); if (l) ui.dialog = { type: 'listedit', listId: l.id, name: l.name, emoji: l.emoji }; break; }
@@ -1690,7 +1703,7 @@ uiEl.addEventListener('click', e => {
     case 'listaddtoggle': { const l = listOf(ui.dialog.listId); if (l) { l.ids = l.ids.includes(id) ? l.ids.filter(x => x !== id) : l.ids.concat(id); touchList(l); const box = $('#listaddres'); if (box) { const sc = box.firstElementChild ? box.firstElementChild.scrollTop : 0; box.innerHTML = listAddRows(l, (ui.dialog.q || '').trim().toLowerCase()); if (box.firstElementChild) box.firstElementChild.scrollTop = sc; } } return; }
     case 'dellistok': { const lid = ui.dialog.listId; db.lists = myLists().filter(l => l.id !== lid); db.deleted = db.deleted || {}; db.deleted[lid] = Date.now(); ui.filter = ui.filter.filter(f => f !== 'list:' + lid); save(); ui.dialog = null; ui.page = null; toast('List deleted', null); break; }
     case 'listmap': ui.filter = ['list:' + id]; ui.page = null; ui.tab = 'home'; ui.selected = null; ui.sheet = null; lastMapKey = ''; break;
-    case 'trymapone': ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p) mapApi.focus(p); break;
+    case 'trymapone': ui.dialog = null; ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p) mapApi.focus(p); break;
     case 'notetoggle': ui.noteOpen = ui.noteOpen === id ? null : id; break;
     case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; break; }
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
@@ -1700,6 +1713,7 @@ uiEl.addEventListener('click', e => {
     case 'tournext': if (ui.tour >= TOUR.length - 1) { endTour(); return; } ui.tour++; tourSetup(); break;
     case 'tourskip': endTour(); return;
     case 'tourreplay': ui.page = null; startTour(); return;
+    case 'more': if (p) ui.dialog = { type: 'more', id: p.id }; break;
     case 'levels': ui.page = 'levels'; break;
     case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
     case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cats: catsOf(p).slice(), cuisine: p.cuisine || '' }; break;
