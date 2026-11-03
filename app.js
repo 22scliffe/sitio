@@ -294,7 +294,7 @@ const aLink = (p) => `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encode
 const dirButtons = (p) => {
   const g = `<a class="big-btn ${db.settings.dirApp === 'google' ? 'primary-btn' : 'sec-btn'}" href="${gLink(p)}" target="_blank" rel="noopener">${ICON.pin}Google Maps</a>`;
   const a = `<a class="big-btn ${db.settings.dirApp === 'apple' ? 'primary-btn' : 'sec-btn'}" href="${aLink(p)}" target="_blank" rel="noopener">${ICON.nav}Apple Maps</a>`;
-  return `<div class="btn-grid">${db.settings.dirApp === 'apple' ? a + g : g + a}</div>`;
+  return `<div class="btn-grid">${a + g}</div>`;
 };
 const hoursLine = (p) => {
   const s = status(p);
@@ -423,7 +423,7 @@ function homeView() {
   return `
   <div class="top">
     <button class="city-title" data-act="cities" aria-label="Change city"><span>${esc(city().name)}</span>${ICON.chevDown}</button>
-    <button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="home">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>
+    <div class="filter-wrap"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="home">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="all" aria-label="Clear filter, show all">${ICON.close}</button>` : ''}</div>
     <div class="top-right">
       <button class="round glass" data-act="search" aria-label="Search your spots">${ICON.search}</button>
       <button class="round primary-btn" data-act="add" aria-label="Add a spot" style="box-shadow:0 8px 24px rgba(0,0,0,.5)">${ICON.plus}</button>
@@ -453,6 +453,20 @@ function filterMenu() {
   return h + `</div>`;
 }
 
+function roSheet(p, ro) {
+  return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="closeadmin">
+    <div class="grab"></div>
+    <div class="sheet-photos"><div>${ART[p.cat] || ART.restaurant}</div><div style="background:var(--surface)"></div><div style="background:var(--surface)"></div></div>
+    <div class="name-row"><div style="display:flex;align-items:center;gap:10px;min-width:0"><h2 class="big-name">${esc(p.name)}</h2>${p.status === 'totry' ? '<span class="tag">TO TRY</span>' : ''}${p.fav ? `<span class="star-btn on" style="display:flex">${ICON.star}</span>` : ''}</div></div>
+    <div class="meta">${esc(metaLine(p))}</div>
+    ${status(p) ? hoursLine(p) : ''}
+    ${p.status === 'spot' && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(ro.cur.repeat(p.price))}</span><span class="off">${esc(ro.cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
+    ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:14px"></div>'}
+    <div class="btn-grid" style="margin-bottom:8px"><button class="big-btn primary-btn" data-act="copyspot">${ICON.check}Add to my Spots</button><button class="big-btn coral-btn" data-act="copytry">${ICON.plus}Add to my To try</button></div>
+    ${dirButtons(p)}
+    <p class="page-sub" style="font-size:12px;margin:10px 0 0">Saved by ${esc(ro.who)}${p.addedAt ? ' · ' + fmtDate(p.addedAt) : ''}. Their photos stay on their phone.</p>
+  </div>`;
+}
 function spotSheet(p) {
   const isTry = p.status === 'totry';
   const photos = (p.photos || []).slice(0, 3).map(id => { const u = photoUrl(id); return `<div>${u ? `<img src="${u}" alt="">` : ART[p.cat]}</div>`; });
@@ -543,7 +557,7 @@ function accountView() {
       <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
       ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
-      ${auth ? row('Account details', 'Name, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
+      ${auth ? row('Account details', 'Username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${row('Privacy', '', 'privacy')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
@@ -554,7 +568,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -578,7 +592,7 @@ function profilePage() {
     <div style="display:flex;gap:8px"><input id="nm" class="input card" style="flex:1" value="${esc(ui.unameDraft != null ? ui.unameDraft : (u.name || ''))}" data-input="unameDraft" maxlength="20" autocapitalize="off" autocomplete="username" spellcheck="false"><button class="big-btn primary-btn" style="width:auto;padding:0 18px;height:52px" data-act="saveuname">Save</button></div>
     <div class="page-sub" style="font-size:12px;margin-top:6px">${USER_HINT}</div>
     ${auth ? `<label class="field-label">Email</label><div class="input card" style="display:flex;align-items:center;color:var(--text-2)">${esc(auth.user.email)}</div>
-    <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button><button class="set-row" data-act="delacct"><span style="color:var(--coral-soft)">Delete account</span><span class="val"></span></button></div>`
+    <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="resetmail"><span>Forgot password</span><span class="val" style="font-size:12px">Email me a reset link${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button><button class="set-row" data-act="delacct"><span style="color:var(--coral-soft)">Delete account</span><span class="val"></span></button></div>`
     : `<label class="field-label">Account</label><button class="card acct-cta" data-act="openauth" style="width:100%"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account or log in</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>`}
   </div>`;
 }
@@ -771,7 +785,7 @@ function dialogView() {
   if (d.type === 'dirs') {
     const p = d.place;
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="action-sheet" role="dialog" aria-label="Directions"><div class="group-box"><div class="head"><div style="font-size:15px;font-weight:800">Directions to ${esc(p.name)}</div><div class="muted" style="font-size:13px;font-weight:600">${esc([p.area, fmtDist(dist(p))].filter(Boolean).join(' · '))}</div></div>
-      <a class="big-btn" style="height:58px;border-radius:0;font-size:17px" href="${gLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.pin}Google Maps</a><a class="big-btn" style="height:58px;border-radius:0;font-size:17px;border-top:1px solid rgba(var(--fg),.1)" href="${aLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.nav}Apple Maps</a></div>
+      <a class="big-btn" style="height:58px;border-radius:0;font-size:17px" href="${aLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.nav}Apple Maps</a><a class="big-btn" style="height:58px;border-radius:0;font-size:17px;border-top:1px solid rgba(var(--fg),.1)" href="${gLink(p)}" target="_blank" rel="noopener" data-act="closedialog">${ICON.pin}Google Maps</a></div>
       <button class="group-box" data-act="closedialog" style="border-radius:20px;font-weight:700">Cancel</button></div>`;
   }
   if (d.type === 'nudge') {
@@ -942,7 +956,7 @@ function render() {
   else if (ui.page === 'privacy') h += privacyPage();
   else if (ui.page === 'levels') h += levelsPage();
   else if (ui.page === 'admin') h += adminPage();
-  else if (ui.page && ui.page.adminUser && ui.page.place) {
+  else if (false) {
     const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), ap = au && au.data && (au.data.places || []).find(x => x.id === ui.page.place);
     const ac = au && au.data && (au.data.cities || []).find(x => x.id === ui.page.city);
     if (ap) h += spotPage(ap, { cur: (ac && ac.currency) || '€', who: (au.data.user && au.data.user.name) || au.email }); else ui.page = { adminUser: ui.page.adminUser, city: ui.page.city };
@@ -951,6 +965,11 @@ function render() {
   else if (ui.page && ui.page.spot) { const p = byId(ui.page.spot); if (p) h += spotPage(p); else ui.page = null; }
   if ((!ui.page || ui.page === 'cities') && !ui.sheet) h += tabbar();
   if (ui.sheet === 'spot' && ui.selected && byId(ui.selected)) h += (ui.tab === 'home' ? '' : '<div class="scrim" data-act="closesheet"></div>') + spotSheet(byId(ui.selected));
+  if (ui.adminSheet && ui.page && ui.page.adminUser && ui.page.city) {
+    const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), ap = au && au.data && (au.data.places || []).find(x => x.id === ui.adminSheet);
+    const ac = au && au.data && (au.data.cities || []).find(x => x.id === ui.page.city);
+    if (ap) h += '<div class="scrim" data-act="closeadmin"></div>' + roSheet(ap, { cur: (ac && ac.currency) || '€', who: (au.data.user && au.data.user.name) || au.email }); else ui.adminSheet = null;
+  }
   if (ui.sheet === 'add' && ui.add && ui.pinMode) h += `<div class="pin-mode"><div class="pm-top glass">Move the map to put the pin exactly on the spot</div><div class="pm-pin" aria-hidden="true"><div class="pm-head">${ICON.pin}</div><div class="pm-dot"></div></div><div class="pm-bar"><button class="big-btn sec-btn glass" data-act="pincancel">Cancel</button><button class="big-btn primary-btn" data-act="pinok">Use this spot</button></div><button class="locate round glass pm-loc" data-act="locate" aria-label="Go to my location" style="color:var(--blue)">${ICON.nav}</button></div>`;
   else if (ui.sheet === 'add' && ui.add) h += '<div class="scrim" data-act="closesheet"></div>' + addSheet();
   if (ui.toast) h += `<div class="toast" role="status"><span>${ui.toast.ok ? `<span style="color:var(--green);display:flex">${ICON.check}</span>` : ''}${esc(ui.toast.text)}</span>${ui.toast.undo ? '<button data-act="undo">Undo</button>' : ''}</div>`;
@@ -1176,7 +1195,7 @@ uiEl.addEventListener('click', e => {
     case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'all') ui.menu = null; break;
     case 'cuisines': e.stopPropagation(); ui.cuisineOpen = !ui.cuisineOpen; break;
     case 'cities': ui.page = 'cities'; break;
-    case 'closepage': if (ui.page && ui.page.adminUser) { ui.page = ui.page.place ? { adminUser: ui.page.adminUser, city: ui.page.city } : ui.page.city ? { adminUser: ui.page.adminUser } : 'admin'; break; } ui.page = ui.prevPage || null; ui.prevPage = null; break;
+    case 'closepage': ui.adminSheet = null; if (ui.page && ui.page.adminUser) { ui.page = ui.page.place ? { adminUser: ui.page.adminUser, city: ui.page.city } : ui.page.city ? { adminUser: ui.page.adminUser } : 'admin'; break; } ui.page = ui.prevPage || null; ui.prevPage = null; break;
     case 'pickcity': { db.currentCityId = id; save(); ui.page = null; ui.filter = []; ui.selected = null; ui.tab = 'home'; const cc = cityCentre(); if (cc) { if (haveLocation && dist(cc) < 50000) mapApi.view(me, 15); else mapApi.view(cc, 13); } lastMapKey = ''; break; }
     case 'addcity': ui.dialog = { type: 'addcity' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="cityQ"]'); if (i) i.focus(); }, 60); return;
     case 'citypick': cityPick(+t.dataset.i); return;
@@ -1208,7 +1227,7 @@ uiEl.addEventListener('click', e => {
     case 'closedialog': if (t.tagName === 'A') { setTimeout(() => { ui.dialog = null; render(); }, 50); return; } ui.dialog = null; break;
     case 'dirs': ui.dialog = { type: 'dirs', place: p }; break;
     case 'share': share(p); return;
-    case 'open': ui.page = { spot: id }; break;
+    case 'open': ui.selected = id; ui.sheet = 'spot'; break;
     case 'showtry': ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; mapApi.focus(p); break;
     case 'trymap': ui.tab = 'home'; ui.filter = ['totry']; break;
     case 'trysort': ui.tryNewest = !ui.tryNewest; break;
@@ -1242,13 +1261,14 @@ uiEl.addEventListener('click', e => {
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': ui.page = { adminUser: id }; break;
+    case 'closeadmin': ui.adminSheet = null; break;
     case 'copyspot': case 'copytry': {
-      const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), src = au && au.data && (au.data.places || []).find(x => x.id === ui.page.place);
+      const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), src = au && au.data && (au.data.places || []).find(x => x.id === ui.adminSheet);
       const sc = au && au.data && (au.data.cities || []).find(x => x.id === ui.page.city); if (!src) return;
       if (act === 'copytry') { const np = copyPlace(src, sc, 'totry', 0); toast(np.name + ' added to your To try', () => { db.places = db.places.filter(x => x.id !== np.id); save(); }); afterSave(np); break; }
       openPrice({ name: src.name }, { mode: 'copy', src, srcCity: sc, value: src.price || 0 }); return;
     }
-    case 'adminplace': ui.page = { adminUser: id, city: t.dataset.city, place: t.dataset.place }; break;
+    case 'adminplace': ui.adminSheet = t.dataset.place; break;
     case 'admincity': ui.page = { adminUser: id, city: t.dataset.city }; break;
     case 'delacct': ui.dialog = { type: 'delacct' }; break;
     case 'dodelacct': { const v = ((uiEl.querySelector('[data-input="delConfirm"]') || {}).value || '').trim().toLowerCase(); if (v !== delWord().toLowerCase()) { flash('Type ' + delWord() + ' exactly to confirm.'); return; } ui.dialog = null; deleteAccount(); return; }
@@ -1491,6 +1511,29 @@ function readAuthHash() {
     sync(); render();
   }).catch(e => flash(friendly(e)));
 }
+
+// Sheets: drag the top part down to close
+let sd = null;
+uiEl.addEventListener('pointerdown', e => {
+  const sh = e.target.closest('.sheet'); if (!sh || e.target.closest('input,textarea,button,a,label')) return;
+  if (sh.scrollTop > 0 && !e.target.closest('.grab')) return;
+  sd = { sh, y: e.clientY, dy: 0, id: e.pointerId };
+});
+uiEl.addEventListener('pointermove', e => {
+  if (!sd || e.pointerId !== sd.id) return; const dy = e.clientY - sd.y;
+  if (dy <= 0 && !sd.on) return; if (!sd.on && dy < 8) return;
+  sd.on = true; sd.dy = Math.max(0, dy); sd.sh.style.transition = 'none'; sd.sh.style.transform = `translateY(${sd.dy}px)`;
+});
+const sdEnd = () => {
+  if (!sd) return; const { sh, dy, on } = sd; sd = null; if (!on) return;
+  if (dy > 90) {
+    sh.style.transition = 'transform .2s ease'; sh.style.transform = 'translateY(100%)';
+    const close = sh.dataset.swipeclose;
+    setTimeout(() => { if (close === 'closeadmin') ui.adminSheet = null; else { ui.sheet = null; ui.selected = null; ui.add = null; ui.pinMode = false; } render(); }, 180);
+  } else { sh.style.transition = 'transform .2s ease'; sh.style.transform = ''; }
+  const block = ev => { ev.stopPropagation(); ev.preventDefault(); uiEl.removeEventListener('click', block, true); }; uiEl.addEventListener('click', block, true); setTimeout(() => uiEl.removeEventListener('click', block, true), 50);
+};
+uiEl.addEventListener('pointerup', sdEnd); uiEl.addEventListener('pointercancel', sdEnd);
 
 /* ---------- start ---------- */
 root.appendChild(mapApi.el); root.appendChild(uiEl);
