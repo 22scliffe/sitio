@@ -29,7 +29,7 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: SAMPLE.places.map(p => Object.assign({}, p, { sample: true, hours: p.hours ? weekFrom(p.hours.open, p.hours.close) : null, hoursSrc: p.hours ? 'sample' : null })),
     sample: true,
-    v: 3
+    v: 4
   };
 }
 let db = loadDb();
@@ -46,11 +46,17 @@ if (db.v < 3) {
     const now = Date.now();
     db.places = [
       { id: 'p-pez-tortilla', cityId: 'c-madrid', name: 'Pez Tortilla', cat: 'bar', cuisine: '', lat: 40.41085, lng: -3.70945, area: 'La Latina', status: 'spot', price: 1, note: 'Tapas bar. Tortilla and croquetas.', photos: [], hours: null, hoursSrc: 'osm', hoursAt: 0, googleId: null, addedAt: now },
-      { id: 'p-leinerhaus', cityId: 'c-madrid', name: 'Leinerhaus', cat: 'restaurant', cuisine: 'German', lat: 40.42175, lng: -3.70395, area: 'Centro', status: 'totry', price: 0, note: 'La Casa Alemana.', photos: [], hours: null, hoursSrc: 'osm', hoursAt: 0, googleId: null, addedAt: now - 1 }
+      { id: 'p-leinerhaus', cityId: 'c-madrid', name: 'Leinerhaus', cat: 'bar', cuisine: '', lat: 40.42175, lng: -3.70395, area: 'Centro', status: 'totry', price: 1, note: 'La Casa Alemana.', photos: [], hours: null, hoursSrc: 'osm', hoursAt: 0, googleId: null, addedAt: now - 1 }
     ];
     db.sample = false;
   }
   db.v = 3; save();
+}
+// v4: Leinerhaus is a bar, €
+if (db.v < 4) {
+  const l = db.places.find(x => x.id === 'p-leinerhaus');
+  if (l) Object.assign(l, { cat: 'bar', cuisine: '', price: 1 });
+  db.v = 4; save();
 }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } }
