@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -2209,13 +2209,14 @@ resnap();
 checkLevel();
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
-  try { if (localStorage.getItem('sitio.showcase2025b')) return; } catch (e) { }
+  try { if (localStorage.getItem('sitio.showcaseJA2025')) return; } catch (e) { }
   if (!isAdmin) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   const y0 = new Date().getFullYear(); let per = null;
-  for (const y of [2025, y0 - 1, y0 - 2, y0 - 3]) { const p = recapYear(y); if (recapItems(p).filter(x => photoUrl(x.m.id)).length) { per = p; break; } }
+  const cands = [recapPer(2025, 3)]; for (let y = y0; y >= y0 - 3; y--) for (let k = 5; k >= 0; k--) { const p = recapPer(y, k); if (releaseAt(p) <= Date.now()) cands.push(p); }
+  for (const p of cands) { if (recapItems(p).filter(x => photoUrl(x.m.id)).length) { per = p; break; } }
   if (!per) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
-  try { localStorage.setItem('sitio.showcase2025b', '1'); } catch (e) { }
+  try { localStorage.setItem('sitio.showcaseJA2025', '1'); } catch (e) { }
   ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
 }
 setTimeout(adminShowcase, 900);
