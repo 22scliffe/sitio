@@ -696,7 +696,7 @@ function accountView() {
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
-      ${row('Memory recaps', recapList().length ? plural(recapList().length, 'recap') : 'None yet', 'recaps')}
+      ${row('Memory recaps', recapList().length ? plural(recapList().length, 'recap') : 'Next on ' + ordinal(new Date(releaseAt(recapPer(new Date().getFullYear(), Math.floor(new Date().getMonth() / 2)))).getDate()), 'recaps')}
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
       ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
       ${row('Directions open in', db.settings.dirApp === 'apple' ? 'Apple Maps' : 'Google Maps', 'dirapp')}
@@ -718,7 +718,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -787,8 +787,9 @@ function levelOf(n) { let i = -1; LEVELS.forEach((l, k) => { if (n >= l.min) i =
 /* ---------- Two-month recap ---------- */
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 function recapPer(y, k) { return { y, k, start: new Date(y, k * 2, 1).getTime(), end: new Date(y, k * 2 + 2, 1).getTime(), label: MONTH_NAMES[k * 2] + ' / ' + MONTH_NAMES[k * 2 + 1] }; }
-function recapItems(per) {
-  const out = []; db.places.forEach(p => (p.memories || []).forEach(m => { if (m.at >= per.start && m.at < per.end) out.push({ m, p }); }));
+const locMatch = (p, loc) => !loc || (loc.startsWith('cc:') ? ((cityOf(p) || {}).cc || '').toUpperCase() === loc.slice(3) : 'city:' + p.cityId === loc);
+function recapItems(per, loc) {
+  const out = []; db.places.filter(p => locMatch(p, loc)).forEach(p => (p.memories || []).forEach(m => { if (m.at >= per.start && m.at < per.end) out.push({ m, p }); }));
   return out.sort((x, y) => x.m.at - y.m.at);
 }
 function recapYear(y) { return { y, k: 'y', year: true, start: new Date(y, 0, 1).getTime(), end: new Date(y + 1, 0, 1).getTime(), label: String(y) }; }
@@ -815,14 +816,36 @@ function tryRecap(demo, tries = 0) {
   if (!demo) { try { localStorage.setItem(recapKey(per), '1'); } catch (e) { } }
   ui.dialog = { type: 'recap', per, open: false }; render();
 }
-// Past recaps for Account: the current year and every two months with memories, newest first
-function recapList() {
-  const now = new Date(), out = [], y0 = now.getFullYear();
-  for (let y = y0; y >= y0 - 3; y--) {
-    const yr = recapYear(y); if (recapItems(yr).length) out.push(yr);
-    for (let k = 5; k >= 0; k--) { const p = recapPer(y, k); if (p.start <= now.getTime() && recapItems(p).length) out.push(p); }
+const releaseAt = per => per.year ? new Date(per.y, 11, 30).getTime() : new Date(per.y, per.k * 2 + 2, 0).getTime();
+const ordinal = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
+const recapName = per => per.year ? '✨ ' + per.y : per.label.replace(/([A-Z][a-z]{2})[a-z]+/g, '$1');
+// Every released recap with memories (optionally for one city or country), newest first
+function recapList(loc, year) {
+  const now = Date.now(), ats = db.places.flatMap(p => (p.memories || []).map(m => m.at)).filter(Boolean); if (!ats.length) return [];
+  const y0 = new Date().getFullYear(), y1 = new Date(Math.min(...ats)).getFullYear(), out = [];
+  for (let y = y0; y >= y1; y--) {
+    if (year && y !== year) continue;
+    const yr = recapYear(y); if (releaseAt(yr) <= now && recapItems(yr, loc).length) out.push(yr);
+    for (let k = 5; k >= 0; k--) { const p = recapPer(y, k); if (releaseAt(p) <= now && recapItems(p, loc).length) out.push(p); }
   }
   return out;
+}
+const recapRow = (p, loc) => `<button class="set-row" data-act="recapshow" data-y="${p.y}" data-k="${p.k}" data-loc="${esc(loc || '')}"><span>${esc(recapName(p))}</span><span class="val">${plural(recapItems(p, loc).length, 'memory', 'memories')}${ICON.chevRight}</span></button>`;
+function recapsPage() {
+  const f = ui.recapF || (ui.recapF = { y: '', loc: '' });
+  const ats = db.places.flatMap(p => (p.memories || []).map(m => m.at)).filter(Boolean);
+  const years = []; if (ats.length) for (let y = new Date().getFullYear(); y >= new Date(Math.min(...ats)).getFullYear(); y--) years.push(y);
+  const withMem = db.cities.filter(c => db.places.some(p => p.cityId === c.id && (p.memories || []).length));
+  const countries = [...new Map(withMem.filter(c => c.cc).map(c => [c.cc.toUpperCase(), c.country || c.cc.toUpperCase()])).entries()];
+  const list = recapList(f.loc, f.y ? +f.y : 0);
+  const locName = !f.loc ? 'All places' : f.loc.startsWith('cc:') ? ((countries.find(x => x[0] === f.loc.slice(3)) || [])[1] || 'Country') : ((db.cities.find(c => 'city:' + c.id === f.loc) || {}).name || 'City');
+  const sel = (key, label, opts) => `<label class="pill sec-btn rc-sel">${esc(label)}${ICON.chevDown}<select data-input="${key}">${opts}</select></label>`;
+  const byYear = {}; list.forEach(p => { (byYear[p.y] = byYear[p.y] || []).push(p); });
+  return `<div class="page" style="z-index:15">
+    <div class="page-head" style="justify-content:flex-start;gap:10px"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><h1 class="page-title" style="font-size:28px">All recaps</h1></div>
+    <div class="row-btns">${sel('recapY', f.y || 'All years', `<option value="">All years</option>${years.map(y => `<option value="${y}" ${String(y) === f.y ? 'selected' : ''}>${y}</option>`).join('')}`)}${sel('recapLoc', locName, `<option value="">All places</option>${countries.length ? `<optgroup label="Countries">${countries.map(([cc, n]) => `<option value="cc:${cc}" ${f.loc === 'cc:' + cc ? 'selected' : ''}>${esc(n)}</option>`).join('')}</optgroup>` : ''}${withMem.length ? `<optgroup label="Cities">${withMem.map(c => `<option value="city:${c.id}" ${f.loc === 'city:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>` : ''}`)}</div>
+    ${list.length ? Object.keys(byYear).sort((x, y) => y - x).map(y => `<div class="section-label" style="margin:14px 0 8px">${y}</div><div class="settings card">${byYear[y].map(p => recapRow(p, f.loc)).join('')}</div>`).join('') : `<div class="empty card" style="border-radius:20px;margin-top:12px">No recaps here yet.<br>They’re released on the last day of every two months.</div>`}
+  </div>`;
 }
 function showLevelUp(i, demo) {
   const d = { type: 'levelup', i, demo }; ui.dialog = d; render();
@@ -1060,14 +1083,16 @@ function dialogView() {
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
   }
   if (d.type === 'recaps') {
-    const l = recapList();
+    const now = new Date(), y = now.getFullYear(), cur = recapPer(y, Math.floor(now.getMonth() / 2)), yr = recapYear(y);
+    const soon = [cur, yr].filter(p => releaseAt(p) > Date.now()).map(p => `<div class="set-row rc-soon"><span>${esc(recapName(p))}</span><span class="val">Releasing ${ordinal(new Date(releaseAt(p)).getDate())} ${MONTH_NAMES[new Date(releaseAt(p)).getMonth()].slice(0, 3)}</span></div>`).join('');
+    const mine = recapList('', y), past = recapList().filter(p => p.y < y).length;
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
-      <h3 id="dlg-t">Memory recaps</h3><p>Every two months, on the last day, and for the whole year on 30 December.</p>
-      ${l.length ? `<div class="settings card" style="max-height:50vh;overflow-y:auto">${l.map(p => { const live = Date.now() < p.end; return `<button class="set-row" data-act="recapshow" data-y="${p.y}" data-k="${p.k}"><span>${p.year ? '✨ ' + p.y + (live ? ' so far' : '') : esc(p.label.replace(/([A-Z][a-z]{2})[a-z]+/g, '$1')) + (p.y !== new Date().getFullYear() ? ' ' + p.y : '') + (live ? ' so far' : '')}</span><span class="val">${plural(recapItems(p).length, 'memory', 'memories')}${ICON.chevRight}</span></button>`; }).join('')}</div>` : '<p style="margin:0">Add a memory to a spot and your first recap will show here.</p>'}
+      <h3 id="dlg-t">Memory recaps</h3><p>Released on the last day of every two months, and for the whole year on 30 December.</p>
+      <div class="settings card" style="max-height:46vh;overflow-y:auto">${soon}${mine.map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${past ? plural(past, 'recap') : 'All years'}${ICON.chevRight}</span></button></div>
       <button class="big-btn sec-btn" style="width:100%;margin-top:14px" data-act="closedialog">Close</button></div>`;
   }
   if (d.type === 'recap') {
-    const items = recapItems(d.per).filter(x => photoUrl(x.m.id)); if (!items.length) return '';
+    const items = recapItems(d.per, d.loc).filter(x => photoUrl(x.m.id)); if (!items.length) return '';
     const nPlaces = new Set(items.map(x => x.p.id)).size;
     const cap = x => `<div class="rc-cap"><b>${esc(x.p.name)}</b><span>${esc([x.p.area, cityOf(x.p) && cityOf(x.p).name].filter(Boolean).join(', '))}</span><span class="rc-when">${esc(fmtWhen(x.m.at))}</span></div>`;
     const head = `<div class="rc-head"><div class="rc-k">${d.per.year ? 'Your year in Sitio' : 'Your recap'}</div><div class="rc-t ${d.per.year ? 'big' : ''}" id="rc-t">${esc(d.per.label)}</div><div class="rc-sub">${plural(items.length, 'memory', 'memories')} · ${plural(nPlaces, 'place')}</div></div>`;
@@ -1313,6 +1338,7 @@ function render() {
   if (ui.tab === 'totry') h += tryView();
   if (ui.tab === 'account') h += accountView();
   if (ui.page === 'cities') h += citiesPage();
+  if (ui.page === 'recaps') h += recapsPage();
   else if (ui.page === 'profile') h += profilePage();
   else if (ui.page === 'auth') h += authPage();
   else if (ui.page === 'privacy') h += privacyPage();
@@ -1805,7 +1831,8 @@ uiEl.addEventListener('click', e => {
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
     case 'recaps': ui.dialog = { type: 'recaps' }; break;
-    case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k; ui.dialog = { type: 'recap', per: k === 'y' ? recapYear(y) : recapPer(y, +k), open: false }; break; }
+    case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k; ui.dialog = { type: 'recap', per: k === 'y' ? recapYear(y) : recapPer(y, +k), loc: t.dataset.loc || '', open: false }; break; }
+    case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; break;
     case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') ui.dialog.open = true; break;
     case 'memcover': { const q = byId(ui.dialog.id); if (q && coverOf(q) !== ui.dialog.m) { q.thumb = { id: ui.dialog.m, set: Date.now() }; save(); lastMapKey = ''; toast('Thumbnail updated', null); } break; }
     case 'memdelno': ui.dialog = { type: 'memory', id: ui.dialog.id, m: ui.dialog.m }; break;
@@ -1877,6 +1904,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'curQ' && ui.dialog && ui.dialog.type === 'currency') { ui.dialog.q = v; const box = $('#curres'); if (box) box.innerHTML = curResults(ui.dialog, db.cities.find(x => x.id === ui.dialog.cityId) || city()); }
   if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
+  if (k === 'recapY' || k === 'recapLoc') { ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[k === 'recapY' ? 'y' : 'loc'] = v; render(); }
   if (k === 'adminCityQ') { ui.adminCityQ = v; render(); }
   if (k === 'cityQ') { clearTimeout(cityTimer); cityTimer = setTimeout(() => citySuggest(v), 250); }
   if (k === 'authName' || k === 'authEmail' || k === 'authPass') { ui.authF = ui.authF || {}; ui.authF[{ authName: 'name', authEmail: 'email', authPass: 'pass' }[k]] = v; }

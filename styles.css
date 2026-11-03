@@ -644,3 +644,8 @@ body.light .md-row input { color-scheme: light; }
 .rc-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rc-dots { margin: -4px 0 0; }
 .rc-t.big { font-size: 44px; line-height: 1; background: linear-gradient(90deg, #FFD66B, #FF8A5C); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.rc-soon { opacity: .45; cursor: default; }
+.rc-soon .val { font-weight: 700; }
+.rc-sel { position: relative; overflow: hidden; }
+.rc-sel select { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; font-size: 16px; }
