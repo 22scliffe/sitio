@@ -98,7 +98,7 @@ function resnap() { snap = {}; db.places.forEach(p => { snap[p.id] = pj(p); }); 
 // Stamp edited places with a time, remember deleted ones, so two phones can be merged correctly
 function stamp() {
   const now = Date.now(), seen = {}; db.deleted = db.deleted || {};
-  db.places.forEach(p => { const j = pj(p); seen[p.id] = j; if (snap[p.id] !== j || !p.updatedAt) p.updatedAt = snap[p.id] === undefined ? (p.updatedAt || now) : now; });
+  db.places.forEach(p => { let j = pj(p); if (p.sample && snap[p.id] !== undefined && snap[p.id] !== j) { delete p.sample; j = pj(p); } seen[p.id] = j; if (snap[p.id] !== j || !p.updatedAt) p.updatedAt = snap[p.id] === undefined ? (p.updatedAt || now) : now; });
   Object.keys(snap).forEach(id => { if (!seen[id]) db.deleted[id] = now; });
   Object.keys(db.deleted).forEach(id => { if (now - db.deleted[id] > 120 * 864e5) delete db.deleted[id]; });
   snap = seen;
@@ -624,6 +624,8 @@ function spotsView() {
       const open = ui.expand[c.id]; const shown = open ? g : g.slice(0, 3);
       body += `<div class="group"><div class="group-head"><span class="section-label">${c.plural} · ${g.length > 3 && !open ? '3 nearest' : g.length}</span>${g.length > 3 ? `<button class="link-btn" data-act="expand" data-cat="${c.id}">${open ? 'Show less' : 'All ' + g.length}${open ? '' : ICON.chevRight}</button>` : ''}</div><div class="list card">${shown.map(rowSpot).join('')}</div></div>`;
     });
+    const other = list.filter(p => !catsOf(p).some(id => CATS.some(c => c.id === id)));
+    if (other.length) body += `<div class="group"><div class="group-head"><span class="section-label">Other · ${other.length}</span></div><div class="list card">${other.map(rowSpot).join('')}</div></div>`;
   } else {
     body = `<div class="group"><div class="group-head"><span class="section-label">${list.length} ${esc(filterLabel(cats).toLowerCase())} · nearest first</span></div><div class="list card">${list.map(rowSpot).join('')}</div></div>`;
   }
@@ -716,7 +718,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.10 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v3.11 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1884,7 +1886,7 @@ function mergeData(local, remote) {
   const del = Object.assign({}, local.deleted || {});
   Object.entries(remote.deleted || {}).forEach(([k, v]) => { del[k] = Math.max(del[k] || 0, v); });
   const rPlaces = remote.places || [];
-  const lPlaces = rPlaces.some(p => !p.sample) ? local.places.filter(p => !p.sample) : local.places;
+  const lPlaces = rPlaces.some(p => !p.sample) ? local.places.filter(p => !p.sample || tAt(p) > 1) : local.places;
   const map = {}; rPlaces.forEach(p => { map[p.id] = p; });
   lPlaces.forEach(p => { const r = map[p.id]; if (!r || tAt(p) >= tAt(r)) map[p.id] = p; });
   const places = Object.values(map).filter(p => !(del[p.id] && del[p.id] >= tAt(p)));
