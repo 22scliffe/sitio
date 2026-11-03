@@ -231,3 +231,6 @@ textarea.input { height: auto; min-height: 72px; padding: 12px 14px; resize: non
 .i-arrow { position: fixed; left: 50%; bottom: calc(var(--safe-bottom) + 14px); transform: translateX(-50%); width: 48px; height: 48px; border-radius: 24px; background: var(--text); color: var(--bg); display: flex; align-items: center; justify-content: center; animation: bob 1.2s ease-in-out infinite; z-index: 61; }
 .i-arrow .icon { width: 26px !important; height: 26px !important; stroke-width: 3; }
 @keyframes bob { 0%,100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 8px); } }
+
+/* Google's required logo and credit: keep them, just tuck them neatly into the bottom corner */
+.gm-style .gmnoprint a, .gm-style-cc { opacity: 0.75; }

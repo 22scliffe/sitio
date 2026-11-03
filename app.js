@@ -129,8 +129,9 @@ const fmtDist = (m) => m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).to
 function locate(center) {
   if (!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(pos => {
+    const first = !haveLocation;
     me = { lat: pos.coords.latitude, lng: pos.coords.longitude }; haveLocation = true;
-    if (center) mapApi.center(me);
+    if (center || first) mapApi.center(me);
     render();
   }, () => { if (center) flash('Location is off. Allow it in Settings to see spots near you.'); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
 }
@@ -282,7 +283,7 @@ const mapApi = (() => {
     window.__sitioGmapsReady = () => {
       mode = 'google';
       const gEl = document.createElement('div'); gEl.style.cssText = 'position:absolute;inset:0'; el.appendChild(gEl);
-      gmap = new google.maps.Map(gEl, { center, zoom: 15, disableDefaultUI: true, clickableIcons: false, gestureHandling: 'greedy', styles: db.settings.darkMap ? DARK : null, backgroundColor: '#141418' });
+      gmap = new google.maps.Map(gEl, { center: haveLocation ? me : center, zoom: 15, disableDefaultUI: true, keyboardShortcuts: false, clickableIcons: false, gestureHandling: 'greedy', styles: db.settings.darkMap ? DARK : null, backgroundColor: '#141418' });
       overlay = new google.maps.OverlayView();
       overlay.onAdd = function () { this.getPanes().overlayMouseTarget.appendChild(pinsEl); this.getPanes().overlayMouseTarget.appendChild(meEl); pinsEl.style.pointerEvents = 'none'; };
       overlay.draw = positionPins; overlay.onRemove = () => {};
@@ -299,7 +300,7 @@ const mapApi = (() => {
     el,
     init() { if (CFG.googleMapsKey) initGoogle(); else { initMock(); } },
     update(list, selected) { if (mode === 'mock') drawMock(); placePins(list, selected); },
-    center(c) { center = { lat: c.lat, lng: c.lng }; if (gmap) gmap.panTo(center); else redraw(); },
+    center(c) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.panTo(center); if (gmap.getZoom() < 14) gmap.setZoom(15); } else redraw(); },
     // Puts a place in the upper part of the screen so it stays visible above a bottom sheet
     focus(c) { const h = el.clientHeight || 844; if (gmap) { gmap.panTo(c); gmap.panBy(0, h * 0.22); } else { center = { lat: c.lat - (h * 0.22) / (110540 * k), lng: c.lng }; redraw(); } },
     setStyle() { if (gmap) gmap.setOptions({ styles: db.settings.darkMap ? DARK : null }); },
