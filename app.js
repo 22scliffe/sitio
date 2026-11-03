@@ -553,7 +553,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -573,7 +573,9 @@ function profilePage() {
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Account details</span></div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin:18px 0 22px"><div class="avatar" style="width:104px;height:104px;border-radius:52px;font-size:42px">${av}</div>
       <label class="link-btn" style="text-decoration:underline;cursor:pointer">Change photo<input type="file" accept="image/*" hidden data-userphoto="1"></label></div>
-    <label class="field-label" for="nm">Name</label><input id="nm" class="input card" value="${esc(u.name || '')}" data-input="userName" maxlength="40">
+    <label class="field-label" for="nm">Username</label>
+    <div style="display:flex;gap:8px"><input id="nm" class="input card" style="flex:1" value="${esc(ui.unameDraft != null ? ui.unameDraft : (u.name || ''))}" data-input="unameDraft" maxlength="20" autocapitalize="off" autocomplete="username" spellcheck="false"><button class="big-btn primary-btn" style="width:auto;padding:0 18px;height:52px" data-act="saveuname">Save</button></div>
+    <div class="page-sub" style="font-size:12px;margin-top:6px">${USER_HINT}</div>
     ${auth ? `<label class="field-label">Email</label><div class="input card" style="display:flex;align-items:center;color:var(--text-2)">${esc(auth.user.email)}</div>
     <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button><button class="set-row" data-act="delacct"><span style="color:var(--coral-soft)">Delete account</span><span class="val"></span></button></div>`
     : `<label class="field-label">Account</label><button class="card acct-cta" data-act="openauth" style="width:100%"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account or log in</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>`}
@@ -587,7 +589,7 @@ function authPage() {
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">${title}</span></div>
     <p class="page-sub" style="margin:4px 0 18px;line-height:1.45">${m === 'reset' ? 'Enter your email and we’ll send you a link to choose a new password.' : 'Your spots are saved online, so they’re safe and show up on any phone you log in on.'}</p>
-    ${m === 'signup' ? `<label class="field-label" for="an">Name</label><input id="an" class="input card" data-input="authName" value="${esc(f.name || '')}" autocomplete="given-name" maxlength="40" placeholder="Your first name">` : ''}
+    ${m === 'signup' ? `<label class="field-label" for="an">Username</label><input id="an" class="input card" data-input="authName" value="${esc(f.name || '')}" autocapitalize="off" spellcheck="false" autocomplete="username" maxlength="20" placeholder="e.g. liaa"><div class="page-sub" style="font-size:12px;margin-top:6px">${USER_HINT}</div>` : ''}
     <label class="field-label" for="ae">Email</label><input id="ae" class="input card" type="email" inputmode="email" autocapitalize="off" autocomplete="email" data-input="authEmail" value="${esc(f.email || '')}" placeholder="you@example.com">
     ${m !== 'reset' ? `<label class="field-label" for="ap">Password</label><input id="ap" class="input card" type="password" autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}" data-input="authPass" value="${esc(f.pass || '')}" placeholder="${m === 'signup' ? 'At least 6 characters' : ''}">` : ''}
     ${ui.authMsg ? `<div class="card note" style="margin:14px 0 0;${ui.authMsg.ok ? '' : 'color:var(--coral-soft)'}">${esc(ui.authMsg.text)}</div>` : ''}
@@ -603,6 +605,8 @@ function authPage() {
 }
 
 const CONTACT = 'sitio.contact@gmail.com';
+const USER_RE = /^[A-Za-z0-9._]{3,20}$/;
+const USER_HINT = '3–20 letters, numbers, dots or underscores. No spaces.';
 const delWord = () => (db.user.name || '').trim() || 'delete';
 const LEVELS = [
   { min: 2, name: 'Exploring spots', badge: '🧭' },
@@ -613,10 +617,14 @@ const LEVELS = [
 ];
 const spotCount = () => db.places.filter(p => p.status === 'spot').length;
 function levelOf(n) { let i = -1; LEVELS.forEach((l, k) => { if (n >= l.min) i = k; }); return i; }
+function showLevelUp(i, demo) {
+  const d = { type: 'levelup', i, demo }; ui.dialog = d; render();
+  setTimeout(() => { if (ui.dialog === d) { const el = uiEl.querySelector('.levelup'); if (el) el.classList.add('out'); setTimeout(() => { if (ui.dialog === d) { ui.dialog = null; render(); } }, 300); } }, 4000);
+}
 function checkLevel() {
   const i = levelOf(spotCount());
   if (db.levelSeen === undefined) { db.levelSeen = i; return; }
-  if (i > db.levelSeen) { db.levelSeen = i; save(); setTimeout(() => { if (!ui.dialog) { ui.dialog = { type: 'levelup', i }; render(); } }, 900); }
+  if (i > db.levelSeen) { db.levelSeen = i; save(); setTimeout(() => { if (!ui.dialog) showLevelUp(i); }, 900); }
   else if (i < db.levelSeen) db.levelSeen = i;
 }
 function levelsPage() {
@@ -662,14 +670,14 @@ function adminPage() {
   const cnt = (d, st) => ((d && d.places) || []).filter(p => p.status === st).length;
   return `<div class="page" style="z-index:15">${head}
     <p class="page-sub" style="margin-bottom:14px">${users.length} ${users.length === 1 ? 'account' : 'accounts'} · only you can see this</p>
-    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:72px"><span style="display:flex;align-items:center;gap:12px;min-width:0"><span class="avatar" style="width:44px;height:44px;border-radius:22px;font-size:17px;flex:none">${u.data && u.data.user && u.data.user.avatar && /^data:image\//.test(u.data.user.avatar) ? `<img src="${u.data.user.avatar}" alt="">` : esc(((u.data && u.data.user && u.data.user.name) || u.email || '?')[0].toUpperCase())}</span><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis">${esc((u.data && u.data.user && u.data.user.name) || 'No name yet')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-3)">Joined ${fmtDate(u.created_at)} · ${u.data ? cnt(u.data, 'spot') + (cnt(u.data, 'spot') === 1 ? ' spot · ' : ' spots · ') + cnt(u.data, 'totry') + ' to try · ' + ((u.data.cities || []).length) + ((u.data.cities || []).length === 1 ? ' city' : ' cities') : 'nothing synced yet'}</span></span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
+    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:72px"><span style="display:flex;align-items:center;gap:12px;min-width:0"><span class="avatar" style="width:44px;height:44px;border-radius:22px;font-size:17px;flex:none">${u.data && u.data.user && u.data.user.avatar && /^data:image\//.test(u.data.user.avatar) ? `<img src="${u.data.user.avatar}" alt="">` : esc(((u.data && u.data.user && u.data.user.name) || u.email || '?')[0].toUpperCase())}</span><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis">${esc((u.data && u.data.user && u.data.user.name) || 'No username yet')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-3)">Joined ${fmtDate(u.created_at)} · ${u.data ? cnt(u.data, 'spot') + (cnt(u.data, 'spot') === 1 ? ' spot · ' : ' spots · ') + cnt(u.data, 'totry') + ' to try · ' + ((u.data.cities || []).length) + ((u.data.cities || []).length === 1 ? ' city' : ' cities') : 'nothing synced yet'}</span></span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
   </div>`;
 }
 function adminUserPage(id, cityId) {
   const u = (ui.adminData || []).find(x => x.user_id === id); if (!u) return '';
   const d = u.data || {}, places = d.places || [], cities = (d.cities || []).slice();
   places.forEach(p => { if (!cities.some(c => c.id === p.cityId)) cities.push({ id: p.cityId, name: 'Other' }); });
-  const name = (d.user && d.user.name) || 'No name yet';
+  const name = (d.user && d.user.name) || 'No username yet';
   const back = `<button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button>`;
   if (!cityId) {
     return `<div class="page" style="z-index:16">
@@ -729,7 +737,7 @@ function addSheet() {
     <div class="grab"></div>
     <div class="name-row"><div><div class="muted" style="font-size:13px;font-weight:700">Add a spot</div><div style="font-size:22px;font-weight:800">${esc(a.name || 'New place')}</div></div><button class="round sec-btn" style="width:44px;height:44px" data-act="closesheet" aria-label="Close">${ICON.close}</button></div>
     <label class="field-label" for="a-name">Place</label>
-    <div style="position:relative"><input id="a-name" class="input card" placeholder="${mapApi.google ? 'Search for a place' : 'Name of the place'}" value="${esc(a.name)}" data-input="addName" autocomplete="off">
+    <div style="position:relative"><input id="a-name" class="input card" placeholder="${mapApi.google ? 'Search for a place' : 'Name of the place'}" value="${esc(a.name)}" data-input="addName" autocomplete="off" maxlength="80">
       <div id="suggest"></div></div>
     <div class="muted" style="font-size:12px;font-weight:600;margin-top:6px">${a.googleId ? 'Location from Google' : (a.lat ? 'Location set' : 'Uses your current location')}</div>
     <label class="field-label">Category</label>
@@ -738,7 +746,7 @@ function addSheet() {
     <label class="field-label">Photos</label>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${pics}<label class="add-photo" style="height:76px;border-radius:14px;cursor:pointer">${ICON.plus}Add yours<input type="file" accept="image/*" hidden data-addphoto="1"></label></div>
     <label class="field-label" for="a-note">Your note</label>
-    <textarea id="a-note" class="input card" rows="1" placeholder="What to order, when to go…" data-input="addNote">${esc(a.note)}</textarea>
+    <textarea id="a-note" class="input card" rows="1" placeholder="What to order, when to go…" data-input="addNote" maxlength="500">${esc(a.note)}</textarea>
     <div class="add-actions"><button class="big-btn primary-btn" data-act="addsave">Save to Spots</button><button class="big-btn coral-btn" data-act="addtry">Add to To try</button></div>
   </div>`;
 }
@@ -820,6 +828,12 @@ function dialogView() {
       <button class="big-btn primary-btn" style="width:100%" data-act="hereyes">Switch to ${esc(nm)}</button>
       <button class="big-btn sec-btn" style="width:100%;margin-top:8px" data-act="addcity">Pick another city or town</button>
       <button class="link-btn" style="margin:12px auto 0;color:var(--text-2)" data-act="hereno">Stay in ${esc(city().name)}</button></div>`;
+  }
+  if (d.type === 'uname') {
+    return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
+      <h3 id="dlg-t">${d.taken ? 'Pick a new username' : 'Choose a username'}</h3><p>${d.taken ? '“' + esc(d.cur) + '” is already taken or not allowed. ' : ''}Usernames are unique on Sitio. ${USER_HINT}</p>
+      <input class="input card" data-input="unameDraft" maxlength="20" autocapitalize="off" spellcheck="false" placeholder="e.g. liaa" value="${esc(ui.unameDraft || '')}">
+      <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="closedialog">Later</button><button class="big-btn primary-btn" data-act="unamedlg">Save</button></div></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -1001,7 +1015,13 @@ async function share(p) {
 }
 function readShared() {
   const m = location.hash.match(/share=([A-Za-z0-9_-]+)/); if (!m) return;
-  try { const s = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))))); ui.dialog = { type: 'shared', data: s }; } catch (e) { /* bad link */ }
+  try {
+    const s = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
+    const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
+    const num = (v, lo, hi) => typeof v === 'number' && isFinite(v) && v >= lo && v <= hi ? v : null;
+    const clean = { n: str(s.n, 80), c: CATS.some(c => c.id === s.c) ? s.c : 'restaurant', q: cuisList({ cuisine: str(s.q, 120) }).filter(q => CUISINES.includes(q)).join(', '), a: str(s.a, 60), la: num(s.la, -90, 90), ln: num(s.ln, -180, 180), p: [0, 1, 2, 3].includes(s.p) ? s.p : 0, o: str(s.o, 500), g: /^[A-Za-z0-9_-]{0,300}$/.test(s.g || '') ? (s.g || '') : '', f: str(s.f, 20), cu: str(s.cu, 4) };
+    if (clean.n && clean.la !== null && clean.ln !== null) ui.dialog = { type: 'shared', data: clean };
+  } catch (e) { /* bad link */ }
   history.replaceState(null, '', location.pathname);
 }
 function sharedToPlace(s, status, price) { return { id: uid(), cityId: db.currentCityId, name: s.n, area: s.a, cat: s.c, cuisine: s.q, status, price: status === 'spot' ? price : 0, note: '', photos: [], lat: s.la, lng: s.ln, googleId: s.g || null, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() }; }
@@ -1187,6 +1207,8 @@ uiEl.addEventListener('click', e => {
     case 'profile': ui.page = 'profile'; break;
     case 'nudgeyes': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'signup'; ui.authMsg = null; break;
     case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
+    case 'saveuname': saveUsername((ui.unameDraft != null ? ui.unameDraft : db.user.name || '').trim()); return;
+    case 'unamedlg': saveUsername(((uiEl.querySelector('[data-input="unameDraft"]') || {}).value || '').trim(), true); return;
     case 'levels': ui.page = 'levels'; break;
     case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
     case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cat: p.cat, cuisine: p.cuisine || '' }; break;
@@ -1236,6 +1258,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'addArea') ui.add.area = v;
   if (k === 'addNote') ui.add.note = v;
   if (k === 'userName') { db.user.name = v; save(); }
+  if (k === 'unameDraft') ui.unameDraft = v;
   if (k === 'cityQ') { clearTimeout(cityTimer); cityTimer = setTimeout(() => citySuggest(v), 250); }
   if (k === 'authName' || k === 'authEmail' || k === 'authPass') { ui.authF = ui.authF || {}; ui.authF[{ authName: 'name', authEmail: 'email', authPass: 'pass' }[k]] = v; }
 });
@@ -1327,7 +1350,7 @@ function sync() {
       if (remote && remote.places) { db = mergeData(db, remote); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
       await sbFetch('/rest/v1/sitio_data?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ user_id: auth.user.id, data: db, updated_at: new Date().toISOString() }) }, true);
       const changed = JSON.stringify(db) !== before;
-      const was = syncState; syncState = 'ok';
+      const was = syncState; syncState = 'ok'; ensureUsername();
       if (changed || was !== 'ok') { lastMapKey = ''; render(); }
     } catch (e) { syncState = 'error: ' + (e.status || '') + ' ' + (e.message || '').slice(0, 60); if (e.status === 401) setAuth(null); if (ui.tab === 'account') render(); }
     finally { syncing = null; if (syncAgain) { syncAgain = false; queuePush(); } }
@@ -1339,6 +1362,8 @@ async function doAuth() {
   const msg = (text, ok) => { ui.authMsg = { text, ok }; render(); };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return msg('Enter a valid email.');
   if (m !== 'reset' && (f.pass || '').length < 6) return msg('Your password needs at least 6 characters.');
+  if (m === 'signup' && !USER_RE.test((f.name || '').trim())) return msg('Pick a username: ' + USER_HINT);
+  if (m === 'signup') { try { const ok = await sbFetch('/rest/v1/rpc/sitio_username_available', { method: 'POST', body: JSON.stringify({ name: f.name.trim() }) }); if (ok === false) return msg('That username is taken. Try another.'); } catch (e) { if (e.status !== 404) return msg(friendly(e)); } }
   ui.authBusy = true; ui.authMsg = null; render();
   try {
     if (m === 'reset') {
@@ -1353,7 +1378,7 @@ async function doAuth() {
       if (!s || !s.access_token) { save(); ui.authMode = 'login'; ui.authMsg = { ok: true, text: 'Almost there: check your email and tap the link to confirm, then log in here.' }; }
       else {
         if (!db.user.name && s.user && s.user.user_metadata && s.user.user_metadata.name) db.user.name = s.user.user_metadata.name;
-        setAuth(s); save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
+        setAuth(s); if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
         toast(m === 'signup' ? 'Account created. Your spots are saved.' : 'Logged in', null);
         sync();
       }
@@ -1362,6 +1387,29 @@ async function doAuth() {
   ui.authBusy = false; render();
 }
 var isAdmin = false, adminChecked = false, adminErr = '';
+var unameAsked = false;
+async function claimUsername(name) {
+  try { return await sbFetch('/rest/v1/rpc/sitio_claim_username', { method: 'POST', body: JSON.stringify({ name }) }, true) === true; }
+  catch (e) { if (e.status === 404) return null; throw e; }
+}
+// Every account needs a unique username; claim it, or ask for one if it's missing or taken
+async function ensureUsername() {
+  if (!auth || db.usernameOk === db.user.name && db.user.name) return;
+  const n = (db.user.name || '').trim();
+  if (USER_RE.test(n)) { const ok = await claimUsername(n).catch(() => undefined); if (ok === true) { db.usernameOk = n; save(); return; } if (ok === null || ok === undefined) return; }
+  if (unameAsked || ui.dialog) return; unameAsked = true;
+  ui.dialog = { type: 'uname', taken: USER_RE.test(n), cur: n }; render();
+}
+async function saveUsername(n, fromDialog) {
+  if (!USER_RE.test(n)) { flash('Username: ' + USER_HINT); return; }
+  if (!auth) { db.user.name = n; save(); ui.unameDraft = null; render(); return; }
+  try {
+    const ok = await claimUsername(n);
+    if (ok === false) { flash('That username is taken. Try another.'); return; }
+    db.user.name = n; db.usernameOk = ok ? n : db.usernameOk; save(); ui.unameDraft = null; if (fromDialog) ui.dialog = null;
+    toast('Username saved', null); render();
+  } catch (e) { flash(friendly(e)); }
+}
 function checkAdmin() {
   if (!auth || adminChecked) return; adminChecked = true;
   sbFetch('/rest/v1/rpc/sitio_is_admin', { method: 'POST', body: '{}' }, true).then(v => { isAdmin = v === true; adminErr = isAdmin ? '' : 'not admin'; if (ui.tab === 'account') render(); }).catch(e => { adminErr = (e && (e.status + ' ' + e.message)) || 'error'; if (ui.tab === 'account') render(); });
@@ -1410,7 +1458,7 @@ root.appendChild(mapApi.el); root.appendChild(uiEl);
 mapApi.init();
 resnap();
 checkLevel();
-if (/[?&]demo=levelup/.test(location.search)) setTimeout(() => { ui.install = false; ui.dialog = { type: 'levelup', i: Math.max(1, levelOf(spotCount()) + 1) % LEVELS.length || 1, demo: true }; render(); }, 400);
+if (/[?&]demo=levelup/.test(location.search)) setTimeout(() => { ui.install = false; showLevelUp(Math.max(1, levelOf(spotCount()) + 1) % LEVELS.length || 1, true); }, 400);
 readAuthHash();
 readShared();
 render();
