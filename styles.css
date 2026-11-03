@@ -227,7 +227,7 @@ textarea.input { height: auto; min-height: 72px; padding: 12px 14px; resize: non
 @keyframes pop { from { transform: translate(-50%,-50%) scale(.94); opacity: 0; } to { transform: translate(-50%,-50%); opacity: 1; } }
 
 /* Install screen */
-.install { position: absolute; inset: 0; z-index: 60; background: var(--bg); overflow-y: auto; padding: calc(var(--safe-top) + 22px) 22px calc(var(--safe-bottom) + 120px); display: flex; flex-direction: column; max-width: 520px; margin: 0 auto; }
+.install { position: absolute; inset: 0; z-index: 60; background: var(--bg); overflow-y: auto; padding: calc(var(--safe-top) + 46px) 22px calc(var(--safe-bottom) + 120px); display: flex; flex-direction: column; max-width: 520px; margin: 0 auto; }
 .i-top { text-align: center; margin-bottom: 26px; }
 .i-logo { width: 96px; height: 96px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 0 1px rgba(var(--fg),0.12); }
 .i-title { font-size: 40px; font-weight: 800; letter-spacing: -1px; margin: 14px 0 6px; }
@@ -535,3 +535,16 @@ body.light .seg button.on { background: #fff; }
 .install .i-title { margin-top: 0; }
 @media (max-height: 760px) { .hw-phone { zoom: .82; } }
 @media (max-height: 680px) { .hw-phone { zoom: .7; } }
+
+.i-brand { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.i-mark { width: 58px; height: 58px; border-radius: 15px; box-shadow: 0 6px 18px rgba(0,0,0,0.45), 0 0 0 1px rgba(var(--fg),0.12); }
+.i-brand .i-title { margin: 0; line-height: 1; }
+.install .i-tag { margin-top: 10px; }
+/* "Create an account": a light that runs around the border */
+.acct-cta.glow { position: relative; overflow: hidden; isolation: isolate; border: 0 !important; }
+.acct-cta.glow::before { content: ""; position: absolute; z-index: -2; left: 50%; top: 50%; width: 260%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(0deg); background: conic-gradient(from 0deg, transparent 0deg 220deg, rgba(255,255,255,0.25) 280deg, #FFFFFF 330deg, #FFD166 350deg, transparent 360deg); animation: ctaSpin 3.2s linear infinite; }
+.acct-cta.glow::after { content: ""; position: absolute; z-index: -1; inset: 2px; border-radius: 18px; background: #1D1D23; }
+.acct-cta.glow { background: rgba(var(--fg),0.14) !important; }
+body.light .acct-cta.glow::after { background: #FFFFFF; }
+body.light .acct-cta.glow::before { background: conic-gradient(from 0deg, transparent 0deg 250deg, rgba(0,0,0,0.1) 290deg, #F5B83D 335deg, #FF8A5C 350deg, transparent 360deg); }
+@keyframes ctaSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
