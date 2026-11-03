@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -839,7 +839,7 @@ function recapSoonRows() {
   return [cur, yr].filter(p => releaseAt(p) > Date.now()).map(p => { const r = new Date(releaseAt(p)); return `<div class="set-row rc-soon"><span>${esc(recapName(p))}</span><span class="val">Releasing ${ordinal(r.getDate())} ${MONTH_NAMES[r.getMonth()].slice(0, 3)}</span></div>`; }).join('');
 }
 // Festive background behind a recap: fireworks + sparkles for the year, soft seasonal glow for two-month ones
-const SEASON = [['#7FB4FF', '#C9E3FF'], ['#FF9EC4', '#9BE3A8'], ['#FFD66B', '#FFB36B'], ['#FF8A5C', '#FFD166'], ['#F5B83D', '#E07A4E'], ['#FF5A4E', '#FFD66B']];
+const SEASON = [['#9CC8FF', '#FFE2A8'], ['#FF9EC4', '#9BE3A8'], ['#FFD66B', '#FFB36B'], ['#FFB44D', '#3FC6D9'], ['#F5A03D', '#C2582E'], ['#8FD8FF', '#D9F2FF']];
 function recapBg(per, el = 0) {
   const r = n => { const x = Math.sin(n * 9301 + 49297) * 233280; return x - Math.floor(x); };
   const sparks = Array.from({ length: per.year ? 34 : 18 }, (_, i) => `<b style="left:${(r(i + 1) * 100).toFixed(1)}%;top:${(r(i + 50) * 100).toFixed(1)}%;--s:${(2 + r(i + 90) * 3).toFixed(1)}px;--t:${(1.8 + r(i + 7) * 2.6).toFixed(2)}s;--dl:${(r(i + 3) * 3).toFixed(2)}s"></b>`).join('');
@@ -852,8 +852,20 @@ function recapBg(per, el = 0) {
     return `<div class="rc-bg year" aria-hidden="true" style="--el:${el}ms">${bursts}<div class="spk">${sparks}</div></div>`;
   }
   const [c1, c2] = SEASON[per.k] || SEASON[0];
-  const orbs = Array.from({ length: 9 }, (_, i) => `<u style="left:${(r(i + 400) * 100).toFixed(1)}%;--z:${Math.round(60 + r(i + 500) * 110)}px;--c:${i % 2 ? c1 : c2};--t:${(14 + r(i + 600) * 10).toFixed(1)}s;--dl:${(-r(i + 700) * 20).toFixed(1)}s"></u>`).join('');
-  return `<div class="rc-bg" aria-hidden="true" style="--c1:${c1};--c2:${c2};--el:${el}ms">${orbs}<div class="spk">${sparks}</div></div>`;
+  // things that drift down (snow, petals, leaves) or float up (beach bits)
+  const fall = (n, glyphs, o = {}) => Array.from({ length: n }, (_, i) => `<s class="${o.up ? 'rise' : 'fall'}" style="left:${(r(i + (o.seed || 0) + 800) * 100).toFixed(1)}%;--fs:${Math.round((o.min || 12) + r(i + 900) * ((o.max || 22) - (o.min || 12)))}px;--t:${((o.t || 12) + r(i + 950) * (o.t || 12) * .8).toFixed(1)}s;--dl:${(-r(i + 990) * 24).toFixed(1)}s;--sw:${Math.round(20 + r(i + 1100) * 40)}px;--o:${o.o || .4}">${glyphs[i % glyphs.length]}</s>`).join('');
+  const dots = n => fall(n, ['<i></i>'], { min: 3, max: 8, t: 9, o: .7, seed: 40 });
+  const sun = cls => `<div class="sun ${cls || ''}"></div>`;
+  const waves = '<svg class="waves" viewBox="0 0 1200 120" preserveAspectRatio="none"><path class="w1" d="M0 60 Q150 20 300 60 T600 60 T900 60 T1200 60 V120 H0Z"/><path class="w2" d="M0 75 Q150 40 300 75 T600 75 T900 75 T1200 75 V120 H0Z"/></svg>';
+  const theme = [
+    { cls: 'winter', html: sun('pale') + dots(26) + fall(5, ['❄'], { min: 12, max: 18, t: 16, o: .3, seed: 7 }) },              // Jan / Feb: snow and low winter sun
+    { cls: 'spring', html: fall(16, ['🌸', '🌸', '🌼', '🍃'], { min: 12, max: 20, t: 13, o: .45, seed: 3 }) },                    // Mar / Apr: blossom
+    { cls: 'summer', html: sun() + fall(14, ['<i></i>'], { min: 3, max: 6, t: 14, o: .5, up: true, seed: 11 }) },                // May / Jun: sunshine
+    { cls: 'beach', html: sun('low') + waves + fall(9, ['🍹', '🌴', '🍉', '🐚', '🏖️', '🥥'], { min: 18, max: 26, t: 16, o: .32, up: true, seed: 5 }) }, // Jul / Aug: beach days
+    { cls: 'autumn', html: fall(16, ['🍂', '🍁', '🍂', '🍃'], { min: 14, max: 22, t: 12, o: .45, seed: 9 }) },                    // Sep / Oct: falling leaves
+    { cls: 'icy', html: dots(40) + fall(8, ['❄', '❅', '❆'], { min: 12, max: 22, t: 14, o: .4, seed: 2 }) }                        // Nov / Dec: snow and ice
+  ][per.k] || { cls: '', html: '' };
+  return `<div class="rc-bg ${theme.cls}" aria-hidden="true" style="--c1:${c1};--c2:${c2};--el:${el}ms">${theme.html}<div class="spk">${sparks}</div></div>`;
 }
 const recapRow = (p, loc) => `<button class="set-row" data-act="recapshow" data-y="${p.y}" data-k="${p.k}" data-loc="${esc(loc || '')}"><span>${esc(recapName(p))}</span><span class="val">${plural(recapItems(p, loc).length, 'memory', 'memories')}${ICON.chevRight}</span></button>`;
 function recapsPage() {
@@ -2209,14 +2221,14 @@ resnap();
 checkLevel();
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
-  try { if (localStorage.getItem('sitio.showcaseJA2025')) return; } catch (e) { }
+  try { if (localStorage.getItem('sitio.showcaseJA2025b')) return; } catch (e) { }
   if (!isAdmin) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   const y0 = new Date().getFullYear(); let per = null;
   const cands = [recapPer(2025, 3)]; for (let y = y0; y >= y0 - 3; y--) for (let k = 5; k >= 0; k--) { const p = recapPer(y, k); if (releaseAt(p) <= Date.now()) cands.push(p); }
   for (const p of cands) { if (recapItems(p).filter(x => photoUrl(x.m.id)).length) { per = p; break; } }
   if (!per) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
-  try { localStorage.setItem('sitio.showcaseJA2025', '1'); } catch (e) { }
+  try { localStorage.setItem('sitio.showcaseJA2025b', '1'); } catch (e) { }
   ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
 }
 setTimeout(adminShowcase, 900);

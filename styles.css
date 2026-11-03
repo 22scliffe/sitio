@@ -658,7 +658,7 @@ body.light .md-row input { color-scheme: light; }
 .fw { position: absolute; width: 0; height: 0; opacity: .5; }
 .fw i { position: absolute; left: -2px; top: -2px; width: 4px; height: 4px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px 2px var(--c); opacity: 0; animation: burst 4.5s cubic-bezier(.15,.7,.3,1) var(--dl) infinite; }
 @keyframes burst { 0% { transform: translate(0,0) scale(.6); opacity: 0; } 4% { opacity: 1; } 45% { transform: translate(var(--dx), calc(var(--dy) + 10px)) scale(1); opacity: .9; } 70% { transform: translate(var(--dx), calc(var(--dy) + 26px)) scale(.5); opacity: 0; } 100% { opacity: 0; } }
-.rc-bg u { position: absolute; bottom: calc(-1 * var(--z)); width: var(--z); height: var(--z); border-radius: 50%; background: var(--c); opacity: .14; filter: blur(14px); animation: drift var(--t) linear var(--dl) infinite; }
+.rc-bg u.unused { position: absolute; bottom: calc(-1 * var(--z)); width: var(--z); height: var(--z); border-radius: 50%; background: var(--c); opacity: .14; filter: blur(14px); animation: drift var(--t) linear var(--dl) infinite; }
 @keyframes drift { from { transform: translateY(0); } to { transform: translateY(calc(-100vh - 200px)); } }
 @media (prefers-reduced-motion: reduce) { .rc-bg *, .rc-bg { animation: none !important; } .spk b { opacity: .3; } }
 
@@ -673,3 +673,26 @@ body.light .md-row input { color-scheme: light; }
 .recap.intro .rc-cap { animation: rcRise .7s ease calc(1.7s - var(--el)) both; }
 .recap.intro .rc-btns { animation: rcRise .7s ease calc(2s - var(--el)) both; }
 @keyframes rcRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* Seasonal recap themes */
+.rc-bg .fall, .rc-bg .rise { position: absolute; top: -40px; font-size: var(--fs); line-height: 1; text-decoration: none; opacity: var(--o); animation: fallDown var(--t) linear var(--dl) infinite; }
+.rc-bg .rise { top: auto; bottom: -40px; animation-name: floatUp; }
+.rc-bg .fall i, .rc-bg .rise i { display: block; width: var(--fs); height: var(--fs); border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,0.7); }
+.rc-bg.summer .rise i { background: #FFE6A0; box-shadow: 0 0 8px rgba(255,214,107,0.8); }
+@keyframes fallDown { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(var(--sw), 25vh) rotate(60deg); } 50% { transform: translate(0, 50vh) rotate(120deg); } 75% { transform: translate(calc(-1 * var(--sw)), 75vh) rotate(200deg); } 100% { transform: translate(0, calc(100vh + 80px)) rotate(260deg); } }
+@keyframes floatUp { 0% { transform: translate(0, 0) rotate(-8deg); } 50% { transform: translate(var(--sw), -50vh) rotate(8deg); } 100% { transform: translate(0, calc(-100vh - 80px)) rotate(-8deg); } }
+.rc-bg .sun { position: absolute; left: 50%; top: -120px; width: 320px; height: 320px; margin-left: -160px; border-radius: 50%; background: radial-gradient(circle, rgba(255,214,107,0.55) 0 22%, rgba(255,170,80,0.18) 40%, transparent 68%); animation: sunPulse 6s ease-in-out infinite; }
+.rc-bg .sun::after { content: ""; position: absolute; inset: -60px; border-radius: 50%; background: repeating-conic-gradient(rgba(255,214,107,0.10) 0 6deg, transparent 6deg 18deg); -webkit-mask: radial-gradient(circle, #000 20%, transparent 65%); mask: radial-gradient(circle, #000 20%, transparent 65%); animation: spin 60s linear infinite; }
+.rc-bg .sun.pale { background: radial-gradient(circle, rgba(255,236,200,0.35) 0 20%, rgba(200,225,255,0.12) 42%, transparent 68%); }
+.rc-bg .sun.pale::after { opacity: .5; }
+.rc-bg .sun.low { top: -90px; }
+@keyframes sunPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+.rc-bg .waves { position: absolute; left: 0; bottom: 0; width: 200%; height: 110px; }
+.rc-bg .waves path { animation: waveX 9s linear infinite; }
+.rc-bg .waves .w1 { fill: rgba(63,198,217,0.16); }
+.rc-bg .waves .w2 { fill: rgba(255,214,150,0.10); animation-duration: 13s; animation-direction: reverse; }
+@keyframes waveX { from { transform: translateX(0); } to { transform: translateX(-600px); } }
+.rc-bg.icy { box-shadow: inset 0 0 90px rgba(170,220,255,0.22), inset 0 0 20px rgba(220,240,255,0.25); }
+.rc-bg.icy .fall { color: #DDF2FF; text-shadow: 0 0 8px rgba(170,220,255,0.8); }
+.rc-bg.winter .fall { color: #EAF4FF; }
