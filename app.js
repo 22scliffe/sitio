@@ -45,8 +45,8 @@ if (db.v < 3) {
   if (db.user && db.user.name === 'Sitio' && !db.places.some(x => !x.sample)) {
     const now = Date.now();
     db.places = [
-      { id: 'p-pez-tortilla', cityId: 'c-madrid', name: 'Pez Tortilla', cat: 'bar', cuisine: '', lat: 40.41085, lng: -3.70945, area: 'La Latina', status: 'spot', price: 1, note: 'Tapas bar. Tortilla and croquetas.', photos: [], hours: null, hoursSrc: null, googleId: null, addedAt: now },
-      { id: 'p-leinerhaus', cityId: 'c-madrid', name: 'Leinerhaus', cat: 'restaurant', cuisine: 'German', lat: 40.42175, lng: -3.70395, area: 'Centro', status: 'totry', price: 0, note: 'La Casa Alemana.', photos: [], hours: null, hoursSrc: null, googleId: null, addedAt: now - 1 }
+      { id: 'p-pez-tortilla', cityId: 'c-madrid', name: 'Pez Tortilla', cat: 'bar', cuisine: '', lat: 40.41085, lng: -3.70945, area: 'La Latina', status: 'spot', price: 1, note: 'Tapas bar. Tortilla and croquetas.', photos: [], hours: null, hoursSrc: 'osm', hoursAt: 0, googleId: null, addedAt: now },
+      { id: 'p-leinerhaus', cityId: 'c-madrid', name: 'Leinerhaus', cat: 'restaurant', cuisine: 'German', lat: 40.42175, lng: -3.70395, area: 'Centro', status: 'totry', price: 0, note: 'La Casa Alemana.', photos: [], hours: null, hoursSrc: 'osm', hoursAt: 0, googleId: null, addedAt: now - 1 }
     ];
     db.sample = false;
   }
