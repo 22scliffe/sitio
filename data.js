@@ -7,10 +7,10 @@ SITIO.CATS = [
   { id: 'cafe', name: 'Café', plural: 'Cafés' },
   { id: 'club', name: 'Club', plural: 'Clubs' },
   { id: 'chill', name: 'Chill', plural: 'Chill' },
-  { id: 'padel', name: 'Padel', plural: 'Padel' }
+  { id: 'padel', name: 'Sports', plural: 'Sports' }
 ];
 
-SITIO.CUISINES = ['Indian', 'Asian', 'Spanish', 'Italian', 'Mexican', 'Middle Eastern', 'German', 'American', 'Healthy', 'Other'];
+SITIO.CUISINES = ['Indian', 'Asian', 'Spanish', 'Italian', 'Mexican', 'Middle Eastern', 'German', 'American', 'Healthy', 'Dessert', 'Takeaway', 'Other'];
 
 SITIO.PRICE_WORDS = ['', 'Budget', 'Medium', 'Pricey'];
 
