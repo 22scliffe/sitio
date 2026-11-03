@@ -578,8 +578,8 @@ function spotSheet(p) {
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
     ${isTry ? '' : memoryStrip(p)}
-    <div class="name-row"><div style="display:flex;align-items:center;gap:10px;min-width:0"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}</div>
-      <div class="mini-btns"><button class="round sec-btn mini" data-act="listpick" data-id="${p.id}" aria-label="Add to a list">${ICON.list}</button><button class="round sec-btn mini" data-act="share" data-id="${p.id}" aria-label="Share">${ICON.share}</button>${isTry ? '' : `<button class="round sec-btn mini" data-act="del" data-id="${p.id}" aria-label="Delete" style="color:var(--coral-soft)">${ICON.bin}</button>`}</div></div>
+    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}</div>
+    <div class="act-row">${isTry ? '' : `<button class="act ${p.fav ? 'fav-on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}">${ICON.star}<span>${p.fav ? 'Favourite' : 'Favourite'}</span></button>`}<button class="act" data-act="listpick" data-id="${p.id}">${ICON.list}<span>List</span></button><button class="act" data-act="share" data-id="${p.id}">${ICON.share}<span>Share</span></button>${isTry ? '' : `<button class="act act-del" data-act="del" data-id="${p.id}" aria-label="Delete">${ICON.bin}</button>`}</div>
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
@@ -698,7 +698,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v3.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1064,11 +1064,12 @@ function dialogView() {
       <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="memdatesave">Save ${ms.length === 1 ? 'memory' : ms.length + ' memories'}</button></div>`;
   }
   if (d.type === 'memory') {
-    const q = byId(d.id), m = q && ((q.memories || []).find(x => x.id === d.m) || ((q.photos || []).includes(d.m) ? { id: d.m, at: 0 } : null)); if (!m) return '';
-    const u = photoUrl(m.id);
-    return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.88)"></div><div class="mem-view" role="dialog" aria-label="Memory">
-      ${u ? `<img src="${u}" alt="">` : (m.cloud ? '<div class="mem-gone" style="height:260px">Loading…</div>' : '<div class="mem-gone" style="height:260px">This photo is on another phone</div>')}
-      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}>${m.at ? esc(fmtWhen(m.at)) : 'No date'} ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
+    const q = byId(d.id); if (!q) return '';
+    const all = (q.memories || []).slice().sort((x, y) => y.at - x.at); const k = Math.max(0, all.findIndex(x => x.id === d.m)); const m = all[k]; if (!m) return '';
+    return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.9)"></div><div class="mem-view" role="dialog" aria-label="Memory">
+      <div class="mv-strip" data-start="${k}">${all.map(x => { const u = photoUrl(x.id); return `<div class="mv-slide" data-m="${x.id}" data-when="${esc(x.at ? fmtWhen(x.at) : 'No date')}">${u ? `<img src="${u}" alt="">` : `<div class="mem-gone" style="height:260px;width:100%">${x.cloud ? 'Loading…' : 'This photo is on another phone'}</div>`}</div>`; }).join('')}</div>
+      ${all.length > 1 ? `<div class="mv-count">${all.map((x, i) => `<i class="${i === k ? 'on' : ''}"></i>`).join('')}</div>` : ''}
+      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
   if (d.type === 'sharedlist') {
     const s = d.data, shown = s.p.slice(0, 6);
@@ -1238,6 +1239,14 @@ function render() {
   if (ui.tour != null && !ui.install) h += tourView();
   uiEl.innerHTML = h;
   if (ui.tour != null) placeTour();
+  const mv = uiEl.querySelector('.mv-strip');
+  if (mv) {
+    mv.scrollLeft = (+mv.dataset.start || 0) * mv.clientWidth;
+    let t = null; mv.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => {
+      const i = Math.round(mv.scrollLeft / mv.clientWidth), sl = mv.children[i]; if (!sl || !ui.dialog || ui.dialog.type !== 'memory') return;
+      ui.dialog.m = sl.dataset.m; const w = uiEl.querySelector('.mw-t'); if (w) w.textContent = sl.dataset.when;
+      uiEl.querySelectorAll('.mv-count i').forEach((d, k) => d.classList.toggle('on', k === i)); }, 80); });
+  }
   if (focus) { const el = uiEl.querySelector(`[data-input="${focus}"]`); if (el) { el.focus(); try { el.setSelectionRange(selStart, selStart); } catch (e) { } } }
 }
 function flash(text) { ui.flash = text; render(); clearTimeout(flash.t); flash.t = setTimeout(() => { ui.flash = null; render(); }, 3500); }

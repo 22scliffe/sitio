@@ -574,3 +574,21 @@ body.light .md-row input { color-scheme: light; }
 
 .near-try { font-size: 13px; padding: 4px 4px 4px 12px; }
 .near-try .round { width: 30px; height: 30px; }
+
+/* Place sheet: name on its own line, actions in a row underneath */
+.sheet-name { justify-content: flex-start; align-items: center; gap: 10px; }
+.sheet-name .big-name { font-size: 26px; line-height: 1.12; overflow-wrap: anywhere; }
+.act-row { display: flex; gap: 8px; margin: 10px 0 8px; }
+.act { height: 36px; padding: 0 12px; border-radius: 18px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text); background: rgba(var(--fg),0.08); border: 1px solid rgba(var(--fg),0.14); }
+.act .icon { width: 16px; height: 16px; }
+.act.fav-on { color: #F5B83D; border-color: rgba(245,184,61,0.55); background: rgba(245,184,61,0.14); }
+.act.fav-on .icon { fill: #F5B83D; }
+.act-del { margin-left: auto; width: 36px; padding: 0; justify-content: center; color: var(--coral-soft); }
+/* Memory viewer: swipe between photos */
+.mv-strip { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; border-radius: 18px; }
+.mv-strip::-webkit-scrollbar { display: none; }
+.mv-slide { flex: 0 0 100%; scroll-snap-align: center; display: flex; align-items: center; justify-content: center; }
+.mv-slide img { width: 100%; max-height: 68vh; object-fit: contain; border-radius: 18px; }
+.mv-count { display: flex; gap: 5px; justify-content: center; }
+.mv-count i { width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.35); transition: width .2s; }
+.mv-count i.on { width: 16px; background: #fff; }
