@@ -42,9 +42,9 @@ if (!db.v || db.v < 2) {
   if (hadSample) db.places.unshift(...starters());
   db.v = 2; save();
 }
-// v3: the owner's own phone (the install from before this version) starts clean with his first two places
+// v3: one-off clean-up for the very first test install
 if (db.v < 3) {
-  if (db.user && db.user.name === 'Sitio' && !db.places.some(x => !x.sample)) {
+  if (false) {
     const now = Date.now();
     db.places = [
       { id: 'p-pez-tortilla', cityId: 'c-madrid', name: 'Pez Tortilla', cat: 'bar', cuisine: '', lat: 40.41085, lng: -3.70945, area: 'La Latina', status: 'spot', price: 1, note: 'Tapas bar. Tortilla and croquetas.', photos: [], hours: null, hoursSrc: 'osm', hoursAt: 0, googleId: null, addedAt: now },
@@ -65,9 +65,9 @@ if (db.v < 5) {
   if (db.places.some(x => x.sample)) db.places = db.places.filter(x => !x.sample).concat(starters());
   db.v = 5; save();
 }
-// v6: early installs were given the name "Sitio" by default; clear it so everyone sets their own
+// v6: early test installs had a default name; clear it so everyone sets their own
 if (db.v < 6) {
-  if (db.user && db.user.name === 'Sitio') db.user.name = '';
+  // (default name no longer used)
   db.v = 6; save();
 }
 // v7: "Start fresh" removed from settings; bring the starter places back if they were cleared
@@ -688,7 +688,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v2.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -818,7 +818,7 @@ function privacyPage() {
   const s = (h, t) => `<div class="section-label" style="margin:18px 0 6px">${h}</div><p class="page-sub" style="line-height:1.55;font-size:14px">${t}</p>`;
   return `<div class="page" style="z-index:16">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Privacy</span></div>
-    <p class="page-sub" style="line-height:1.55;font-size:14px">Sitio is a small app made and run by the Sitio team. This explains what it keeps about you and why.</p>
+    <p class="page-sub" style="line-height:1.55;font-size:14px">Sitio is a small, independent app. This explains what it keeps about you and why.</p>
     ${s('What’s stored', 'If you create an account: your email, your name and the places you save (names, locations, notes, prices, cities and settings). Your password is stored encrypted and nobody can read it. Photos you add stay on your phone.')}
     ${s('Why', 'Only to keep your lists safe and let you use them on any phone you log in on. Nothing is sold, shared or used for advertising.')}
     ${s('Who can see it', 'You. We at Sitio can also see account emails and saved lists, only to keep the app working, fix problems and help if you ask. Places you share with a link are seen by whoever you send it to.')}
@@ -1081,11 +1081,11 @@ function iosHowTo(newSafari) {
   const PL = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>`;
   const page = `<div class="hw-page"><div class="hw-logo"><img src="icons/icon-192.png" alt=""></div><i style="width:60%"></i><i style="width:80%"></i><i style="width:70%"></i></div>`;
   const bar = newSafari
-    ? `<div class="hw-bar"><span class="hw-b">‹</span><span class="hw-url"><span class="hw-menu">≡</span>22scliffe.github.io</span><span class="hw-b">•••</span></div>`
+    ? `<div class="hw-bar"><span class="hw-b">‹</span><span class="hw-url"><span class="hw-menu">≡</span>${esc(location.host || 'sitio')}</span><span class="hw-b">•••</span></div>`
     : `<div class="hw-bar old"><span class="hw-b">‹</span><span class="hw-b">›</span><span class="hw-b">${SH}</span><span class="hw-b">▢</span><span class="hw-b">⧉</span></div>`;
   const rows = ['⧉ Copy', '☷ Add to Reading List', '☆ Add to Bookmarks', '♡ Add to Favourites', '✐ Add to Quick Note', '⌕ Find on Page'].map(r => `<div class="hw-row"><span class="hw-ri">${r.slice(0, 1)}</span><span>${r.slice(2)}</span></div>`).join('')
     + `<div class="hw-row hw-target"><span class="hw-ri">${PL}</span><span>Add to Home Screen</span></div>` + ['✎ Markup', '⎙ Print', '⚙ Edit Actions…'].map(r => `<div class="hw-row"><span class="hw-ri">${r.slice(0, 1)}</span><span>${r.slice(2)}</span></div>`).join('');
-  const sheet = (scrolled, mark) => `<div class="hw-sheet"><div class="hw-sh-head"><img src="icons/icon-192.png" alt=""><span><b>Sitio</b><em>22scliffe.github.io</em></span><span class="hw-x">✕</span></div>
+  const sheet = (scrolled, mark) => `<div class="hw-sheet"><div class="hw-sh-head"><img src="icons/icon-192.png" alt=""><span><b>Sitio</b><em>${esc(location.host || 'sitio')}</em></span><span class="hw-x">✕</span></div>
     <div class="hw-people"><i></i><i></i><i></i><i></i></div><div class="hw-apps"><i style="background:#34C759"></i><i style="background:#0A84FF"></i><i style="background:#25D366"></i><i style="background:#8E8E93"></i></div>
     <div class="hw-listwrap"><div class="hw-list ${scrolled ? 'is-scrolled' : 'scrolls'} ${mark ? 'mark' : ''}">${rows}</div></div></div>`;
   const sc = [];

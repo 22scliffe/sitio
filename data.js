@@ -67,7 +67,7 @@ SITIO.SAMPLE = (() => {
     cityId: city.id, name, cat, lat, lng, area, status,
     cuisine: '', price: 0, note: '', photos: [], hours: null, addedAt: Date.now()
   }, extra || {});
-  // Starter places every new user sees (the owner's picks). They can remove them in Account.
+  // Starter places every new user sees. They can remove them in Account.
   const places = [
     p('Pez Tortilla', 'bar', 40.41085, -3.70945, 'La Latina', 'spot', { price: 1, note: 'Tapas bar. Tortilla and croquetas.' }),
     p('Leinerhaus', 'bar', 40.42175, -3.70395, 'Centro', 'totry', { price: 1, note: 'La Casa Alemana.' })
