@@ -397,3 +397,7 @@ body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
 
 .unpin-x { width: 52px; height: 52px; flex: none; }
 .unpin-x .icon { width: 18px; height: 18px; }
+
+.head2 { align-items: center; }
+.head2 .page-sub { margin-top: 2px; }
+.lvl-count { font-size: 12px; font-weight: 800; color: #F5B83D; margin: -2px 0 6px; text-align: right; }

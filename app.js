@@ -478,7 +478,7 @@ function spotSheet(p) {
       <div class="mini-btns"><button class="round sec-btn mini" data-act="share" data-id="${p.id}" aria-label="Share">${ICON.share}</button>${isTry ? '' : `<button class="round sec-btn mini" data-act="del" data-id="${p.id}" aria-label="Delete" style="color:var(--coral-soft)">${ICON.bin}</button>`}</div></div>
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${hoursLine(p)}
-    ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || ''}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
+    ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (p.cat === 'chill' ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:14px"></div>'}
     ${dirButtons(p)}
     ${isTry ? `<div style="display:flex;gap:8px;margin-top:8px"><button class="big-btn sec-btn" style="flex:1;height:46px" data-act="savetry" data-id="${p.id}">${ICON.check}Save to Spots</button><button class="round x-btn" style="width:46px;height:46px;border-radius:16px;color:var(--coral-soft)" data-act="del" data-id="${p.id}" aria-label="Remove">${ICON.close}</button></div>` : ''}
@@ -505,7 +505,7 @@ function spotsView() {
     body = `<div class="group"><div class="group-head"><span class="section-label">${list.length} ${esc(filterLabel(cats).toLowerCase())} · nearest first</span></div><div class="list card">${list.map(rowSpot).join('')}</div></div>`;
   }
   return `<div class="page">
-    <div class="page-head"><h1 class="page-title">Spots</h1><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(city().name)}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
+    <div class="page-head head2"><div><h1 class="page-title">Spots</h1><div class="page-sub">${cityPlaces().filter(p => p.status === 'spot').length} ${cityPlaces().filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} in ${esc(city().name)}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(city().name)}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
     <label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
     <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats))}${ICON.chevDown}</button><button class="pill ${ui.spotsOpenNow ? 'green-on' : 'sec-btn'}" data-act="opennow" aria-pressed="${ui.spotsOpenNow}">${ui.spotsOpenNow ? ICON.check : ''}Open now</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ICON.star}Favourites</button></div>
     ${body}
@@ -529,8 +529,8 @@ function tryView() {
       <div class="row-main" data-act="showtry" data-id="${p.id}"><span class="row-name">${esc(p.name)}</span><span class="row-meta">${esc(metaLine(p))}</span>${p.note ? `<span class="row-note">${esc(p.note)}</span>` : ''}</div>
       <div class="mini-btns"><button class="round sec-btn mini" data-act="dirs" data-id="${p.id}" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</button><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
   return `<div class="page">
-    <div class="page-head" style="align-items:flex-end"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} in ${esc(city().name)}</div></div>
-      <button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div>
+    <div class="page-head head2"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} in ${esc(city().name)}</div></div>
+      <div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(city().name)}${ICON.chevDown}</button><button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
     <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats))}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest' : 'Nearest'}${ICON.chevDown}</button><button class="pill sec-btn" style="flex:none" data-act="trymap">${ICON.map}Show on map</button></div>
     ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">${tcats.length && cityPlaces().some(p => p.status === 'totry') ? 'Nothing to try in ' + esc(filterLabel(tcats)) + '.' : 'Nothing to try yet.<br>Found somewhere that looks good? Tap Add.'}</div>`}
   </div>${ui.menu === 'try' ? filterMenu() : ''}`;
@@ -568,7 +568,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -644,13 +644,13 @@ function checkLevel() {
 }
 function levelsPage() {
   const n = spotCount(), i = levelOf(n), next = LEVELS[i + 1];
-  const prevMin = i >= 0 ? LEVELS[i].min : 0, pct = next ? Math.max(4, Math.round((n - prevMin) / (next.min - prevMin) * 100)) : 100;
+  const pct = next ? Math.max(4, Math.min(100, Math.round(n / next.min * 100))) : 100;
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Your level</span></div>
     <div class="card lvl-hero"><div class="lvl-badge big">${i >= 0 ? LEVELS[i].badge : '🌱'}</div>
       <div style="font-size:24px;font-weight:800;margin-top:10px">${i >= 0 ? LEVELS[i].name : 'Just getting started'}</div>
       <div class="page-sub" style="margin-top:4px">${n} ${n === 1 ? 'spot' : 'spots'} saved</div>
-      ${next ? `<div class="lvl-bar"><span style="width:${pct}%"></span></div><div class="page-sub" style="font-size:13px">${next.min - n} more ${next.min - n === 1 ? 'spot' : 'spots'} to <b style="color:var(--text)">${next.name}</b> ${next.badge}</div>` : '<div class="page-sub" style="margin-top:12px;font-size:13px">Top level reached. You know every spot worth knowing.</div>'}
+      ${next ? `<div class="lvl-bar"><span style="width:${pct}%"></span></div><div class="lvl-count">${n} / ${next.min} spots</div><div class="page-sub" style="font-size:13px">${next.min - n} more ${next.min - n === 1 ? 'spot' : 'spots'} to <b style="color:var(--text)">${next.name}</b> ${next.badge}</div>` : '<div class="page-sub" style="margin-top:12px;font-size:13px">Top level reached. You know every spot worth knowing.</div>'}
     </div>
     <div class="section-label" style="margin:20px 0 8px">All levels</div>
     <div class="settings card lvl-list">${LEVELS.map((l, k) => { const done = k <= i; const to = LEVELS[k + 1] ? LEVELS[k + 1].min - 1 : null;
@@ -767,7 +767,7 @@ function spotPage(p, ro) {
       <h1 class="big-name" style="font-size:30px">${esc(p.name)}</h1>
       <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
       ${hoursLine(p)}
-      <div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || ''}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>
+      <div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (p.cat === 'chill' ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>
       ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:16px"></div>'}
       <div class="section-label" style="margin-bottom:8px">Photos</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:18px">${strip}<label class="add-photo" style="height:72px;border-radius:12px;cursor:pointer">${ICON.plus}<input type="file" accept="image/*" hidden data-photo="${p.id}"></label></div>
@@ -800,12 +800,13 @@ function addSheet() {
 function dialogView() {
   const d = ui.dialog; if (!d) return '';
   if (d.type === 'price') {
-    const p = d.place; const n = d.value || 0;
+    const p = d.place; const n = d.free ? 0 : (d.value || 0); const ok = n || d.free;
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
-      <h3 id="dlg-t">${d.edit ? 'Edit price for ' + esc(p.name) : 'How expensive is ' + esc(p.name) + '?'}</h3><p>${d.edit ? 'Currently ' + (PRICE_WORDS[p.price] || 'not set') : (d.hint ? esc(d.hint) : 'Tap to rate the price')}</p>
+      <h3 id="dlg-t">${d.edit ? 'Edit price for ' + esc(p.name) : 'How expensive is ' + esc(p.name) + '?'}</h3><p>${d.edit ? 'Currently ' + (PRICE_WORDS[p.price] || (d.allowFree ? 'free' : 'not set')) : (d.hint ? esc(d.hint) : 'Tap to rate the price')}</p>
       <div class="euro-bar" role="radiogroup" aria-label="Price">${[1, 2, 3].map(i => `<button class="${i <= n ? 'on' : ''}" role="radio" aria-checked="${i === n}" aria-label="${PRICE_WORDS[i]}" data-act="setprice" data-v="${i}">${esc(cur())}</button>`).join('')}</div>
-      <span class="price-word">${PRICE_WORDS[n] || ''}</span>
-      <div class="stack"><button class="big-btn primary-btn" data-act="pricesave" ${n ? '' : 'style="opacity:.45"'}>${d.edit ? 'Save' : 'Save to Spots'}</button><button class="big-btn" style="background:none;border:0;height:44px;color:var(--text-soft)" data-act="closedialog">Cancel</button></div></div>`;
+      <span class="price-word">${d.free ? 'Free' : (PRICE_WORDS[n] || '')}</span>
+      ${d.allowFree ? `<button class="pill ${d.free ? 'green-on' : 'sec-btn'}" style="margin:0 auto 14px" data-act="setfree" aria-pressed="${!!d.free}">${d.free ? ICON.check : ''}Free · no price</button>` : ''}
+      <div class="stack"><button class="big-btn primary-btn" data-act="pricesave" ${ok ? '' : 'style="opacity:.45"'}>${d.edit ? 'Save' : 'Save to Spots'}</button><button class="big-btn" style="background:none;border:0;height:44px;color:var(--text-soft)" data-act="closedialog">Cancel</button></div></div>`;
   }
   if (d.type === 'confirm') {
     const p = d.place; const isTry = p.status === 'totry';
@@ -1034,9 +1035,14 @@ function maybeNudge(reason) {
   ui.dialog = { type: 'nudge', own }; render();
 }
 
-function openPrice(place, opts = {}) { ui.dialog = Object.assign({ type: 'price', place, value: opts.value || place.price || 0 }, opts); render(); }
+function openPrice(place, opts = {}) {
+  const d = Object.assign({ type: 'price', place, value: opts.value || place.price || 0 }, opts);
+  d.cat = place.cat || (opts.mode === 'new' && ui.add ? ui.add.cat : opts.mode === 'copy' ? opts.src.cat : opts.mode === 'shared' ? opts.data.c : '');
+  d.allowFree = d.cat === 'chill'; d.free = d.allowFree && opts.edit && !place.price;
+  ui.dialog = d; render();
+}
 function confirmPrice() {
-  const d = ui.dialog; if (!d.value) return;
+  const d = ui.dialog; if (d.free) d.value = 0; else if (!d.value) return;
   if (d.edit) { d.place.price = d.value; save(); ui.dialog = null; render(); return; }
   if (d.mode === 'new') {
     const p = placeFromAdd('spot', d.value); db.places.push(p); save();
@@ -1250,7 +1256,8 @@ uiEl.addEventListener('click', e => {
     case 'addsave': if (!ui.add.name.trim()) { flash('Add the place name first.'); return; } openPrice({ name: ui.add.name.trim() }, { mode: 'new' }); return;
     case 'addtry': { if (!ui.add.name.trim()) { flash('Add the place name first.'); return; } const np = placeFromAdd('totry', 0); db.places.push(np); save(); ui.sheet = null; ui.add = null; toast(np.name + ' added to To try', () => { db.places = db.places.filter(x => x.id !== np.id); save(); }); afterSave(np); return; }
     case 'gpick': googlePick(+t.dataset.i); return;
-    case 'setprice': ui.dialog.value = +t.dataset.v; break;
+    case 'setprice': ui.dialog.value = +t.dataset.v; ui.dialog.free = false; break;
+    case 'setfree': ui.dialog.free = !ui.dialog.free; if (ui.dialog.free) ui.dialog.value = 0; break;
     case 'pricesave': confirmPrice(); return;
     case 'editprice': openPrice(p, { edit: true }); return;
     case 'savetry': openPrice(p, { mode: 'totry' }); return;
