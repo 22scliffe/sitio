@@ -197,12 +197,15 @@ function dist(p) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 const fmtDist = (m) => m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1) + ' km';
+const AT = (() => { const m = (location.search.match(/[?&]at=(-?[\d.]+),(-?[\d.]+)/) || []); return m[1] ? { lat: +m[1], lng: +m[2] } : null; })();
 function locate(center) {
+  if (AT) { const first = !haveLocation; me = Object.assign({}, AT); haveLocation = true; if (center || (first && nearCity())) mapApi.center(me); if (first) whereAmI(); render(); return; }
   if (!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(pos => {
     const first = !haveLocation;
     me = { lat: pos.coords.latitude, lng: pos.coords.longitude }; haveLocation = true;
     if (center || (first && nearCity())) mapApi.center(me);
+    if (first) whereAmI();
     render();
   }, () => { if (center) flash('Location is off. Allow it in Settings to see spots near you.'); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
 }
@@ -523,7 +526,7 @@ function accountView() {
   const row = (label, val, act) => `<button class="set-row" data-act="${act}"><span>${label}</span><span class="val">${val}${ICON.chevRight}</span></button>`;
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page">
-    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div><button class="lvl-chip" data-act="levels">${levelOf(spotCount()) >= 0 ? LEVELS[levelOf(spotCount())].badge + ' ' + LEVELS[levelOf(spotCount())].name : '🌱 Add a spot to reach your first level'}${ICON.chevRight}</button></div></div>
+    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div>${(() => { const li = levelOf(spotCount()); return li >= 0 ? `<button class="lvl-chip" data-act="levels"><span class="lvl-ico">${LEVELS[li].badge}</span><span class="lvl-txt"><span class="lvl-lv">Level ${li + 1}</span><span class="lvl-nm">${LEVELS[li].name}</span></span>${ICON.chevRight}</button>` : `<button class="lvl-chip start" data-act="levels"><span class="lvl-ico">🌱</span><span class="lvl-txt"><span class="lvl-lv">Level 0</span><span class="lvl-nm">Add a spot to level up</span></span>${ICON.chevRight}</button>`; })()}</div></div>
     ${cloudOn() && !auth ? `<button class="card acct-cta" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
@@ -549,7 +552,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -599,6 +602,7 @@ function authPage() {
 }
 
 const CONTACT = 'sitio.contact@gmail.com';
+const delWord = () => (db.user.name || '').trim() || 'delete';
 const LEVELS = [
   { min: 2, name: 'Exploring spots', badge: '🧭' },
   { min: 5, name: 'Local amateur', badge: '🗺️' },
@@ -773,7 +777,9 @@ function dialogView() {
   if (d.type === 'delacct') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">Delete your account?</h3><p>Your email and all your saved places are removed for good. This can’t be undone. Tip: use Back up my spots first if you want a copy.</p>
-      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dodelacct">Delete</button></div></div>`;
+      <p style="margin:0 0 8px;color:var(--text)">To confirm, type <b>${esc(delWord())}</b> below.</p>
+      <input class="input card" style="margin-bottom:12px;text-align:center" data-input="delConfirm" autocomplete="off" autocapitalize="off" placeholder="${esc(delWord())}">
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dodelacct">Yes, delete</button></div></div>`;
   }
   if (d.type === 'currency') {
     const c = db.cities.find(x => x.id === d.cityId) || city();
@@ -803,6 +809,15 @@ function dialogView() {
       <div class="cat-grid" style="margin-top:12px">${CATS.map(c => `<button class="sec-btn ${d.cat === c.id ? 'on' : ''}" data-act="ecat" data-v="${c.id}" aria-pressed="${d.cat === c.id}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
       ${d.cat === 'restaurant' ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(d).includes(c) ? 'on' : ''}" data-act="ecuis" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
       <div class="btn-grid" style="margin-top:16px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="ecatsave">Save</button></div></div>`;
+  }
+  if (d.type === 'here') {
+    const h = d.h, nm = h.city ? h.city.name : h.name;
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
+      <div style="font-size:40px;margin-bottom:6px">📍</div>
+      <h3 id="dlg-t">Looks like you’re in ${esc(nm)}</h3><p>Sitio is showing ${esc(city().name)}. Switch to ${esc(nm)} to save spots there?${h.city ? '' : ' Prices will be in ' + esc(currencyFor(h.cc)) + '.'}</p>
+      <button class="big-btn primary-btn" style="width:100%" data-act="hereyes">Switch to ${esc(nm)}</button>
+      <button class="big-btn sec-btn" style="width:100%;margin-top:8px" data-act="addcity">Pick another city or town</button>
+      <button class="link-btn" style="margin:12px auto 0;color:var(--text-2)" data-act="hereno">Stay in ${esc(city().name)}</button></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -1048,6 +1063,26 @@ async function googleSuggest(text) {
     googleSuggest.last = suggestions;
   } catch (e) { box.innerHTML = ''; }
 }
+// If you're far from the city Sitio is showing, offer to switch to where you are
+let herePrompt = null;
+function whereAmI() {
+  if (nearCity()) return;
+  const near = db.cities.find(c => c.lat != null && dist(c) < 50000);
+  if (near) { herePrompt = { city: near }; return tryHerePrompt(); }
+  const key = 'sitio.hereSkip.' + me.lat.toFixed(1) + ',' + me.lng.toFixed(1);
+  try { if (+localStorage.getItem(key) > Date.now()) return; } catch (e) { }
+  fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=en&lat=' + me.lat + '&lon=' + me.lng)
+    .then(r => r.json()).then(j => {
+      const ad = j.address || {}; const name = ad.city || ad.town || ad.village || ad.municipality || ad.county; if (!name) return;
+      const cc = (ad.country_code || '').toUpperCase();
+      herePrompt = { name, country: ad.country || '', cc, lat: +j.lat || me.lat, lng: +j.lon || me.lng, key }; tryHerePrompt();
+    }).catch(() => { });
+}
+function tryHerePrompt() {
+  if (!herePrompt) return;
+  if (ui.dialog || ui.install || ui.sheet || ui.page === 'auth') { setTimeout(tryHerePrompt, 1500); return; }
+  ui.dialog = { type: 'here', h: herePrompt }; herePrompt = null; render();
+}
 let cityTimer = null, cityToken = null;
 async function citySuggest(text) {
   const box = $('#citysug'); if (!box) return;
@@ -1147,6 +1182,11 @@ uiEl.addEventListener('click', e => {
     case 'ecat': ui.dialog.cat = t.dataset.v; break;
     case 'ecuis': { const l = cuisList(ui.dialog), v = t.dataset.v; ui.dialog.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
     case 'ecatsave': { const q = byId(ui.dialog.id); if (q) { q.cat = ui.dialog.cat; q.cuisine = q.cat === 'restaurant' ? ui.dialog.cuisine : ''; save(); lastMapKey = ''; toast('Updated', null); } ui.dialog = null; break; }
+    case 'hereyes': { const h = ui.dialog.h; let c = h.city || db.cities.find(x => x.name.toLowerCase() === h.name.toLowerCase());
+      if (!c) { c = { id: 'c-' + uid(), name: h.name.slice(0, 40), country: h.country, cc: h.cc, currency: currencyFor(h.cc), lat: h.lat, lng: h.lng }; db.cities.push(c); }
+      db.currentCityId = c.id; save(); ui.dialog = null; ui.tab = 'home'; ui.filter = []; ui.selected = null; lastMapKey = ''; mapApi.view(me, 15);
+      toast('Switched to ' + c.name + ' · prices in ' + c.currency, null); break; }
+    case 'hereno': { const h = ui.dialog.h; if (h.key) try { localStorage.setItem(h.key, String(Date.now() + 7 * 864e5)); } catch (e) { } ui.dialog = null; break; }
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': ui.page = { adminUser: id }; break;
@@ -1159,7 +1199,7 @@ uiEl.addEventListener('click', e => {
     case 'adminplace': ui.page = { adminUser: id, city: t.dataset.city, place: t.dataset.place }; break;
     case 'admincity': ui.page = { adminUser: id, city: t.dataset.city }; break;
     case 'delacct': ui.dialog = { type: 'delacct' }; break;
-    case 'dodelacct': ui.dialog = null; deleteAccount(); return;
+    case 'dodelacct': { const v = ((uiEl.querySelector('[data-input="delConfirm"]') || {}).value || '').trim().toLowerCase(); if (v !== delWord().toLowerCase()) { flash('Type ' + delWord() + ' exactly to confirm.'); return; } ui.dialog = null; deleteAccount(); return; }
     case 'openauth': ui.page = 'auth'; ui.authMode = ui.authMode || 'signup'; ui.authMsg = null; break;
     case 'authmode': ui.authMode = t.dataset.v; ui.authMsg = null; break;
     case 'authgo': doAuth(); return;

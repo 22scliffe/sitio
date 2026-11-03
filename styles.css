@@ -307,8 +307,6 @@ body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
 .row-btns { flex-wrap: wrap; }
 
 /* Levels */
-.lvl-chip { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; padding: 4px 10px 4px 8px; border-radius: 999px; border: 1px solid rgba(var(--fg),0.16); background: rgba(var(--fg),0.07); font-size: 13px; font-weight: 700; color: var(--text); }
-.lvl-chip .icon { width: 14px; height: 14px; opacity: .7; }
 .lvl-hero { border-radius: 24px; padding: 22px 18px 18px; text-align: center; margin-top: 6px; }
 .lvl-badge { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; background: linear-gradient(145deg, rgba(245,184,61,0.28), rgba(255,90,78,0.18)); border: 1px solid rgba(245,184,61,0.45); flex: none; }
 .lvl-badge.big { width: 84px; height: 84px; border-radius: 26px; font-size: 44px; margin: 0 auto; }
@@ -316,3 +314,16 @@ body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
 .lvl-bar { height: 10px; border-radius: 5px; background: rgba(var(--fg),0.10); overflow: hidden; margin: 16px 0 8px; }
 .lvl-bar span { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, #F5B83D, #FF5A4E); }
 .meta-edit { display: flex; align-items: center; gap: 2px; }
+
+/* Level chip under your name: looks like an achievement */
+.lvl-chip { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; padding: 5px 10px 5px 5px; border-radius: 999px; border: 0; color: #2A1A06; background: linear-gradient(135deg, #FFE08A 0%, #F5B83D 45%, #FF8A5C 100%); box-shadow: 0 0 0 1px rgba(255,214,120,0.55), 0 6px 18px rgba(245,160,61,0.38), inset 0 1px 1px rgba(255,255,255,0.7); position: relative; overflow: hidden; }
+.lvl-chip::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.65), transparent); animation: shine 3.2s ease-in-out infinite; }
+@keyframes shine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+.lvl-ico { width: 30px; height: 30px; border-radius: 15px; background: rgba(255,255,255,0.55); display: flex; align-items: center; justify-content: center; font-size: 17px; flex: none; }
+.lvl-txt { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+.lvl-lv { font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; opacity: .75; }
+.lvl-nm { font-size: 14px; font-weight: 800; }
+.lvl-chip .icon { width: 14px; height: 14px; opacity: .65; }
+.lvl-chip.start { background: rgba(var(--fg),0.08); color: var(--text); box-shadow: 0 0 0 1px rgba(var(--fg),0.16); }
+.lvl-chip.start::after { display: none; }
+.lvl-chip.start .lvl-ico { background: rgba(var(--fg),0.10); }
