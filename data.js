@@ -10,7 +10,7 @@ SITIO.CATS = [
   { id: 'padel', name: 'Padel', plural: 'Padel' }
 ];
 
-SITIO.CUISINES = ['Indian', 'Japanese', 'Spanish', 'Italian', 'Mexican', 'Peruvian', 'Vietnamese', 'Lebanese', 'Chinese', 'Korean', 'Thai', 'Other'];
+SITIO.CUISINES = ['Indian', 'Japanese', 'Spanish', 'Italian', 'Mexican', 'Peruvian', 'Vietnamese', 'Lebanese', 'Chinese', 'Korean', 'Thai', 'German', 'Other'];
 
 SITIO.PRICE_WORDS = ['', 'Budget', 'Medium', 'Pricey'];
 

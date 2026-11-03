@@ -29,7 +29,7 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: SAMPLE.places.map(p => Object.assign({}, p, { sample: true, hours: p.hours ? weekFrom(p.hours.open, p.hours.close) : null, hoursSrc: p.hours ? 'sample' : null })),
     sample: true,
-    v: 2
+    v: 3
   };
 }
 let db = loadDb();
@@ -39,6 +39,18 @@ if (!db.v || db.v < 2) {
   db.places = db.places.filter(x => !x.sample);
   if (hadSample) db.places.unshift(...SAMPLE.places.map(p => Object.assign({}, p, { sample: true, hours: weekFrom(p.hours.open, p.hours.close), hoursSrc: 'sample' })));
   db.v = 2; save();
+}
+// v3: the owner's own phone (the install from before this version) starts clean with his first two places
+if (db.v < 3) {
+  if (db.user && db.user.name === 'Sitio' && !db.places.some(x => !x.sample)) {
+    const now = Date.now();
+    db.places = [
+      { id: 'p-pez-tortilla', cityId: 'c-madrid', name: 'Pez Tortilla', cat: 'bar', cuisine: '', lat: 40.41085, lng: -3.70945, area: 'La Latina', status: 'spot', price: 1, note: 'Tapas bar. Tortilla and croquetas.', photos: [], hours: null, hoursSrc: null, googleId: null, addedAt: now },
+      { id: 'p-leinerhaus', cityId: 'c-madrid', name: 'Leinerhaus', cat: 'restaurant', cuisine: 'German', lat: 40.42175, lng: -3.70395, area: 'Centro', status: 'totry', price: 0, note: 'La Casa Alemana.', photos: [], hours: null, hoursSrc: null, googleId: null, addedAt: now - 1 }
+    ];
+    db.sample = false;
+  }
+  db.v = 3; save();
 }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } }
