@@ -213,14 +213,15 @@ function locate(center) {
 
 /* ---------- install (add to home screen) ---------- */
 const UA = navigator.userAgent || '';
-const IS_IOS = /iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const IS_ANDROID = /Android/i.test(UA);
-const IN_APP = /FBAN|FBAV|Instagram|Line\/|Snapchat|TikTok|LinkedInApp|GSA\//.test(UA);
-const IOS26 = +((UA.match(/Version\/(\d+)/) || [])[1] || 0) >= 26;
-const IOS_OTHER = IS_IOS && /CriOS|FxiOS|EdgiOS/.test(UA);
-let STANDALONE = false; try { STANDALONE = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { }
-let installPrompt = null;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; render(); });
+const PREVIEW = (location.search.match(/[?&]preview=([\w-]+)/) || [])[1] || '';
+const IS_IOS = PREVIEW ? PREVIEW.startsWith('ios') : (/iPhone|iPad|iPod/.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+const IS_ANDROID = PREVIEW ? PREVIEW.startsWith('android') : /Android/i.test(UA);
+const IN_APP = !PREVIEW && /FBAN|FBAV|Instagram|Line\/|Snapchat|TikTok|LinkedInApp|GSA\//.test(UA);
+const IOS26 = PREVIEW === 'ios' ? true : PREVIEW === 'ios-old' ? false : +((UA.match(/Version\/(\d+)/) || [])[1] || 0) >= 26;
+const IOS_OTHER = !PREVIEW && IS_IOS && /CriOS|FxiOS|EdgiOS/.test(UA);
+let STANDALONE = false; try { STANDALONE = !PREVIEW && (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true); } catch (e) { }
+let installPrompt = PREVIEW === 'android' ? { prompt() { flash('Preview: on a real Android phone, Chrome now asks “Install Sitio?”'); }, userChoice: new Promise(() => {}) } : null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); if (!PREVIEW) { installPrompt = e; render(); } });
 window.addEventListener('appinstalled', () => { ui.installed = true; installPrompt = null; render(); });
 const appUrl = () => location.origin + location.pathname;
 function skipInstallStored() { try { return sessionStorage.getItem('sitio.skipInstall') === '1'; } catch (e) { return false; } }
@@ -230,7 +231,7 @@ const ui = {
   tab: 'home', filter: [], menu: null, cuisineOpen: false, selected: null,
   sheet: null, page: null, dialog: null, toast: null,
   spotsOpenNow: true, spotsSearch: '', tryNewest: false, expand: {}, add: null,
-  install: !STANDALONE && !skipInstallStored(), installed: false
+  install: !!PREVIEW || (!STANDALONE && !skipInstallStored()), installed: false
 };
 const city = () => db.cities.find(c => c.id === db.currentCityId) || db.cities[0];
 const cur = () => (city() && city().currency) || '€';
@@ -677,7 +678,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v2.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1064,29 +1065,46 @@ function dialogView() {
   return '';
 }
 
-// Animated how-to for iPhone Safari (a looping mock of the taps, works for both toolbar layouts)
+// Animated how-to for iPhone Safari: a looping mock of the real taps, including scrolling the share sheet
 function iosHowTo(newSafari) {
   const SH = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg>`;
   const PL = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg>`;
   const page = `<div class="hw-page"><div class="hw-logo"><img src="icons/icon-192.png" alt=""></div><i style="width:60%"></i><i style="width:80%"></i><i style="width:70%"></i></div>`;
   const bar = newSafari
-    ? `<div class="hw-bar"><span class="hw-b">‹</span><span class="hw-url"><span class="hw-menu">≡</span>22scliffe.github.io</span><span class="hw-b hw-more">•••</span></div>`
-    : `<div class="hw-bar old"><span class="hw-b">‹</span><span class="hw-b">›</span><span class="hw-b hw-share">${SH}</span><span class="hw-b">▢</span><span class="hw-b">⧉</span></div>`;
-  const scenes = newSafari ? 5 : 4;
-  const s1 = `<div class="hw-sc">${page}${bar}${newSafari ? '<span class="hw-ring r-menu"></span><span class="hw-ring r-more"></span><span class="hw-finger f-more"></span>' : '<span class="hw-ring r-share"></span><span class="hw-finger f-share"></span>'}</div>`;
-  const s2 = newSafari ? `<div class="hw-sc">${page}<div class="hw-pop"><div class="hw-row on">${SH}<span>Share</span></div><div class="hw-row">☆<span>Add to Bookmarks</span></div><div class="hw-row">⌕<span>Find on Page</span></div></div>${bar}<span class="hw-finger f-pop"></span></div>` : '';
-  const s3 = `<div class="hw-sc">${page}<div class="hw-sheet"><div class="hw-apps"><i></i><i></i><i></i><i></i></div><div class="hw-row">⧉<span>Copy</span></div><div class="hw-row">☆<span>Add to Bookmarks</span></div><div class="hw-row on">${PL}<span>Add to Home Screen</span></div></div><span class="hw-finger f-add"></span></div>`;
-  const s4 = `<div class="hw-sc"><div class="hw-confirm"><div class="hw-top"><span>Cancel</span><b>Add to Home Screen</b><span class="hw-addbtn">Add</span></div><div class="hw-app"><img src="icons/icon-192.png" alt=""><span>Sitio</span></div></div><span class="hw-finger f-confirm"></span></div>`;
-  const s5 = `<div class="hw-sc hw-home"><div class="hw-grid">${'<i></i>'.repeat(11)}<span class="hw-new"><img src="icons/icon-192.png" alt=""><em>Sitio</em></span></div></div>`;
-  const caps = newSafari
-    ? [`Tap <b>•••</b> (or <b>≡</b> in the address bar)`, 'Tap <b>Share</b>', 'Scroll down, tap <b>Add to Home Screen</b>', 'Tap <b>Add</b>', 'Done! Open Sitio from your home screen']
-    : ['Tap the <b>Share</b> button', 'Scroll down, tap <b>Add to Home Screen</b>', 'Tap <b>Add</b>', 'Done! Open Sitio from your home screen'];
-  const all = newSafari ? [s1, s2, s3, s4, s5] : [s1, s3, s4, s5];
-  const dur = scenes * 3;
-  return `<div class="i-card card hw" style="--n:${scenes};--dur:${dur}s">
+    ? `<div class="hw-bar"><span class="hw-b">‹</span><span class="hw-url"><span class="hw-menu">≡</span>22scliffe.github.io</span><span class="hw-b">•••</span></div>`
+    : `<div class="hw-bar old"><span class="hw-b">‹</span><span class="hw-b">›</span><span class="hw-b">${SH}</span><span class="hw-b">▢</span><span class="hw-b">⧉</span></div>`;
+  const rows = ['⧉ Copy', '☷ Add to Reading List', '☆ Add to Bookmarks', '♡ Add to Favourites', '✐ Add to Quick Note', '⌕ Find on Page'].map(r => `<div class="hw-row"><span class="hw-ri">${r.slice(0, 1)}</span><span>${r.slice(2)}</span></div>`).join('')
+    + `<div class="hw-row hw-target"><span class="hw-ri">${PL}</span><span>Add to Home Screen</span></div>` + ['✎ Markup', '⎙ Print', '⚙ Edit Actions…'].map(r => `<div class="hw-row"><span class="hw-ri">${r.slice(0, 1)}</span><span>${r.slice(2)}</span></div>`).join('');
+  const sheet = (scrolled, mark) => `<div class="hw-sheet"><div class="hw-sh-head"><img src="icons/icon-192.png" alt=""><span><b>Sitio</b><em>22scliffe.github.io</em></span><span class="hw-x">✕</span></div>
+    <div class="hw-people"><i></i><i></i><i></i><i></i></div><div class="hw-apps"><i style="background:#34C759"></i><i style="background:#0A84FF"></i><i style="background:#25D366"></i><i style="background:#8E8E93"></i></div>
+    <div class="hw-listwrap"><div class="hw-list ${scrolled ? 'is-scrolled' : 'scrolls'} ${mark ? 'mark' : ''}">${rows}</div></div></div>`;
+  const sc = [];
+  sc.push({ html: `${page}${bar}${newSafari ? '<span class="hw-ring r-menu"></span><span class="hw-ring r-more"></span><span class="hw-finger tap f-more"></span>' : '<span class="hw-ring r-share"></span><span class="hw-finger tap f-share"></span>'}`, cap: newSafari ? 'Tap <b>•••</b> (or <b>≡</b> in the address bar)' : 'Tap the <b>Share</b> button' });
+  if (newSafari) sc.push({ html: `${page}<div class="hw-pop"><div class="hw-row hw-target"><span class="hw-ri">${SH}</span><span>Share</span></div><div class="hw-row"><span class="hw-ri">☆</span><span>Add to Bookmarks</span></div><div class="hw-row"><span class="hw-ri">⌕</span><span>Find on Page</span></div></div>${bar}<span class="hw-finger tap f-pop"></span>`, cap: 'Tap <b>Share</b>' });
+  sc.push({ html: `${sheet(false)}<span class="hw-finger swipe f-swipe"></span>`, cap: 'Swipe up to see more options' });
+  sc.push({ html: `${sheet(true, true)}<span class="hw-finger tap f-add"></span>`, cap: 'Tap <b>Add to Home Screen</b>' });
+  sc.push({ html: `<div class="hw-confirm"><div class="hw-top"><span>Cancel</span><b>Add to Home Screen</b><span class="hw-addbtn">Add</span></div><div class="hw-app"><img src="icons/icon-192.png" alt=""><span>Sitio</span></div><div class="hw-toggle"><span>Open as Web App</span><i></i></div></div><span class="hw-finger tap f-confirm"></span>`, cap: 'Tap <b>Add</b> in the top corner' });
+  sc.push({ html: `<div class="hw-home"><div class="hw-grid">${'<i></i>'.repeat(5)}<span class="hw-new"><img src="icons/icon-192.png" alt=""><em>Sitio</em></span>${'<i></i>'.repeat(6)}</div><div class="hw-dock"><i></i><i></i><i></i><i></i></div></div>`, cap: 'Done! Open Sitio from your home screen' });
+  const n = sc.length, step = 3.2, dur = n * step, w = 100 / n, p = x => (w * x).toFixed(2) + '%';
+  const css = `<style>
+    .hw .hw-sc, .hw .hw-cap { animation: hwS ${dur}s linear infinite; }
+    @keyframes hwS { 0% { opacity: 0; } ${p(.06)} { opacity: 1; } ${p(.94)} { opacity: 1; } ${p(1)}, 100% { opacity: 0; } }
+    .hw .tap { animation: hwT ${dur}s ease-out infinite; }
+    @keyframes hwT { 0% { opacity: 0; transform: translate(26px, 34px) scale(1); } ${p(.28)} { opacity: .95; transform: translate(0, 0) scale(1); } ${p(.42)} { transform: scale(.72); } ${p(.52)} { transform: scale(1); } ${p(.85)} { opacity: .95; } ${p(.93)}, 100% { opacity: 0; } }
+    .hw .swipe { animation: hwW ${dur}s ease-in-out infinite; }
+    @keyframes hwW { 0% { opacity: 0; transform: translateY(0); } ${p(.2)} { opacity: .95; transform: translateY(0); } ${p(.7)} { opacity: .95; transform: translateY(-110px); } ${p(.8)}, 100% { opacity: 0; transform: translateY(-110px); } }
+    .hw .scrolls { animation: hwL ${dur}s ease-in-out infinite; }
+    @keyframes hwL { 0%, ${p(.2)} { transform: translateY(0); } ${p(.7)}, 100% { transform: translateY(-140px); } }
+    .hw .hw-ring { animation: hwR ${dur}s ease-out infinite; }
+    @keyframes hwR { 0%, ${p(.2)} { opacity: 0; transform: scale(.7); } ${p(.35)} { opacity: 1; transform: scale(1.12); } ${p(.6)} { opacity: .9; transform: scale(1); } ${p(.9)}, 100% { opacity: 0; } }
+    .hw .hw-new { animation: hwP ${dur}s ease-out infinite; }
+    @keyframes hwP { 0%, ${p(.12)} { transform: scale(0); } ${p(.3)} { transform: scale(1.25); } ${p(.42)}, 100% { transform: scale(1); } }
+  </style>`;
+  const d = k => `animation-delay:${(k * step).toFixed(1)}s`;
+  return `<div class="i-card card hw">${css}
     <div class="i-h" style="text-align:center">Add Sitio to your home screen</div>
-    <div class="hw-phone">${all.map((s, k) => s.replace('class="hw-sc', `style="animation-delay:${k * 3}s" class="hw-sc`).replace(/class="hw-finger/g, `style="animation-delay:${k * 3}s" class="hw-finger`).replace(/class="hw-ring/g, `style="animation-delay:${k * 3}s" class="hw-ring`).replace('class="hw-new"', `style="animation-delay:${k * 3}s" class="hw-new"`)).join('')}</div>
-    <div class="hw-caps">${caps.map((c, k) => `<div class="hw-cap" style="animation-delay:${k * 3}s"><span class="hw-n">${k + 1}</span>${c}</div>`).join('')}</div>
+    <div class="hw-phone">${sc.map((s, k) => `<div class="hw-sc" style="${d(k)}">${s.html.replace(/class="hw-(finger|ring|list|new)/g, m => `style="${d(k)}" ${m}`)}</div>`).join('')}</div>
+    <div class="hw-caps">${sc.map((s, k) => `<div class="hw-cap" style="${d(k)}"><span class="hw-n">${k + 1}</span><span>${s.cap}</span></div>`).join('')}</div>
     <div class="muted" style="font-size:12px;font-weight:600;margin-top:10px;line-height:1.4;text-align:center">iPhones don’t let websites add themselves, so it takes these taps. You only do it once.</div></div>`;
 }
 function installView() {
@@ -1101,7 +1119,7 @@ function installView() {
   } else if (IS_IOS && (IN_APP || IOS_OTHER && !/CriOS/.test(UA))) {
     body = `<div class="i-card card"><div class="i-h">First, open this page in Safari</div><ol class="i-steps">${step(1, `Tap ${dots} or the menu in this screen`)}${step(2, 'Choose <b>Open in Safari</b> (or Open in browser)')}${step(3, 'Then follow the steps shown there')}</ol>
       <button class="big-btn sec-btn" style="width:100%;margin-top:10px" data-act="copylink">Copy link instead</button></div>`;
-  } else if (IS_IOS && !/CriOS/.test(UA)) {
+  } else if (IS_IOS && (PREVIEW || !/CriOS/.test(UA))) {
     body = iosHowTo(IOS26);
   } else if (IS_IOS) {
     body = `<div class="i-card card"><div class="i-h">Add Sitio to your home screen</div><ol class="i-steps">
