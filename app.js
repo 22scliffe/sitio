@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -2203,6 +2203,18 @@ root.appendChild(mapApi.el); root.appendChild(uiEl);
 mapApi.init();
 resnap();
 checkLevel();
+// One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
+function adminShowcase(tries = 0) {
+  try { if (localStorage.getItem('sitio.showcase2025')) return; } catch (e) { }
+  if (!isAdmin) { if (tries < 30) setTimeout(() => adminShowcase(tries + 1), 2000); return; }
+  if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 60) setTimeout(() => adminShowcase(tries + 1), 2000); return; }
+  const y0 = new Date().getFullYear(); let per = null;
+  for (const y of [2025, y0 - 1, y0 - 2, y0 - 3]) { const p = recapYear(y); if (recapItems(p).filter(x => photoUrl(x.m.id)).length) { per = p; break; } }
+  if (!per) { if (tries < 30) setTimeout(() => adminShowcase(tries + 1), 2000); return; }
+  try { localStorage.setItem('sitio.showcase2025', '1'); } catch (e) { }
+  ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false }; render();
+}
+setTimeout(adminShowcase, 3000);
 setTimeout(() => tryRecap(/[?&]demo=year/.test(location.search) ? 'year' : /[?&]demo=recap/.test(location.search)), 2500);
 if (/[?&]demo=levelup/.test(location.search)) setTimeout(() => { ui.install = false; showLevelUp(Math.max(1, levelOf(spotCount()) + 1) % LEVELS.length || 1, true); }, 400);
 readAuthHash();
