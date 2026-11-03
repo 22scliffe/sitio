@@ -512,7 +512,7 @@ function tryView() {
   return `<div class="page">
     <div class="page-head" style="align-items:flex-end"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} in ${esc(city().name)}</div></div>
       <button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div>
-    <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats))}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest first' : 'Nearest first'}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trymap">${ICON.map}Show on map</button></div>
+    <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats))}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest first' : 'Nearest first'}${ICON.chevDown}</button><button class="round sec-btn" style="width:44px;height:44px;flex:none;margin-left:auto" data-act="trymap" aria-label="Show on map" title="Show on map">${ICON.map}</button></div>
     ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">${tcats.length && cityPlaces().some(p => p.status === 'totry') ? 'Nothing to try in ' + esc(filterLabel(tcats)) + '.' : 'Nothing to try yet.<br>Found somewhere that looks good? Tap Add.'}</div>`}
   </div>${ui.menu === 'try' ? filterMenu() : ''}`;
 }
@@ -696,6 +696,7 @@ function spotPage(p, ro) {
       ${status(p) ? hoursLine(p) : ''}
       ${p.status === 'spot' && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(ro.cur.repeat(p.price))}</span><span class="off">${esc(ro.cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
       ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:16px"></div>'}
+      <div class="btn-grid" style="margin-bottom:10px"><button class="big-btn primary-btn" data-act="copyspot">${ICON.check}Add to my Spots</button><button class="big-btn coral-btn" data-act="copytry">${ICON.plus}Add to my To try</button></div>
       <p class="page-sub" style="font-size:12px;margin:0 0 14px">Saved by ${esc(ro.who)}${p.addedAt ? ' · ' + fmtDate(p.addedAt) : ''}. Their photos stay on their phone.</p>
       ${dirButtons(p)}
     </div></div>`;
@@ -953,11 +954,21 @@ function confirmPrice() {
     const p = d.place; p.status = 'spot'; p.price = d.value; save();
     ui.dialog = null; if (ui.sheet === 'spot') ui.sheet = null; ui.selected = null;
     toast(p.name + ' saved to Spots', () => { p.status = 'totry'; p.price = 0; save(); }); checkLevel();
+  } else if (d.mode === 'copy') {
+    const p = copyPlace(d.src, d.srcCity, 'spot', d.value); ui.dialog = null;
+    toast(p.name + ' added to your Spots', () => { db.places = db.places.filter(x => x.id !== p.id); save(); }); afterSave(p);
   } else if (d.mode === 'shared') {
     const p = sharedToPlace(d.data, 'spot', d.value); db.places.push(p); save(); ui.dialog = null;
     toast(p.name + ' saved to Spots', () => { db.places = db.places.filter(x => x.id !== p.id); save(); }); afterSave(p);
   }
   render();
+}
+// Admin: copy someone's place into my own lists, in the matching city (created if I don't have it)
+function copyPlace(src, srcCity, status, price) {
+  let c = db.cities.find(x => srcCity && x.name.toLowerCase() === (srcCity.name || '').toLowerCase());
+  if (!c && srcCity) { c = Object.assign({}, srcCity, { id: db.cities.some(x => x.id === srcCity.id) ? 'c-' + uid() : srcCity.id }); db.cities.push(c); }
+  const p = { id: uid(), cityId: c ? c.id : db.currentCityId, name: src.name, area: src.area || '', cat: src.cat, cuisine: src.cuisine || '', status, price: status === 'spot' ? price : 0, note: '', photos: [], lat: src.lat, lng: src.lng, googleId: src.googleId || null, hours: src.hours || null, hoursSrc: src.hoursSrc || null, addedAt: Date.now() };
+  db.places.push(p); save(); return p;
 }
 function delPlace(p) { db.places = db.places.filter(x => x.id !== p.id); (p.photos || []).forEach(id => idb.del(id).catch(() => {})); save(); if (ui.selected === p.id) { ui.selected = null; ui.sheet = null; } if (ui.page && ui.page.spot === p.id) ui.page = null; ui.dialog = null; render(); }
 
@@ -1139,6 +1150,12 @@ uiEl.addEventListener('click', e => {
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': ui.page = { adminUser: id }; break;
+    case 'copyspot': case 'copytry': {
+      const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), src = au && au.data && (au.data.places || []).find(x => x.id === ui.page.place);
+      const sc = au && au.data && (au.data.cities || []).find(x => x.id === ui.page.city); if (!src) return;
+      if (act === 'copytry') { const np = copyPlace(src, sc, 'totry', 0); toast(np.name + ' added to your To try', () => { db.places = db.places.filter(x => x.id !== np.id); save(); }); afterSave(np); break; }
+      openPrice({ name: src.name }, { mode: 'copy', src, srcCity: sc, value: src.price || 0 }); return;
+    }
     case 'adminplace': ui.page = { adminUser: id, city: t.dataset.city, place: t.dataset.place }; break;
     case 'admincity': ui.page = { adminUser: id, city: t.dataset.city }; break;
     case 'delacct': ui.dialog = { type: 'delacct' }; break;
