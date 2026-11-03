@@ -30,7 +30,7 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: starters(),
     sample: true,
-    v: 11,
+    v: 12,
     tourDone: false
   };
 }
@@ -85,6 +85,7 @@ if (db.v < 8) {
   db.v = 8; save();
 }
 if (db.v < 10) { db.cities.forEach(c => { if (/^(City of Westminster|City of London|Westminster)$/i.test(c.name)) c.name = 'London'; }); if (db.v >= 9) { db.v = 10; save(); } }
+if (db.v < 12) { db.places.forEach(p => { if (p.photos && p.photos.length) { p.memories = (p.memories || []).concat(p.photos.map(id => ({ id, at: p.addedAt || Date.now() }))); p.photos = []; } }); if (db.v >= 11) { db.v = 12; save(); } }
 if (db.v < 11) { if (db.tourDone === undefined) db.tourDone = db.places.some(x => !x.sample) || !!localStorage.getItem('sitio.auth'); if (db.v >= 10) { db.v = 11; save(); } }
 if (db.v < 9) { db.places.forEach(p => { if (p.cuisine) p.cuisine = cuisList(p).map(q => q === 'Eastern' ? 'Middle Eastern' : q).join(', '); }); db.v = 9; save(); }
 const hasSample = () => db.places.some(x => x.sample);
@@ -124,7 +125,7 @@ const photoUrls = {};
 function photoUrl(id) {
   if (photoUrls[id]) return photoUrls[id];
   photoUrls[id] = '';
-  idb.get(id).then(b => { if (b) { photoUrls[id] = URL.createObjectURL(b); render(); } }).catch(() => {});
+  idb.get(id).then(b => { if (b) { photoUrls[id] = URL.createObjectURL(b); render(); } else if (typeof cloudPhoto === 'function') cloudPhoto(id); }).catch(() => {});
   return '';
 }
 function thumbUrl(blob, size = 160) {
@@ -516,7 +517,7 @@ function memoryStrip(p) {
   const old = (p.photos || []).map(id => ({ id, at: 0 }));
   const input = `<input type="file" accept="image/*" multiple hidden data-memory="${p.id}">`;
   const add = `<label class="ms-add ${ms.length ? '' : 'first'}"><span class="ms-cam">📸</span><b>${ms.length ? 'Add another' : (p.status === 'totry' ? 'Went? Add a memory' : 'Add a memory')}</b><span>${ms.length ? 'Photo of you here' : 'A photo of you here, saved with the date'}</span>${input}</label>`;
-  const tiles = ms.concat(old).map(m => { const u = photoUrl(m.id); return `<button class="ms-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">On another phone</span>'}${m.at ? `<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span>` : ''}</button>`; }).join('');
+  const tiles = ms.concat(old).map(m => { const u = photoUrl(m.id); return `<button class="ms-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${u ? `<img src="${u}" alt="">` : (m.cloud ? '<span class="mem-gone">Loading…</span>' : '<span class="mem-gone">On another phone</span>')}${m.at ? `<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span>` : ''}</button>`; }).join('');
   const blank = ms.length || old.length ? '' : `<div class="ms-item ms-art">${ART[p.cat] || ART.restaurant}<span class="ms-hint">Your memories here will show who you came with and when</span></div>`;
   return `<div class="ms-wrap"><div class="ms-head"><span>📸 Memories${ms.length ? ' · ' + ms.length : ''}</span>${ms.length ? `<span class="ms-last">Last: ${esc(new Date(ms[0].at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</div><div class="ms-strip">${add}${tiles}${blank}</div></div>`;
 }
@@ -568,7 +569,7 @@ function roSheet(p, ro) {
     ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:14px"></div>'}
     <div class="btn-grid" style="margin-bottom:8px"><button class="big-btn primary-btn" data-act="copyspot">${ICON.check}Add to my Spots</button><button class="big-btn coral-btn" data-act="copytry">${ICON.plus}Add to my To try</button></div>
     ${dirButtons(p)}
-    <p class="page-sub" style="font-size:12px;margin:10px 0 0">Saved by ${esc(ro.who)}${p.addedAt ? ' · ' + fmtDate(p.addedAt) : ''}. Their photos stay on their phone.</p>
+    <p class="page-sub" style="font-size:12px;margin:10px 0 0">Saved by ${esc(ro.who)}${p.addedAt ? ' · ' + fmtDate(p.addedAt) : ''}. Their photos are private.</p>
   </div>`;
 }
 function spotSheet(p) {
@@ -695,7 +696,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v3.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -826,7 +827,7 @@ function privacyPage() {
   return `<div class="page" style="z-index:16">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Privacy</span></div>
     <p class="page-sub" style="line-height:1.55;font-size:14px">Sitio is a small, independent app. This explains what it keeps about you and why.</p>
-    ${s('What’s stored', 'If you create an account: your email, your name and the places you save (names, locations, notes, prices, cities and settings). Your password is stored encrypted and nobody can read it. Photos you add stay on your phone.')}
+    ${s('What’s stored', 'If you create an account: your email, your name and the places you save (names, locations, notes, prices, cities and settings). Your password is stored encrypted and nobody can read it. Memory photos are stored privately in your account: only you can see them.')}
     ${s('Why', 'Only to keep your lists safe and let you use them on any phone you log in on. Nothing is sold, shared or used for advertising.')}
     ${s('Who can see it', 'You. We at Sitio can also see account emails and saved lists, only to keep the app working, fix problems and help if you ask. Places you share with a link are seen by whoever you send it to.')}
     ${s('Where', 'Accounts and lists are stored with Supabase on servers in the EU. Maps and place search are provided by Google, under Google’s privacy policy.')}
@@ -1064,7 +1065,7 @@ function dialogView() {
     const q = byId(d.id), m = q && ((q.memories || []).find(x => x.id === d.m) || ((q.photos || []).includes(d.m) ? { id: d.m, at: 0 } : null)); if (!m) return '';
     const u = photoUrl(m.id);
     return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.88)"></div><div class="mem-view" role="dialog" aria-label="Memory">
-      ${u ? `<img src="${u}" alt="">` : '<div class="mem-gone" style="height:260px">This photo is on another phone</div>'}
+      ${u ? `<img src="${u}" alt="">` : (m.cloud ? '<div class="mem-gone" style="height:260px">Loading…</div>' : '<div class="mem-gone" style="height:260px">This photo is on another phone</div>')}
       <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}>${m.at ? esc(fmtWhen(m.at)) : 'No date'} ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
   if (d.type === 'sharedlist') {
@@ -1245,7 +1246,7 @@ function newAdd() { return { name: '', area: '', cat: 'restaurant', cats: ['rest
 function placeFromAdd(status, price) {
   const a = ui.add;
   const jitter = () => (Math.random() - 0.5) * 0.0006;
-  return { _importKey: a.importKey, id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: catsOf(a)[0], cats: catsOf(a), cuisine: a.cuisine || '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
+  return { _importKey: a.importKey, id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: catsOf(a)[0], cats: catsOf(a), cuisine: a.cuisine || '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: [], memories: a.photos.map(id => ({ id, at: Date.now() })), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
 }
 function afterSave(p) { if (p._importKey) { setImportQ(importQ().filter(x => x.key !== p._importKey)); delete p._importKey; } checkLevel(); if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
 // Ask people without an account to make one, so their list isn't stuck on one phone
@@ -1331,7 +1332,7 @@ function copyPlace(src, srcCity, status, price) {
   const p = { id: uid(), cityId: c ? c.id : db.currentCityId, name: src.name, area: src.area || '', cat: src.cat, cats: catsOf(src), cuisine: src.cuisine || '', status, price: status === 'spot' ? price : 0, note: '', photos: [], lat: src.lat, lng: src.lng, googleId: src.googleId || null, hours: src.hours || null, hoursSrc: src.hoursSrc || null, addedAt: Date.now() };
   db.places.push(p); save(); return p;
 }
-function delPlace(p) { db.places = db.places.filter(x => x.id !== p.id); (p.photos || []).forEach(id => idb.del(id).catch(() => {})); save(); if (ui.selected === p.id) { ui.selected = null; ui.sheet = null; } if (ui.page && ui.page.spot === p.id) ui.page = null; ui.dialog = null; render(); }
+function delPlace(p) { db.places = db.places.filter(x => x.id !== p.id); (p.photos || []).forEach(id => idb.del(id).catch(() => {})); (p.memories || []).forEach(m => { idb.del(m.id).catch(() => {}); if (m.cloud) deleteCloudMemory(m.id); }); save(); if (ui.selected === p.id) { ui.selected = null; ui.sheet = null; } if (ui.page && ui.page.spot === p.id) ui.page = null; ui.dialog = null; render(); }
 
 function shareLink(p) {
   const data = { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), p: p.status === 'spot' ? p.price : 0, o: p.note || '', g: p.googleId || '', f: db.user.name || '', cu: cur() };
@@ -1683,7 +1684,7 @@ uiEl.addEventListener('click', e => {
     case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; break; }
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
-    case 'memdel': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
+    case 'memdel': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); deleteCloudMemory(ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
     case 'memchipx': try { localStorage.setItem('sitio.memAsk.' + id + '.' + new Date().toDateString(), '1'); } catch (e2) { } break;
     case 'tournext': if (ui.tour >= TOUR.length - 1) { endTour(); return; } ui.tour++; tourSetup(); break;
     case 'tourskip': endTour(); return;
@@ -1757,9 +1758,9 @@ uiEl.addEventListener('change', async e => {
     if (el.dataset.restore) { restore(f); return; }
     if (el.dataset.memory) {
       const p = byId(el.dataset.memory); if (!p) return; let n = 0;
-      for (const file of [...el.files].slice(0, 10)) { const at = await photoDate(file); const b = await compress(file); const mid = 'ph-' + uid(); await idb.put(mid, b); photoUrls[mid] = URL.createObjectURL(b); p.memories = (p.memories || []).concat({ id: mid, at }); n++; }
+      for (const file of [...el.files].slice(0, 10)) { const at = await photoDate(file); const b = await compress(file, 800); const mid = 'ph-' + uid(); await idb.put(mid, b); photoUrls[mid] = URL.createObjectURL(b); p.memories = (p.memories || []).concat({ id: mid, at }); n++; }
       try { localStorage.setItem('sitio.memAsk.' + p.id + '.' + new Date().toDateString(), '1'); } catch (e2) { }
-      save(); lastMapKey = ''; ui.dialog = { type: 'memdate', id: p.id, ms: p.memories.slice(-n).map(m => m.id) }; render(); return;
+      save(); setTimeout(uploadMemories, 300); lastMapKey = ''; ui.dialog = { type: 'memdate', id: p.id, ms: p.memories.slice(-n).map(m => m.id) }; render(); return;
     }
     const blob = await compress(f); const id = 'ph-' + uid(); await idb.put(id, blob); photoUrls[id] = URL.createObjectURL(blob);
     if (el.dataset.addphoto) ui.add.photos.push(id);
@@ -1825,7 +1826,7 @@ function mergeData(local, remote) {
   const rPlaces = remote.places || [];
   const lPlaces = rPlaces.some(p => !p.sample) ? local.places.filter(p => !p.sample) : local.places;
   const map = {}; rPlaces.forEach(p => { map[p.id] = p; });
-  lPlaces.forEach(p => { const r = map[p.id]; if (!r || tAt(p) >= tAt(r)) map[p.id] = p; });
+  lPlaces.forEach(p => { const r = map[p.id]; if (!r || (tAt(p) >= tAt(r) && !p.sample)) map[p.id] = p; });
   const places = Object.values(map).filter(p => !(del[p.id] && del[p.id] >= tAt(p)));
   const lm = local.metaAt || 0, rm = remote.metaAt || 0, win = lm >= rm ? local : remote, lose = win === local ? remote : local;
   const cities = (win.cities || []).slice(); (lose.cities || []).forEach(c => { if (!cities.some(x => x.id === c.id)) cities.push(c); });
@@ -1847,7 +1848,7 @@ function sync() {
       if (remote && remote.places) { db = mergeData(db, remote); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
       await sbFetch('/rest/v1/sitio_data?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ user_id: auth.user.id, data: db, updated_at: new Date().toISOString() }) }, true);
       const changed = JSON.stringify(db) !== before;
-      const was = syncState; syncState = 'ok'; ensureUsername();
+      const was = syncState; syncState = 'ok'; ensureUsername(); setTimeout(uploadMemories, 500);
       if (changed || was !== 'ok') { lastMapKey = ''; render(); }
     } catch (e) { syncState = 'error: ' + (e.status || '') + ' ' + (e.message || '').slice(0, 60); if (e.status === 401) setAuth(null); if (ui.tab === 'account') render(); }
     finally { syncing = null; if (syncAgain) { syncAgain = false; queuePush(); } }
@@ -1917,7 +1918,42 @@ async function loadAdmin() {
   catch (e) { ui.adminErr = 'Couldn’t load users: ' + friendly(e); }
   render();
 }
+// Memory photos online (Supabase Storage, private bucket "memories", one folder per person)
+const memPath = id => 'memories/' + auth.user.id + '/' + id + '.jpg';
+let uploading = false; const cloudTried = {};
+function cloudPhoto(id) {
+  if (!auth || !cloudOn() || cloudTried[id]) return; cloudTried[id] = 1;
+  const isMine = db.places.some(p => (p.memories || []).some(m => m.id === id && m.cloud)); if (!isMine) return;
+  ensureFresh().then(() => fetch(SBURL + '/storage/v1/object/authenticated/' + memPath(id), { headers: { apikey: SBKEY, Authorization: 'Bearer ' + auth.access_token } }))
+    .then(r => r.ok ? r.blob() : null).then(b => { if (b && b.size) { idb.put(id, b).catch(() => {}); photoUrls[id] = URL.createObjectURL(b); render(); } }).catch(() => { delete cloudTried[id]; });
+}
+async function uploadMemories() {
+  if (!auth || !cloudOn() || uploading) return; uploading = true;
+  try {
+    for (const p of db.places) for (const m of (p.memories || [])) {
+      if (m.cloud) continue; const b = await idb.get(m.id).catch(() => null); if (!b) continue;
+      await ensureFresh();
+      const r = await fetch(SBURL + '/storage/v1/object/' + memPath(m.id), { method: 'POST', headers: { apikey: SBKEY, Authorization: 'Bearer ' + auth.access_token, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' }, body: b });
+      if (r.ok) { m.cloud = true; save(); } else break;
+    }
+  } catch (e) { } finally { uploading = false; }
+}
+function deleteCloudMemory(id) {
+  if (!auth || !cloudOn()) return;
+  ensureFresh().then(() => fetch(SBURL + '/storage/v1/object/memories', { method: 'DELETE', headers: { apikey: SBKEY, Authorization: 'Bearer ' + auth.access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ prefixes: [auth.user.id + '/' + id + '.jpg'] }) })).catch(() => {});
+}
+async function deleteAllCloudMemories() {
+  try {
+    await ensureFresh(); const h = { apikey: SBKEY, Authorization: 'Bearer ' + auth.access_token, 'Content-Type': 'application/json' };
+    for (let round = 0; round < 20; round++) {
+      const list = await (await fetch(SBURL + '/storage/v1/object/list/memories', { method: 'POST', headers: h, body: JSON.stringify({ prefix: auth.user.id, limit: 100 }) })).json();
+      if (!Array.isArray(list) || !list.length) break;
+      await fetch(SBURL + '/storage/v1/object/memories', { method: 'DELETE', headers: h, body: JSON.stringify({ prefixes: list.map(f => auth.user.id + '/' + f.name) }) });
+    }
+  } catch (e) { }
+}
 async function deleteAccount() {
+  await deleteAllCloudMemories();
   try { await sbFetch('/rest/v1/rpc/sitio_delete_me', { method: 'POST', body: '{}' }, true); }
   catch (e) { flash('Couldn’t delete your account: ' + friendly(e)); return; }
   setAuth(null); syncState = ''; isAdmin = false; adminChecked = false;
