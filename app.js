@@ -553,11 +553,7 @@ async function photoDate(file) {
 function hereMemoryChip() {
   if (!haveLocation || ui.sheet || ui.menu) return '';
   const near = cityPlaces().filter(p => p.status === 'spot' && dist(p) < 80).sort((a, b) => dist(a) - dist(b))[0];
-  if (!near) {
-    const t = cityPlaces().filter(p => p.status === 'totry' && dist(p) < 200).sort((a, b) => dist(a) - dist(b))[0]; if (!t) return '';
-    const k = 'sitio.memAsk.' + t.id + '.' + new Date().toDateString(); try { if (localStorage.getItem(k)) return ''; } catch (e) { }
-    return `<div class="mem-chip glass near-try"><button style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;background:none;border:0;padding:0;text-align:left" data-act="pin" data-id="${t.id}"><span class="dot" style="background:var(--coral);flex:none"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>${esc(t.name)}</b> from To try is ${fmtDist(dist(t))} away</span></button><button class="round" data-act="memchipx" data-id="${t.id}" aria-label="Hide">${ICON.close}</button></div>`;
-  }
+  if (!near) return '';
   const key = 'sitio.memAsk.' + near.id + '.' + new Date().toDateString(); try { if (localStorage.getItem(key)) return ''; } catch (e) { }
   return `<div class="mem-chip glass"><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer"><span style="font-size:18px">📸</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">At <b>${esc(near.name)}</b>? Add a memory</span><input type="file" accept="image/*" multiple hidden data-memory="${near.id}"></label><button class="round" data-act="memchipx" data-id="${near.id}" aria-label="Not now">${ICON.close}</button></div>`;
 }
@@ -699,7 +695,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v3.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1396,22 +1392,40 @@ function listLink(l) {
   const data = { n: l.name, e: l.emoji, f: db.user.name || '', p: ps.map(p => { const c = db.cities.find(x => x.id === p.cityId) || {}; return { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), o: p.note || '', g: p.googleId || '', ci: { n: c.name || '', cc: c.cc || '', cu: c.currency || '€', la: c.lat != null ? +c.lat.toFixed(3) : null, ln: c.lng != null ? +c.lng.toFixed(3) : null } }; }) };
   return location.origin + location.pathname + '#list=' + b64enc(data);
 }
+function listData(l) {
+  const ps = l.ids.map(byId).filter(Boolean).slice(0, 60);
+  return { n: l.name, e: l.emoji, f: db.user.name || '', p: ps.map(p => { const c = db.cities.find(x => x.id === p.cityId) || {}; return { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), o: p.note || '', g: p.googleId || '', ci: { n: c.name || '', cc: c.cc || '', cu: c.currency || '€', la: c.lat != null ? +c.lat.toFixed(3) : null, ln: c.lng != null ? +c.lng.toFixed(3) : null } }; }) };
+}
+async function shortListLink(l) {
+  if (!auth || !cloudOn()) return null;
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join('');
+  await sbFetch('/rest/v1/sitio_shares', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ id, owner: auth.user.id, data: listData(l) }) }, true);
+  return location.origin + location.pathname + '#l=' + id;
+}
 async function shareList(l) {
-  const url = listLink(l), n = l.ids.filter(id => byId(id)).length, text = `${l.emoji} ${l.name} · ${n} ${n === 1 ? 'place' : 'places'} on Sitio`;
+  if (!auth) { flash('Log in to share lists. Your account keeps the link working.'); return; }
+  let short; try { short = await shortListLink(l); } catch (e) { flash('Couldn’t create the link: ' + friendly(e)); return; }
+  const url = short, n = l.ids.filter(id => byId(id)).length, text = `${l.emoji} ${l.name} · ${n} ${n === 1 ? 'place' : 'places'} on Sitio`;
   try { if (navigator.share) { await navigator.share({ title: l.name, text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
-  try { await navigator.clipboard.writeText(text + '\n' + url); toast('List link copied', null); } catch (e) { flash('Couldn’t open sharing here.'); }
+  try { await navigator.clipboard.writeText(text + '\n' + url); toast('List link copied', null); } catch (e) { flash(url); }
 }
 function readSharedList() {
+  const sm = location.hash.match(/(?:^#|&)l=([A-Za-z0-9]{6,16})/);
+  if (sm) { history.replaceState(null, '', location.pathname);
+    sbFetch('/rest/v1/rpc/sitio_get_share', { method: 'POST', body: JSON.stringify({ sid: sm[1] }) }).then(d => { if (d) { applySharedList(d); render(); } else flash('That shared list isn’t available any more.'); }).catch(() => flash('Couldn’t open that shared list. Check your connection.'));
+    return true; }
   const m = location.hash.match(/list=([A-Za-z0-9_-]+)/); if (!m) return false;
+  try { applySharedList(b64dec(m[1])); } catch (e) { }
+  history.replaceState(null, '', location.pathname); return true;
+}
+function applySharedList(s) {
   try {
-    const s = b64dec(m[1]);
     const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
     const num = (v, lo, hi) => typeof v === 'number' && isFinite(v) && v >= lo && v <= hi ? v : null;
-    const ps = (Array.isArray(s.p) ? s.p : []).slice(0, 40).map(x => ({ n: str(x.n, 80), c: CATS.some(c => c.id === x.c) ? x.c : 'restaurant', cs: Array.isArray(x.cs) ? x.cs.filter(y => CATS.some(c => c.id === y)).slice(0, 6) : [], q: cuisList({ cuisine: str(x.q, 120) }).filter(q => CUISINES.includes(q)).join(', '), a: str(x.a, 60), la: num(x.la, -90, 90), ln: num(x.ln, -180, 180), o: str(x.o, 500), g: /^[A-Za-z0-9_-]{0,300}$/.test(x.g || '') ? (x.g || '') : '',
+    const ps = (Array.isArray(s.p) ? s.p : []).slice(0, 60).map(x => ({ n: str(x.n, 80), c: CATS.some(c => c.id === x.c) ? x.c : 'restaurant', cs: Array.isArray(x.cs) ? x.cs.filter(y => CATS.some(c => c.id === y)).slice(0, 6) : [], q: cuisList({ cuisine: str(x.q, 120) }).filter(q => CUISINES.includes(q)).join(', '), a: str(x.a, 60), la: num(x.la, -90, 90), ln: num(x.ln, -180, 180), o: str(x.o, 500), g: /^[A-Za-z0-9_-]{0,300}$/.test(x.g || '') ? (x.g || '') : '',
       ci: { n: str(x.ci && x.ci.n, 40), cc: /^[A-Z]{2}$/.test(x.ci && x.ci.cc || '') ? x.ci.cc : '', cu: str(x.ci && x.ci.cu, 4) || '€', la: num(x.ci && x.ci.la, -90, 90), ln: num(x.ci && x.ci.ln, -180, 180) } })).filter(x => x.n && x.la !== null && x.ln !== null);
     if (ps.length) ui.dialog = { type: 'sharedlist', data: { n: str(s.n, 40) || 'Shared list', e: LIST_EMOJI.includes(s.e) ? s.e : '📍', f: str(s.f, 20), p: ps } };
-  } catch (e) { /* bad link */ }
-  history.replaceState(null, '', location.pathname); return true;
+  } catch (e) { /* bad data */ }
 }
 function saveSharedList(s) {
   const near = (x, p) => { const R = 6371000, r = Math.PI / 180, dLat = (x.la - p.lat) * r, dLng = (x.ln - p.lng) * r; const h = Math.sin(dLat / 2) ** 2 + Math.cos(p.lat * r) * Math.cos(x.la * r) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)) < 150; };
