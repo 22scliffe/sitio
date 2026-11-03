@@ -234,3 +234,6 @@ textarea.input { height: auto; min-height: 72px; padding: 12px 14px; resize: non
 
 /* Google's required logo and credit: keep them, just tuck them neatly into the bottom corner */
 .gm-style .gmnoprint a, .gm-style-cc { opacity: 0.75; }
+
+/* Place-search suggestions: solid so the form behind doesn't show through */
+#suggest .menu { background: #1f1f25; backdrop-filter: none; -webkit-backdrop-filter: none; max-height: 340px; overflow-y: auto; }
