@@ -505,7 +505,7 @@ function spotsView() {
     body = `<div class="group"><div class="group-head"><span class="section-label">${list.length} ${esc(filterLabel(cats).toLowerCase())} · nearest first</span></div><div class="list card">${list.map(rowSpot).join('')}</div></div>`;
   }
   return `<div class="page">
-    <div class="page-head"><h1 class="page-title">Spots</h1><div style="display:flex;gap:8px"><button class="pill sec-btn" data-act="cities">${esc(city().name)}${ICON.chevDown}</button><button class="round primary-btn" style="width:44px;height:44px" data-act="add" aria-label="Add a spot">${ICON.plus}</button></div></div>
+    <div class="page-head"><h1 class="page-title">Spots</h1><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(city().name)}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
     <label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
     <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats))}${ICON.chevDown}</button><button class="pill ${ui.spotsOpenNow ? 'green-on' : 'sec-btn'}" data-act="opennow" aria-pressed="${ui.spotsOpenNow}">${ui.spotsOpenNow ? ICON.check : ''}Open now</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ICON.star}Favourites</button></div>
     ${body}
@@ -568,7 +568,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -783,9 +783,9 @@ function addSheet() {
     <div class="grab"></div>
     <div class="name-row"><div><div class="muted" style="font-size:13px;font-weight:700">Add a spot</div><div style="font-size:22px;font-weight:800">${esc(a.name || 'New place')}</div></div><button class="round sec-btn" style="width:44px;height:44px" data-act="closesheet" aria-label="Close">${ICON.close}</button></div>
     <label class="field-label" for="a-name">${a.custom ? 'Spot name' : 'Place'}</label>
-    <div style="position:relative"><input id="a-name" class="input card" placeholder="${a.custom ? 'Give the spot a name' : (mapApi.google ? 'Search for a place' : 'Name of the place')}" value="${esc(a.name)}" data-input="addName" autocomplete="off" maxlength="80">
+    <div style="position:relative;${a.custom ? 'display:flex;gap:8px;align-items:center' : ''}"><input id="a-name" class="input card" ${a.custom ? 'style="flex:1;min-width:0"' : ''} placeholder="${a.custom ? 'Give the spot a name' : (mapApi.google ? 'Search for a place' : 'Name of the place')}" value="${esc(a.name)}" data-input="addName" autocomplete="off" maxlength="80">${a.custom ? `<button class="round sec-btn unpin-x" data-act="unpin" aria-label="Remove the pin and search for a place instead">${ICON.close}</button>` : ''}
       <div id="suggest"></div></div>
-    <div class="loc-line">${a.googleId ? `<span class="muted">✓ Location from Google</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button>` : a.custom ? `<span style="color:var(--green)">✓ Pin dropped</span><span style="display:flex;gap:14px"><button class="link-btn" data-act="droppin">${ICON.pin}Move</button><button class="link-btn" style="color:var(--text-2)" data-act="unpin">${ICON.search}Search instead</button></span>` : `<span class="muted">Not on Google Maps?</span><button class="link-btn" data-act="droppin">${ICON.pin}Drop a pin</button>`}</div>
+    <div class="loc-line">${a.googleId ? `<span class="muted">✓ Location from Google</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button>` : a.custom ? `<span style="color:var(--green)">✓ Pin dropped</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button></div><div class="muted" style="font-size:12px;font-weight:600;margin-top:2px">Tap × to remove the pin and search Google instead` : `<span class="muted">Not on Google Maps?</span><button class="link-btn" data-act="droppin">${ICON.pin}Drop a pin</button>`}</div>
     <label class="field-label">Category</label>
     <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${a.cat === c.id ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${a.cat === c.id}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
     ${cuisineChips}
