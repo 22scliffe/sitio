@@ -571,3 +571,6 @@ body.light .acct-cta.glow::before { background: conic-gradient(from 0deg, transp
 body.light .md-row input { color-scheme: light; }
 .mem-when { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; padding: 2px 0; color: #fff; font-size: 13px; font-weight: 700; opacity: .85; }
 .mem-when .icon { width: 13px; height: 13px; }
+
+.near-try { font-size: 13px; padding: 4px 4px 4px 12px; }
+.near-try .round { width: 30px; height: 30px; }

@@ -552,7 +552,12 @@ async function photoDate(file) {
 // Small hint on Home when you're standing at one of your places
 function hereMemoryChip() {
   if (!haveLocation || ui.sheet || ui.menu) return '';
-  const near = cityPlaces().filter(p => dist(p) < 80).sort((a, b) => dist(a) - dist(b))[0]; if (!near) return '';
+  const near = cityPlaces().filter(p => p.status === 'spot' && dist(p) < 80).sort((a, b) => dist(a) - dist(b))[0];
+  if (!near) {
+    const t = cityPlaces().filter(p => p.status === 'totry' && dist(p) < 200).sort((a, b) => dist(a) - dist(b))[0]; if (!t) return '';
+    const k = 'sitio.memAsk.' + t.id + '.' + new Date().toDateString(); try { if (localStorage.getItem(k)) return ''; } catch (e) { }
+    return `<div class="mem-chip glass near-try"><button style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;background:none;border:0;padding:0;text-align:left" data-act="pin" data-id="${t.id}"><span class="dot" style="background:var(--coral);flex:none"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>${esc(t.name)}</b> from To try is ${fmtDist(dist(t))} away</span></button><button class="round" data-act="memchipx" data-id="${t.id}" aria-label="Hide">${ICON.close}</button></div>`;
+  }
   const key = 'sitio.memAsk.' + near.id + '.' + new Date().toDateString(); try { if (localStorage.getItem(key)) return ''; } catch (e) { }
   return `<div class="mem-chip glass"><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer"><span style="font-size:18px">📸</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">At <b>${esc(near.name)}</b>? Add a memory</span><input type="file" accept="image/*" multiple hidden data-memory="${near.id}"></label><button class="round" data-act="memchipx" data-id="${near.id}" aria-label="Not now">${ICON.close}</button></div>`;
 }
@@ -631,7 +636,7 @@ function listPage(l) {
   const byCity = db.cities.map(c => ({ c, ps: ps.filter(p => p.cityId === c.id) })).filter(g => g.ps.length);
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:24px;margin-left:4px">${l.emoji}</span><span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name)}</span></div>
-    <div class="row-btns"><button class="pill sec-btn" data-act="listmap" data-id="${l.id}">${ICON.map}Show on map</button><button class="pill sec-btn" data-act="editlist" data-id="${l.id}">${ICON.pen}Edit</button><button class="pill primary-btn" style="font-weight:800" data-act="listadd" data-id="${l.id}">${ICON.plus}Add</button></div>
+    <div class="row-btns"><button class="pill sec-btn" data-act="listmap" data-id="${l.id}">${ICON.map}Show on map</button><button class="pill sec-btn" data-act="editlist" data-id="${l.id}">${ICON.pen}Edit</button><button class="pill sec-btn" data-act="sharelist" data-id="${l.id}">${ICON.share}Share</button><button class="pill primary-btn" style="font-weight:800" data-act="listadd" data-id="${l.id}">${ICON.plus}Add</button></div>
     ${byCity.length ? byCity.map(g => `<div class="section-label" style="margin:12px 0 8px">${esc(g.c.name)} · ${g.ps.length}</div><div class="list card">${g.ps.map(rowSpot).join('')}</div>`).join('') : `<div class="empty card" style="border-radius:20px">This list is empty.<br>Open any place and tap ${ICON.list} to add it here.</div>`}
   </div>`;
 }
@@ -682,6 +687,7 @@ function accountView() {
       ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
+      ${row('Import from Google Maps', importQ().length ? importQ().length + ' to add' : '', 'openimport')}
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
       ${row('Privacy', '', 'privacy')}
     </div>
@@ -693,7 +699,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v3.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1065,6 +1071,14 @@ function dialogView() {
       ${u ? `<img src="${u}" alt="">` : '<div class="mem-gone" style="height:260px">This photo is on another phone</div>'}
       <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}>${m.at ? esc(fmtWhen(m.at)) : 'No date'} ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
+  if (d.type === 'sharedlist') {
+    const s = d.data, shown = s.p.slice(0, 6);
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
+      <div style="font-size:40px;line-height:1;margin-bottom:8px">${s.e}</div>
+      <h3 id="dlg-t">${esc(s.f || 'A friend')} shared “${esc(s.n)}”</h3><p>${s.p.length} ${s.p.length === 1 ? 'place' : 'places'}. Saving adds the list, and puts any places you don’t have yet into To try.</p>
+      <div class="settings card" style="text-align:left;margin-bottom:14px">${shown.map(x => `<div class="set-row" style="min-height:46px"><span style="display:flex;flex-direction:column;gap:1px"><span style="font-weight:800">${esc(x.n)}</span><span style="font-size:11px;font-weight:600;color:var(--text-2)">${esc([catOf(x.c).name, x.ci.n].filter(Boolean).join(' · '))}</span></span></div>`).join('')}${s.p.length > 6 ? `<div class="set-row" style="min-height:40px;color:var(--text-2);font-size:13px">+ ${s.p.length - 6} more</div>` : ''}</div>
+      <div class="stack"><button class="big-btn primary-btn" data-act="sharedlistsave">Save list</button><button class="big-btn" style="background:none;border:0;height:44px;color:var(--text-soft)" data-act="closedialog">Not now</button></div></div>`;
+  }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">Log out?</h3><p>Your spots stay safe in your account. This phone goes back to the starter spots until you log in again.</p>
@@ -1166,6 +1180,7 @@ function installView() {
   }
   return `<div class="install" role="dialog" aria-label="Install Sitio">
     <div class="i-top"><div class="i-brand"><img src="icons/icon-192.png" alt="" class="i-mark"><h1 class="i-title">Sitio</h1></div><p class="i-tag">Your own map of the places you vouch for: restaurants, bars, cafés and more.</p></div>
+    ${ui.dialog && ui.dialog.type === 'sharedlist' ? `<div class="card" style="border-radius:18px;padding:12px 14px;margin-bottom:14px;font-size:14px;font-weight:700">${esc(ui.dialog.data.f || 'A friend')} shared a list with you: <b>${ui.dialog.data.e} ${esc(ui.dialog.data.n)}</b> (${ui.dialog.data.p.length} places). Add Sitio to see it.</div>` : ''}
     ${ui.dialog && ui.dialog.type === 'shared' ? `<div class="card" style="border-radius:18px;padding:12px 14px;margin-bottom:14px;font-size:14px;font-weight:700">${esc(ui.dialog.data.f || 'A friend')} shared <b>${esc(ui.dialog.data.n)}</b> with you. Add Sitio to see it.</div>` : ''}
     ${body}
     <button class="link-btn muted" style="margin:18px auto 0;font-weight:700;font-size:14px" data-act="skipinstall">${ui.installed ? 'Close' : 'Continue in the browser'}</button>
@@ -1198,6 +1213,7 @@ function render() {
   else if (ui.page === 'auth') h += authPage();
   else if (ui.page === 'privacy') h += privacyPage();
   else if (ui.page === 'levels') h += levelsPage();
+  else if (ui.page === 'import') h += importPage();
   else if (ui.page && ui.page.list) { const l = listOf(ui.page.list); if (l) h += listPage(l); else ui.page = null; }
   else if (ui.page === 'admin') h += adminPage();
   else if (false) {
@@ -1233,9 +1249,9 @@ function newAdd() { return { name: '', area: '', cat: 'restaurant', cats: ['rest
 function placeFromAdd(status, price) {
   const a = ui.add;
   const jitter = () => (Math.random() - 0.5) * 0.0006;
-  return { id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: catsOf(a)[0], cats: catsOf(a), cuisine: a.cuisine || '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
+  return { _importKey: a.importKey, id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: catsOf(a)[0], cats: catsOf(a), cuisine: a.cuisine || '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
 }
-function afterSave(p) { checkLevel(); if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
+function afterSave(p) { if (p._importKey) { setImportQ(importQ().filter(x => x.key !== p._importKey)); delete p._importKey; } checkLevel(); if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
 // Ask people without an account to make one, so their list isn't stuck on one phone
 // Quick first-time tour: a few spotlights on Home, skippable, shown once
 const TOUR = [
@@ -1331,7 +1347,90 @@ async function share(p) {
   try { if (navigator.share) { await navigator.share({ title: p.name, text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
   try { await navigator.clipboard.writeText(text + '\n' + url); toast('Link copied', null); } catch (e) { flash('Couldn’t open sharing here.'); }
 }
+const b64enc = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const b64dec = s => JSON.parse(decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/')))));
+// Import from Google Maps (Google Takeout files). Each place opens the normal Add sheet, pre-filled
+function importQ() { try { return JSON.parse(localStorage.getItem('sitio.importQ') || '[]'); } catch (e) { return []; } }
+function setImportQ(q) { try { localStorage.setItem('sitio.importQ', JSON.stringify(q)); } catch (e) { } }
+function parseCsv(t) {
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < t.length; i++) { const ch = t[i];
+    if (q) { if (ch === '"' && t[i + 1] === '"') { f += '"'; i++; } else if (ch === '"') q = false; else f += ch; }
+    else if (ch === '"') q = true; else if (ch === ',') { row.push(f); f = ''; } else if (ch === '\n' || ch === '\r') { if (ch === '\r' && t[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; } else f += ch; }
+  if (f || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+function coordsFromUrl(u) { const m = /@(-?\d+\.\d+),(-?\d+\.\d+)/.exec(u || '') || /[?&/](?:q|query|search\/)=?(-?\d+\.\d+),\s*(-?\d+\.\d+)/.exec(u || '') || /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/.exec(u || ''); return m ? { lat: +m[1], lng: +m[2] } : null; }
+async function importFiles(files) {
+  const items = [];
+  for (const file of files) {
+    const txt = await file.text(); const listName = file.name.replace(/\.(csv|json)$/i, '').replace(/_/g, ' ');
+    if (/\.json$/i.test(file.name) || /^\s*\{/.test(txt)) {
+      try { const j = JSON.parse(txt); (j.features || []).forEach(ft => { const pr = ft.properties || {}; const c = ft.geometry && ft.geometry.coordinates; const name = pr.Title || (pr.location && pr.location.name) || pr.name || (pr.Location && pr.Location['Business Name']); if (!name) return;
+        items.push({ name: String(name).slice(0, 80), note: '', lat: c && +c[1], lng: c && +c[0], list: listName }); }); } catch (e) { }
+    } else {
+      const rows = parseCsv(txt); if (!rows.length) continue; const head = rows[0].map(h => h.trim().toLowerCase()); const ti = head.indexOf('title'), ni = head.indexOf('note'), ui_ = head.indexOf('url');
+      rows.slice(ti >= 0 ? 1 : 0).forEach(r => { const name = (r[ti >= 0 ? ti : 0] || '').trim(); if (!name) return; const c = coordsFromUrl(r[ui_]); items.push({ name: name.slice(0, 80), note: (r[ni] || '').trim().slice(0, 500), lat: c && c.lat, lng: c && c.lng, list: listName }); });
+    }
+  }
+  const have = n => db.places.some(p => p.name.toLowerCase() === n.toLowerCase());
+  const q = importQ(); let skipped = 0, added = 0;
+  items.forEach(it => { if (have(it.name) || q.some(x => x.name.toLowerCase() === it.name.toLowerCase())) { skipped++; return; } q.push(Object.assign({ key: 'i-' + uid() }, it)); added++; });
+  setImportQ(q); ui.importMsg = added ? `Found ${added} ${added === 1 ? 'place' : 'places'} to add${skipped ? ` · ${skipped} already in Sitio, skipped` : ''}.` : (items.length ? 'Everything in those files is already in Sitio.' : 'No places found in that file. Pick the CSV files from the Saved folder.');
+  render();
+}
+function importPage() {
+  const q = importQ(); const lists = [...new Set(q.map(x => x.list))];
+  return `<div class="page" style="z-index:15">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Import from Google Maps</span></div>
+    ${q.length ? '' : `<div class="card note" style="margin-top:0;line-height:1.55"><b>1.</b> Go to <b>takeout.google.com</b> and tap <b>Deselect all</b><br><b>2.</b> Tick <b>Saved</b> (your Google Maps lists). Optional: <b>Maps (your places)</b> for starred places<br><b>3.</b> Create the export and download the zip from Google’s email<br><b>4.</b> Open the zip (in Files, tap it to unzip), then choose the files below</div>`}
+    <label class="big-btn primary-btn" style="width:100%;margin:12px 0;cursor:pointer">${ICON.plus}Choose Google Maps files<input type="file" accept=".csv,.json,text/csv,application/json" multiple hidden data-import="1"></label>
+    ${ui.importMsg ? `<p class="page-sub" style="margin:0 0 10px">${esc(ui.importMsg)}</p>` : ''}
+    ${q.length ? `<div class="section-label" style="margin:6px 0 4px">${q.length} to go</div><p class="page-sub" style="font-size:12px;margin:0 0 10px">Tap Add: the place opens in the usual Add screen so you can pick the right match and set its category. Imported places are never added automatically.</p>
+      ${lists.map(ln => `<div class="section-label" style="margin:12px 0 6px">${esc(ln)}</div><div class="settings card">${q.filter(x => x.list === ln).map(x => `<div class="set-row" style="min-height:54px"><span style="display:flex;flex-direction:column;gap:1px;min-width:0"><span style="font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}</span>${x.note ? `<span style="font-size:11px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.note)}</span>` : ''}</span><span style="display:flex;gap:6px;flex:none"><button class="pill primary-btn" style="height:36px;padding:0 14px" data-act="importadd" data-id="${x.key}">Add</button><button class="round sec-btn" style="width:36px;height:36px" data-act="importskip" data-id="${x.key}" aria-label="Skip">${ICON.close}</button></span></div>`).join('')}</div>`).join('')}
+      <button class="link-btn" style="margin:14px auto 0;color:var(--text-2)" data-act="importclear">Clear the rest</button>` : ''}
+  </div>`;
+}
+function listLink(l) {
+  const ps = l.ids.map(byId).filter(Boolean).slice(0, 40);
+  const data = { n: l.name, e: l.emoji, f: db.user.name || '', p: ps.map(p => { const c = db.cities.find(x => x.id === p.cityId) || {}; return { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), o: p.note || '', g: p.googleId || '', ci: { n: c.name || '', cc: c.cc || '', cu: c.currency || '€', la: c.lat != null ? +c.lat.toFixed(3) : null, ln: c.lng != null ? +c.lng.toFixed(3) : null } }; }) };
+  return location.origin + location.pathname + '#list=' + b64enc(data);
+}
+async function shareList(l) {
+  const url = listLink(l), n = l.ids.filter(id => byId(id)).length, text = `${l.emoji} ${l.name} · ${n} ${n === 1 ? 'place' : 'places'} on Sitio`;
+  try { if (navigator.share) { await navigator.share({ title: l.name, text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text + '\n' + url); toast('List link copied', null); } catch (e) { flash('Couldn’t open sharing here.'); }
+}
+function readSharedList() {
+  const m = location.hash.match(/list=([A-Za-z0-9_-]+)/); if (!m) return false;
+  try {
+    const s = b64dec(m[1]);
+    const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
+    const num = (v, lo, hi) => typeof v === 'number' && isFinite(v) && v >= lo && v <= hi ? v : null;
+    const ps = (Array.isArray(s.p) ? s.p : []).slice(0, 40).map(x => ({ n: str(x.n, 80), c: CATS.some(c => c.id === x.c) ? x.c : 'restaurant', cs: Array.isArray(x.cs) ? x.cs.filter(y => CATS.some(c => c.id === y)).slice(0, 6) : [], q: cuisList({ cuisine: str(x.q, 120) }).filter(q => CUISINES.includes(q)).join(', '), a: str(x.a, 60), la: num(x.la, -90, 90), ln: num(x.ln, -180, 180), o: str(x.o, 500), g: /^[A-Za-z0-9_-]{0,300}$/.test(x.g || '') ? (x.g || '') : '',
+      ci: { n: str(x.ci && x.ci.n, 40), cc: /^[A-Z]{2}$/.test(x.ci && x.ci.cc || '') ? x.ci.cc : '', cu: str(x.ci && x.ci.cu, 4) || '€', la: num(x.ci && x.ci.la, -90, 90), ln: num(x.ci && x.ci.ln, -180, 180) } })).filter(x => x.n && x.la !== null && x.ln !== null);
+    if (ps.length) ui.dialog = { type: 'sharedlist', data: { n: str(s.n, 40) || 'Shared list', e: LIST_EMOJI.includes(s.e) ? s.e : '📍', f: str(s.f, 20), p: ps } };
+  } catch (e) { /* bad link */ }
+  history.replaceState(null, '', location.pathname); return true;
+}
+function saveSharedList(s) {
+  const near = (x, p) => { const R = 6371000, r = Math.PI / 180, dLat = (x.la - p.lat) * r, dLng = (x.ln - p.lng) * r; const h = Math.sin(dLat / 2) ** 2 + Math.cos(p.lat * r) * Math.cos(x.la * r) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)) < 150; };
+  const ids = []; let added = 0;
+  s.p.forEach(x => {
+    let p = db.places.find(q => (x.g && q.googleId === x.g) || (q.name.toLowerCase() === x.n.toLowerCase() && near(x, q)));
+    if (!p) {
+      let c = db.cities.find(k => x.ci.n && k.name.toLowerCase() === x.ci.n.toLowerCase() && (!x.ci.cc || !k.cc || k.cc === x.ci.cc));
+      if (!c && x.ci.n) { c = { id: 'c-' + uid(), name: x.ci.n, country: '', cc: x.ci.cc, currency: x.ci.cu, lat: x.ci.la, lng: x.ci.ln }; db.cities.push(c); }
+      p = { id: uid(), cityId: c ? c.id : db.currentCityId, name: x.n, area: x.a, cat: x.c, cats: x.cs.length ? x.cs : [x.c], cuisine: x.q, status: 'totry', price: 0, note: x.o ? (s.f || 'Friend') + ': ' + x.o : '', photos: [], lat: x.la, lng: x.ln, googleId: x.g || null, hours: null, hoursSrc: null, addedAt: Date.now() };
+      db.places.push(p); added++;
+    }
+    ids.push(p.id);
+  });
+  const l = { id: 'l-' + uid(), name: s.n, emoji: s.e, ids: [...new Set(ids)], createdAt: Date.now() }; myLists().push(l); touchList(l);
+  return { l, added };
+}
 function readShared() {
+  if (readSharedList()) return;
   const m = location.hash.match(/share=([A-Za-z0-9_-]+)/); if (!m) return;
   try {
     const s = JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g, '+').replace(/_/g, '/')))));
@@ -1552,6 +1651,14 @@ uiEl.addEventListener('click', e => {
       if (dd.listId) { const l = listOf(dd.listId); if (l) { l.name = name; l.emoji = dd.emoji; touchList(l); } ui.dialog = null; }
       else { const l = { id: 'l-' + uid(), name, emoji: dd.emoji, ids: dd.forPlace ? [dd.forPlace] : [], createdAt: Date.now() }; myLists().push(l); touchList(l); ui.dialog = dd.forPlace ? { type: 'listpick', id: dd.forPlace } : null; toast(l.emoji + ' ' + l.name + ' created', null); }
       break; }
+    case 'sharelist': { const l = listOf(id); if (l) shareList(l); return; }
+    case 'sharedlistsave': { const r = saveSharedList(ui.dialog.data); ui.dialog = null; ui.tab = 'spots'; ui.spotsView = 'lists'; ui.page = { list: r.l.id }; toast(r.l.emoji + ' ' + r.l.name + ' saved' + (r.added ? ' · ' + r.added + ' added to To try' : ''), null); lastMapKey = ''; break; }
+    case 'openimport': ui.page = 'import'; ui.importMsg = ''; break;
+    case 'importskip': setImportQ(importQ().filter(x => x.key !== id)); break;
+    case 'importclear': setImportQ([]); ui.importMsg = ''; break;
+    case 'importadd': { const it = importQ().find(x => x.key === id); if (!it) break; ui.add = newAdd(); ui.add.name = it.name; ui.add.note = it.note || ''; ui.add.importKey = it.key;
+      if (it.lat && it.lng) Object.assign(ui.add, { lat: it.lat, lng: it.lng, custom: true });
+      ui.sheet = 'add'; ui.selected = null; render(); if (!it.lat) setTimeout(() => googleSuggest(it.name), 120); return; }
     case 'dellist': ui.dialog = { type: 'dellist', listId: id }; break;
     case 'listadd': ui.dialog = { type: 'listadd', listId: id, q: '' }; break;
     case 'listaddtoggle': { const l = listOf(ui.dialog.listId); if (l) { l.ids = l.ids.includes(id) ? l.ids.filter(x => x !== id) : l.ids.concat(id); touchList(l); const box = $('#listaddres'); if (box) { const sc = box.firstElementChild ? box.firstElementChild.scrollTop : 0; box.innerHTML = listAddRows(l, (ui.dialog.q || '').trim().toLowerCase()); if (box.firstElementChild) box.firstElementChild.scrollTop = sc; } } return; }
@@ -1632,6 +1739,7 @@ uiEl.addEventListener('input', e => {
 uiEl.addEventListener('change', async e => {
   const el = e.target; const f = el.files && el.files[0]; if (!f) return;
   try {
+    if (el.dataset.import) { await importFiles([...el.files]); el.value = ''; return; }
     if (el.dataset.restore) { restore(f); return; }
     if (el.dataset.memory) {
       const p = byId(el.dataset.memory); if (!p) return; let n = 0;
