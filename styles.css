@@ -684,12 +684,12 @@ body.light .md-row input { color-scheme: light; }
 .rc-bg.summer .rise i { background: #FFE6A0; box-shadow: 0 0 8px rgba(255,214,107,0.8); }
 @keyframes fallDown { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(var(--sw), 25vh) rotate(60deg); } 50% { transform: translate(0, 50vh) rotate(120deg); } 75% { transform: translate(calc(-1 * var(--sw)), 75vh) rotate(200deg); } 100% { transform: translate(0, calc(100vh + 80px)) rotate(260deg); } }
 @keyframes floatUp { 0% { transform: translate(0, 0) rotate(-8deg); } 50% { transform: translate(var(--sw), -50vh) rotate(8deg); } 100% { transform: translate(0, calc(-100vh - 80px)) rotate(-8deg); } }
-.rc-bg .sun { position: absolute; left: 50%; top: -120px; width: 320px; height: 320px; margin-left: -160px; border-radius: 50%; background: radial-gradient(circle, rgba(255,214,107,0.55) 0 22%, rgba(255,170,80,0.18) 40%, transparent 68%); animation: sunPulse 6s ease-in-out infinite; }
-.rc-bg .sun::after { content: ""; position: absolute; inset: -60px; border-radius: 50%; background: repeating-conic-gradient(rgba(255,214,107,0.10) 0 6deg, transparent 6deg 18deg); -webkit-mask: radial-gradient(circle, #000 20%, transparent 65%); mask: radial-gradient(circle, #000 20%, transparent 65%); animation: spin 60s linear infinite; }
-.rc-bg .sun.pale { background: radial-gradient(circle, rgba(255,236,200,0.35) 0 20%, rgba(200,225,255,0.12) 42%, transparent 68%); }
-.rc-bg .sun.pale::after { opacity: .5; }
-.rc-bg .sun.low { top: -90px; }
-@keyframes sunPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.rc-bg .sun { position: absolute; left: 50%; top: 46%; width: 260vw; height: 190vh; transform: translate(-50%,-50%); background: radial-gradient(ellipse 22% 26% at 50% 50%, rgba(255,214,120,0.42), rgba(255,170,80,0.16) 45%, transparent 100%); animation: sunPulse 7s ease-in-out infinite; }
+.rc-bg .sun::after { content: ""; position: absolute; inset: 0; background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,220,140,0.16) 0deg 7deg, transparent 12deg 30deg); filter: blur(10px); -webkit-mask: radial-gradient(ellipse 50% 50% at 50% 50%, #000 8%, rgba(0,0,0,0.5) 35%, transparent 70%); mask: radial-gradient(ellipse 50% 50% at 50% 50%, #000 8%, rgba(0,0,0,0.5) 35%, transparent 70%); animation: spin 120s linear infinite; }
+.rc-bg .sun.pale { background: radial-gradient(ellipse 22% 26% at 50% 50%, rgba(235,242,255,0.30), rgba(170,205,255,0.12) 45%, transparent 100%); }
+.rc-bg .sun.pale::after { background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(220,235,255,0.12) 0deg 7deg, transparent 12deg 30deg); }
+.rc-bg .sun.low::after { background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255,200,120,0.17) 0deg 7deg, transparent 12deg 30deg); }
+@keyframes sunPulse { 0%, 100% { transform: translate(-50%,-50%) scale(1); } 50% { transform: translate(-50%,-50%) scale(1.05); } }
 @keyframes spin { to { transform: rotate(360deg); } }
 .rc-bg .waves { position: absolute; left: 0; bottom: 0; width: 200%; height: 110px; }
 .rc-bg .waves path { animation: waveX 9s linear infinite; }
