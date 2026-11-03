@@ -643,3 +643,4 @@ body.light .md-row input { color-scheme: light; }
 .rc-photo { height: min(46vh, 400px); aspect-ratio: 4 / 5; max-width: 100%; border-radius: 24px; overflow: hidden; border: 3px solid #fff; background: #222; }
 .rc-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .rc-dots { margin: -4px 0 0; }
+.rc-t.big { font-size: 44px; line-height: 1; background: linear-gradient(90deg, #FFD66B, #FF8A5C); -webkit-background-clip: text; background-clip: text; color: transparent; }
