@@ -335,7 +335,7 @@ const mapApi = (() => {
     window.__sitioGmapsReady = () => {
       mode = 'google';
       const gEl = document.createElement('div'); gEl.style.cssText = 'position:absolute;inset:0'; el.appendChild(gEl);
-      gmap = new google.maps.Map(gEl, { center: haveLocation ? me : center, zoom: 15, disableDefaultUI: true, keyboardShortcuts: false, clickableIcons: false, gestureHandling: 'greedy', styles: db.settings.darkMap ? DARK : null, backgroundColor: '#141418' });
+      gmap = new google.maps.Map(gEl, { center: haveLocation ? me : center, zoom: 15, disableDefaultUI: true, keyboardShortcuts: false, clickableIcons: false, gestureHandling: 'greedy', styles: db.settings.darkMap ? DARK : [], backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' });
       overlay = new google.maps.OverlayView();
       overlay.onAdd = function () { this.getPanes().overlayMouseTarget.appendChild(pinsEl); this.getPanes().overlayMouseTarget.appendChild(meEl); pinsEl.style.pointerEvents = 'none'; };
       overlay.draw = positionPins; overlay.onRemove = () => {};
@@ -355,7 +355,7 @@ const mapApi = (() => {
     center(c) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.panTo(center); if (gmap.getZoom() < 14) gmap.setZoom(15); } else redraw(); },
     // Puts a place in the upper part of the screen so it stays visible above a bottom sheet
     focus(c) { const h = el.clientHeight || 844; if (gmap) { gmap.panTo(c); gmap.panBy(0, h * 0.22); } else { center = { lat: c.lat - (h * 0.22) / (110540 * k), lng: c.lng }; redraw(); } },
-    setStyle() { if (gmap) gmap.setOptions({ styles: db.settings.darkMap ? DARK : null }); },
+    setStyle() { if (gmap) gmap.setOptions({ styles: db.settings.darkMap ? DARK : [], backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' }); },
     get google() { return mode === 'google'; }
   };
   return api;
@@ -501,7 +501,9 @@ function accountView() {
       ${row('Invite friends', 'Send the app link', 'invite')}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${row('Account details', auth ? 'Name, photo, email' : 'Name, photo', 'profile')}
+      ${row('Privacy', '', 'privacy')}
     </div>
+    ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
     <p class="page-sub" style="font-size:11px;margin-top:16px;opacity:.6" id="diag">${diag()}</p>
     <p class="page-sub" style="font-size:12px;margin-top:8px;line-height:1.5">${auth ? 'Logged in as ' + esc(auth.user.email) + ' · ' + (syncState === 'error' ? 'Couldn’t reach your account just now. Your changes are safe on this phone and will sync when you’re back online.' : 'Your spots are saved to your account.') : 'Your spots are only on this phone until you create an account.'}</p>
   </div>`;
@@ -530,7 +532,7 @@ function profilePage() {
       <label class="link-btn" style="text-decoration:underline;cursor:pointer">Change photo<input type="file" accept="image/*" hidden data-userphoto="1"></label></div>
     <label class="field-label" for="nm">Name</label><input id="nm" class="input card" value="${esc(u.name || '')}" data-input="userName" maxlength="40">
     ${auth ? `<label class="field-label">Email</label><div class="input card" style="display:flex;align-items:center;color:var(--text-2)">${esc(auth.user.email)}</div>
-    <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button></div>`
+    <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button><button class="set-row" data-act="delacct"><span style="color:var(--coral-soft)">Delete account</span><span class="val"></span></button></div>`
     : `<label class="field-label">Account</label><button class="card acct-cta" data-act="openauth" style="width:100%"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account or log in</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>`}
   </div>`;
 }
@@ -552,7 +554,50 @@ function authPage() {
       ${m === 'login' ? '<button class="link-btn" data-act="authmode" data-v="reset">Forgot password?</button>' : ''}
       ${m === 'reset' ? '<button class="link-btn" data-act="authmode" data-v="login">Back to log in</button>' : ''}
     </div>
-    <p class="page-sub" style="font-size:12px;text-align:center;margin-top:22px;opacity:.7">Google and Apple sign-in coming soon.</p>
+    ${m === 'signup' ? '<p class="page-sub" style="font-size:12px;text-align:center;margin-top:18px">By creating an account you agree to the <button class="link-btn" style="display:inline;padding:0;font-size:12px;text-decoration:underline" data-act="privacy">privacy notice</button>.</p>' : ''}
+    <p class="page-sub" style="font-size:12px;text-align:center;margin-top:14px;opacity:.7">Google and Apple sign-in coming soon.</p>
+  </div>`;
+}
+
+const CONTACT = 'sitio.contact@gmail.com';
+function privacyPage() {
+  const s = (h, t) => `<div class="section-label" style="margin:18px 0 6px">${h}</div><p class="page-sub" style="line-height:1.55;font-size:14px">${t}</p>`;
+  return `<div class="page" style="z-index:16">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Privacy</span></div>
+    <p class="page-sub" style="line-height:1.55;font-size:14px">Sitio is a small app made and run by the Sitio team. This explains what it keeps about you and why.</p>
+    ${s('What’s stored', 'If you create an account: your email, your name and the places you save (names, locations, notes, prices, cities and settings). Your password is stored encrypted and nobody can read it. Photos you add stay on your phone.')}
+    ${s('Why', 'Only to keep your lists safe and let you use them on any phone you log in on. Nothing is sold, shared or used for advertising.')}
+    ${s('Who can see it', 'You. As the person who runs Sitio, the owner can also see account emails and saved lists, only to keep the app working, fix problems and help if you ask. Places you share with a link are seen by whoever you send it to.')}
+    ${s('Where', 'Accounts and lists are stored with Supabase on servers in the EU. Maps and place search are provided by Google, under Google’s privacy policy.')}
+    ${s('Without an account', 'Everything stays on your phone only. Nothing is sent to Sitio.')}
+    ${s('Your choices', 'You can see and change your data in the app, download it under Back up my spots, and delete your account at any time under Account details, which removes your email and lists for good. For anything else, email ' + CONTACT + '.')}
+    <p class="page-sub" style="font-size:12px;margin-top:18px;opacity:.7">Last updated November 2026</p>
+  </div>`;
+}
+const fmtDate = t => t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
+function adminPage() {
+  const users = ui.adminData;
+  const head = `<div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">All users</span></div>`;
+  if (ui.adminErr) return `<div class="page" style="z-index:15">${head}<div class="card note">${esc(ui.adminErr)}</div></div>`;
+  if (!users) return `<div class="page" style="z-index:15">${head}<p class="page-sub">Loading…</p></div>`;
+  const cnt = (d, st) => ((d && d.places) || []).filter(p => p.status === st && !p.sample).length;
+  return `<div class="page" style="z-index:15">${head}
+    <p class="page-sub" style="margin-bottom:14px">${users.length} ${users.length === 1 ? 'account' : 'accounts'} · only you can see this</p>
+    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc((u.data && u.data.user && u.data.user.name) || 'No name')} · joined ${fmtDate(u.created_at)} · ${cnt(u.data, 'spot')} spots · ${cnt(u.data, 'totry')} to try</span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
+  </div>`;
+}
+function adminUserPage(id) {
+  const u = (ui.adminData || []).find(x => x.user_id === id); if (!u) return '';
+  const d = u.data || {}, places = (d.places || []).filter(p => !p.sample), cities = d.cities || [];
+  const catName = c => (CATS.find(x => x.id === c) || {}).name || c;
+  const line = p => `<div class="set-row" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${esc(p.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catName(p.cat), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? '€'.repeat(p.price) : ''}</span></div>`;
+  const byCity = cities.map(c => { const ps = places.filter(p => p.cityId === c.id); if (!ps.length) return '';
+    const sp = ps.filter(p => p.status === 'spot'), tt = ps.filter(p => p.status === 'totry');
+    return `<div class="section-label" style="margin:18px 0 8px">${esc(c.name)}</div>${sp.length ? `<div class="page-sub" style="margin:0 0 6px;font-size:12px">Spots (${sp.length})</div><div class="settings card">${sp.map(line).join('')}</div>` : ''}${tt.length ? `<div class="page-sub" style="margin:12px 0 6px;font-size:12px">To try (${tt.length})</div><div class="settings card">${tt.map(line).join('')}</div>` : ''}`; }).join('');
+  return `<div class="page" style="z-index:16">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:18px;font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(u.email || '')}</span></div>
+    <p class="page-sub">${esc((d.user && d.user.name) || 'No name')} · joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}</p>
+    ${byCity || '<div class="card note">No places saved yet.</div>'}
   </div>`;
 }
 
@@ -627,6 +672,11 @@ function dialogView() {
       <button class="big-btn primary-btn" style="width:100%" data-act="nudgeyes">Create account</button>
       <button class="big-btn sec-btn" style="width:100%;margin-top:8px" data-act="nudgelogin">I already have an account</button>
       <button class="link-btn" style="margin:12px auto 0;color:var(--text-2)" data-act="closedialog">Not now</button></div>`;
+  }
+  if (d.type === 'delacct') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
+      <h3 id="dlg-t">Delete your account?</h3><p>Your email and all your saved places are removed for good. This can’t be undone. Tip: use Back up my spots first if you want a copy.</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dodelacct">Delete</button></div></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -713,6 +763,9 @@ function render() {
   if (ui.page === 'cities') h += citiesPage();
   else if (ui.page === 'profile') h += profilePage();
   else if (ui.page === 'auth') h += authPage();
+  else if (ui.page === 'privacy') h += privacyPage();
+  else if (ui.page === 'admin') h += adminPage();
+  else if (ui.page && ui.page.adminUser) h += adminUserPage(ui.page.adminUser);
   else if (ui.page && ui.page.spot) { const p = byId(ui.page.spot); if (p) h += spotPage(p); else ui.page = null; }
   if ((!ui.page || ui.page === 'cities') && !ui.sheet) h += tabbar();
   if (ui.sheet === 'spot' && ui.selected && byId(ui.selected)) h += (ui.tab === 'home' ? '' : '<div class="scrim" data-act="closesheet"></div>') + spotSheet(byId(ui.selected));
@@ -864,7 +917,7 @@ uiEl.addEventListener('click', e => {
     case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'all') ui.menu = null; break;
     case 'cuisines': e.stopPropagation(); ui.cuisineOpen = !ui.cuisineOpen; break;
     case 'cities': ui.page = 'cities'; break;
-    case 'closepage': ui.page = null; break;
+    case 'closepage': ui.page = ui.prevPage || null; ui.prevPage = null; break;
     case 'pickcity': db.currentCityId = id; save(); ui.page = null; ui.filter = []; ui.selected = null; { const c = cityPlaces(); if (c.length) mapApi.center({ lat: c.reduce((s, x) => s + x.lat, 0) / c.length, lng: c.reduce((s, x) => s + x.lng, 0) / c.length }); } break;
     case 'addcity': ui.dialog = { type: 'text', title: 'Add a city', text: 'Its spots and To try list stay separate from other cities.', fields: [{ ph: 'City (e.g. Lisbon)' }, { ph: 'Country (e.g. Portugal)' }, { ph: 'Currency symbol (e.g. €, £, $)', value: '€' }], ok: v => { if (!v[0].trim()) return; const c = { id: 'c-' + uid(), name: v[0].trim(), country: v[1].trim(), currency: (v[2].trim() || '€').slice(0, 3) }; db.cities.push(c); db.currentCityId = c.id; save(); ui.page = null; ui.tab = 'home'; } }; break;
     case 'search': ui.tab = 'spots'; ui.spotsOpenNow = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="spotsSearch"]'); if (i) i.focus(); }, 50); return;
@@ -901,6 +954,11 @@ uiEl.addEventListener('click', e => {
     case 'profile': ui.page = 'profile'; break;
     case 'nudgeyes': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'signup'; ui.authMsg = null; break;
     case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
+    case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
+    case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
+    case 'adminuser': ui.prevPage = 'admin'; ui.page = { adminUser: id }; break;
+    case 'delacct': ui.dialog = { type: 'delacct' }; break;
+    case 'dodelacct': ui.dialog = null; deleteAccount(); return;
     case 'openauth': ui.page = 'auth'; ui.authMode = ui.authMode || 'signup'; ui.authMsg = null; break;
     case 'authmode': ui.authMode = t.dataset.v; ui.authMsg = null; break;
     case 'authgo': doAuth(); return;
@@ -1015,7 +1073,7 @@ function sync() {
       if (remote && remote.places) { db = mergeData(db, remote); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
       await sbFetch('/rest/v1/sitio_data?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ user_id: auth.user.id, data: db, updated_at: new Date().toISOString() }) }, true);
       const changed = JSON.stringify(db) !== before;
-      const was = syncState; syncState = 'ok';
+      const was = syncState; syncState = 'ok'; checkAdmin();
       if (changed || was !== 'ok') { lastMapKey = ''; render(); }
     } catch (e) { syncState = 'error'; if (e.status === 401) setAuth(null); if (ui.tab === 'account') render(); }
     finally { syncing = null; if (syncAgain) { syncAgain = false; queuePush(); } }
@@ -1049,6 +1107,24 @@ async function doAuth() {
   } catch (e) { ui.authMsg = { text: friendly(e) }; }
   ui.authBusy = false; render();
 }
+var isAdmin = false, adminChecked = false;
+function checkAdmin() {
+  if (!auth || adminChecked) return; adminChecked = true;
+  sbFetch('/rest/v1/rpc/sitio_is_admin', { method: 'POST', body: '{}' }, true).then(v => { isAdmin = v === true; if (isAdmin && ui.tab === 'account') render(); }).catch(() => { adminChecked = false; });
+}
+async function loadAdmin() {
+  try { ui.adminData = await sbFetch('/rest/v1/rpc/sitio_admin_users', { method: 'POST', body: '{}' }, true) || []; }
+  catch (e) { ui.adminErr = 'Couldn’t load users: ' + friendly(e); }
+  render();
+}
+async function deleteAccount() {
+  try { await sbFetch('/rest/v1/rpc/sitio_delete_me', { method: 'POST', body: '{}' }, true); }
+  catch (e) { flash('Couldn’t delete your account: ' + friendly(e)); return; }
+  setAuth(null); syncState = ''; isAdmin = false; adminChecked = false;
+  try { localStorage.removeItem(STORE_KEY); } catch (e) { }
+  db = loadDb(); resnap(); save(); ui.page = null; lastMapKey = '';
+  toast('Account deleted', null); render();
+}
 async function changePassword(pw) {
   if (!pw || pw.length < 6) { flash('Your password needs at least 6 characters.'); return; }
   try { await sbFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: pw }) }, true); toast('Password changed', null); }
@@ -1056,7 +1132,7 @@ async function changePassword(pw) {
 }
 async function logout() {
   try { await sbFetch('/auth/v1/logout', { method: 'POST' }, true); } catch (e) { }
-  setAuth(null); syncState = '';
+  setAuth(null); syncState = ''; isAdmin = false; adminChecked = false;
   try { localStorage.removeItem(STORE_KEY); } catch (e) { }
   db = loadDb(); resnap(); save(); ui.page = null; ui.selected = null; ui.sheet = null; lastMapKey = '';
   toast('Logged out', null); render();
