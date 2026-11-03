@@ -17,7 +17,8 @@ const toMin = (t) => { const [h, m] = String(t).split(':').map(Number); return (
 const fmtMin = (m) => { m = ((m % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 
 /* ---------- storage ---------- */
-const starters = () => SAMPLE.places.map(p => Object.assign({}, p, { sample: true, hours: null, hoursSrc: 'osm', hoursAt: 0, addedAt: Date.now() }));
+// Starters carry updatedAt 1 ("never edited"), so a fresh phone's copies never overwrite edits saved in the account
+const starters = () => SAMPLE.places.map(p => Object.assign({}, p, { sample: true, hours: null, hoursSrc: 'osm', hoursAt: 0, addedAt: Date.now(), updatedAt: 1 }));
 function loadDb() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
@@ -1826,7 +1827,7 @@ function mergeData(local, remote) {
   const rPlaces = remote.places || [];
   const lPlaces = rPlaces.some(p => !p.sample) ? local.places.filter(p => !p.sample) : local.places;
   const map = {}; rPlaces.forEach(p => { map[p.id] = p; });
-  lPlaces.forEach(p => { const r = map[p.id]; if (!r || (tAt(p) >= tAt(r) && !p.sample)) map[p.id] = p; });
+  lPlaces.forEach(p => { const r = map[p.id]; if (!r || tAt(p) >= tAt(r)) map[p.id] = p; });
   const places = Object.values(map).filter(p => !(del[p.id] && del[p.id] >= tAt(p)));
   const lm = local.metaAt || 0, rm = remote.metaAt || 0, win = lm >= rm ? local : remote, lose = win === local ? remote : local;
   const cities = (win.cities || []).slice(); (lose.cities || []).forEach(c => { if (!cities.some(x => x.id === c.id)) cities.push(c); });
