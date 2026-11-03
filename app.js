@@ -570,7 +570,7 @@ function spotSheet(p) {
   const isTry = p.status === 'totry';
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
-    ${memoryStrip(p)}
+    ${isTry ? '' : memoryStrip(p)}
     <div class="name-row"><div style="display:flex;align-items:center;gap:10px;min-width:0"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}</div>
       <div class="mini-btns"><button class="round sec-btn mini" data-act="listpick" data-id="${p.id}" aria-label="Add to a list">${ICON.list}</button><button class="round sec-btn mini" data-act="share" data-id="${p.id}" aria-label="Share">${ICON.share}</button>${isTry ? '' : `<button class="round sec-btn mini" data-act="del" data-id="${p.id}" aria-label="Delete" style="color:var(--coral-soft)">${ICON.bin}</button>`}</div></div>
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
@@ -688,7 +688,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v2.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1152,7 +1152,7 @@ function installView() {
       <button class="big-btn sec-btn" style="width:100%;margin-top:10px" data-act="copylink">Copy link</button></div>`;
   }
   return `<div class="install" role="dialog" aria-label="Install Sitio">
-    <div class="i-top"><img src="icons/icon-192.png" alt="" class="i-logo"><h1 class="i-title">Sitio</h1><p class="i-tag">Your own map of the places you vouch for: restaurants, bars, cafés and more, with what's open right now.</p></div>
+    <div class="i-top"><h1 class="i-title">Sitio</h1><p class="i-tag">Your own map of the places you vouch for: restaurants, bars, cafés and more.</p></div>
     ${ui.dialog && ui.dialog.type === 'shared' ? `<div class="card" style="border-radius:18px;padding:12px 14px;margin-bottom:14px;font-size:14px;font-weight:700">${esc(ui.dialog.data.f || 'A friend')} shared <b>${esc(ui.dialog.data.n)}</b> with you. Add Sitio to see it.</div>` : ''}
     ${body}
     <button class="link-btn muted" style="margin:18px auto 0;font-weight:700;font-size:14px" data-act="skipinstall">${ui.installed ? 'Close' : 'Continue in the browser'}</button>
