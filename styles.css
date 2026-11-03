@@ -352,3 +352,19 @@ body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
 @keyframes luText { to { opacity: 1; transform: none; } }
 
 .levelup.out { transition: opacity .3s, transform .3s; opacity: 0; transform: translate(-50%,-50%) scale(.92); }
+
+/* Add a place: "Not on Google Maps? Drop a pin" */
+.loc-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 700; margin-top: 8px; }
+.loc-line .link-btn { font-size: 13px; color: var(--blue); gap: 4px; }
+.loc-line .link-btn .icon { width: 15px; height: 15px; }
+.pin-mode { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
+.pin-mode > * { pointer-events: auto; }
+.pm-top { position: absolute; top: calc(var(--safe-top) + 14px); left: 16px; right: 16px; border-radius: 18px; padding: 12px 14px; font-size: 14px; font-weight: 700; text-align: center; }
+.pm-pin { position: absolute; left: 50%; top: 50%; pointer-events: none !important; }
+.pm-head { position: absolute; left: -21px; top: -50px; width: 42px; height: 42px; border-radius: 21px 21px 21px 4px; transform: rotate(-45deg); background: var(--coral); display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 16px rgba(0,0,0,0.45); animation: pmDrop .35s cubic-bezier(.2,1.5,.4,1); }
+.pm-head .icon { transform: rotate(45deg); color: #fff; width: 20px; height: 20px; }
+.pm-dot { position: absolute; left: -5px; top: -5px; width: 10px; height: 10px; border-radius: 5px; background: rgba(0,0,0,0.35); box-shadow: 0 0 0 4px rgba(255,90,78,0.25); }
+@keyframes pmDrop { from { transform: translateY(-30px) rotate(-45deg); opacity: 0; } to { transform: rotate(-45deg); opacity: 1; } }
+.pm-bar { position: absolute; left: 16px; right: 16px; bottom: calc(var(--safe-bottom) + 16px); display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
+.pm-bar .big-btn { height: 54px; }
+.pm-loc { position: absolute; right: 16px; bottom: calc(var(--safe-bottom) + 84px); width: 52px; height: 52px; }

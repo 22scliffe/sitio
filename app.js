@@ -393,6 +393,7 @@ const mapApi = (() => {
     init() { if (CFG.googleMapsKey) initGoogle(); else { initMock(); } },
     update(list, selected) { if (mode === 'mock') drawMock(); placePins(list, selected); },
     center(c) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.panTo(center); if (gmap.getZoom() < 14) gmap.setZoom(15); } else redraw(); },
+    getCenter() { if (gmap) { const c = gmap.getCenter(); return { lat: c.lat(), lng: c.lng() }; } return Object.assign({}, center); },
     view(c, z) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.setCenter(center); gmap.setZoom(z); } else redraw(); },
     // Puts a place in the upper part of the screen so it stays visible above a bottom sheet
     focus(c) { const h = el.clientHeight || 844; if (gmap) { gmap.panTo(c); gmap.panBy(0, h * 0.22); } else { center = { lat: c.lat - (h * 0.22) / (110540 * k), lng: c.lng }; redraw(); } },
@@ -553,7 +554,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -739,7 +740,7 @@ function addSheet() {
     <label class="field-label" for="a-name">Place</label>
     <div style="position:relative"><input id="a-name" class="input card" placeholder="${mapApi.google ? 'Search for a place' : 'Name of the place'}" value="${esc(a.name)}" data-input="addName" autocomplete="off" maxlength="80">
       <div id="suggest"></div></div>
-    <div class="muted" style="font-size:12px;font-weight:600;margin-top:6px">${a.googleId ? 'Location from Google' : (a.lat ? 'Location set' : 'Uses your current location')}</div>
+    <div class="loc-line">${a.googleId ? `<span class="muted">✓ Location from Google</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button>` : a.custom ? `<span style="color:var(--green)">✓ Pin dropped on the map</span><button class="link-btn" data-act="droppin">${ICON.pin}Move</button>` : `<span class="muted">Not on Google Maps?</span><button class="link-btn" data-act="droppin">${ICON.pin}Drop a pin</button>`}</div>
     <label class="field-label">Category</label>
     <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${a.cat === c.id ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${a.cat === c.id}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
     ${cuisineChips}
@@ -922,7 +923,7 @@ function render() {
   const focus = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.input;
   const selStart = focus ? document.activeElement.selectionStart : null;
   let h = '';
-  if (ui.tab === 'home') h += homeView();
+  if (ui.tab === 'home' && !ui.pinMode) h += homeView();
   if (ui.tab === 'spots') h += spotsView();
   if (ui.tab === 'totry') h += tryView();
   if (ui.tab === 'account') h += accountView();
@@ -941,7 +942,8 @@ function render() {
   else if (ui.page && ui.page.spot) { const p = byId(ui.page.spot); if (p) h += spotPage(p); else ui.page = null; }
   if ((!ui.page || ui.page === 'cities') && !ui.sheet) h += tabbar();
   if (ui.sheet === 'spot' && ui.selected && byId(ui.selected)) h += (ui.tab === 'home' ? '' : '<div class="scrim" data-act="closesheet"></div>') + spotSheet(byId(ui.selected));
-  if (ui.sheet === 'add' && ui.add) h += '<div class="scrim" data-act="closesheet"></div>' + addSheet();
+  if (ui.sheet === 'add' && ui.add && ui.pinMode) h += `<div class="pin-mode"><div class="pm-top glass">Move the map to put the pin exactly on the spot</div><div class="pm-pin" aria-hidden="true"><div class="pm-head">${ICON.pin}</div><div class="pm-dot"></div></div><div class="pm-bar"><button class="big-btn sec-btn glass" data-act="pincancel">Cancel</button><button class="big-btn primary-btn" data-act="pinok">Use this spot</button></div><button class="locate round glass pm-loc" data-act="locate" aria-label="Go to my location" style="color:var(--blue)">${ICON.nav}</button></div>`;
+  else if (ui.sheet === 'add' && ui.add) h += '<div class="scrim" data-act="closesheet"></div>' + addSheet();
   if (ui.toast) h += `<div class="toast" role="status"><span>${ui.toast.ok ? `<span style="color:var(--green);display:flex">${ICON.check}</span>` : ''}${esc(ui.toast.text)}</span>${ui.toast.undo ? '<button data-act="undo">Undo</button>' : ''}</div>`;
   h += dialogView();
   if (ui.install) h += installView();
@@ -1172,8 +1174,15 @@ uiEl.addEventListener('click', e => {
     case 'citymanual': { const v = (uiEl.querySelector('[data-input="cityQ"]') || {}).value || ''; const name = v.trim().slice(0, 40); if (!name) { flash('Type the name first.'); return; } const c = { id: 'c-' + uid(), name, country: '', currency: '€' }; db.cities.push(c); db.currentCityId = c.id; save(); ui.page = null; ui.tab = 'home'; ui.dialog = { type: 'currency', cityId: c.id }; break; }
     case 'search': ui.tab = 'spots'; ui.spotsOpenNow = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="spotsSearch"]'); if (i) i.focus(); }, 50); return;
     case 'add': ui.add = newAdd(); ui.sheet = 'add'; ui.selected = null; break;
-    case 'closesheet': ui.sheet = null; ui.selected = null; ui.add = null; break;
+    case 'closesheet': ui.sheet = null; ui.selected = null; ui.add = null; ui.pinMode = false; break;
     case 'locate': locate(true); return;
+    case 'droppin': {
+      ui.pinMode = true; ui.tab = 'home'; mapApi.el.style.visibility = 'visible';
+      const start = ui.add.lat != null ? { lat: ui.add.lat, lng: ui.add.lng } : (haveLocation && nearCity() ? me : (cityCentre() || me));
+      mapApi.view(start, 17); break;
+    }
+    case 'pincancel': ui.pinMode = false; break;
+    case 'pinok': { const c = mapApi.getCenter(); Object.assign(ui.add, { lat: c.lat, lng: c.lng, googleId: null, custom: true }); ui.pinMode = false; break; }
     case 'addcat': ui.add.cat = t.dataset.v; break;
     case 'addcuisine': { const l = cuisList(ui.add), v = t.dataset.v; ui.add.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
     case 'addrmphoto': ui.add.photos.splice(+t.dataset.i, 1); break;
