@@ -575,7 +575,7 @@ function roSheet(p, ro) {
 }
 function spotSheet(p) {
   const isTry = p.status === 'totry';
-  const more = `<button class="act act-more" data-act="more" data-id="${p.id}" aria-label="More">•••</button>`;
+  const more = `<button class="act-more" data-act="more" data-id="${p.id}" aria-label="More">${ICON.dots}</button>`;
   const first = isTry
     ? `<button class="act act-save" data-act="savetry" data-id="${p.id}">${ICON.check}<span>Save to Spots</span></button>`
     : `<button class="act ${p.fav ? 'fav-on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}">${ICON.star}<span>Favourite</span></button>`;
@@ -640,7 +640,7 @@ function listPage(l) {
   const byCity = db.cities.map(c => ({ c, ps: ps.filter(p => p.cityId === c.id) })).filter(g => g.ps.length);
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:24px;margin-left:4px">${l.emoji}</span><span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name)}</span></div>
-    <div class="row-btns"><button class="pill sec-btn" data-act="listmap" data-id="${l.id}">${ICON.map}Show on map</button><button class="pill sec-btn" data-act="editlist" data-id="${l.id}">${ICON.pen}Edit</button><button class="pill sec-btn" data-act="sharelist" data-id="${l.id}">${ICON.share}Share</button><button class="pill primary-btn" style="font-weight:800" data-act="listadd" data-id="${l.id}">${ICON.plus}Add</button></div>
+    <div class="row-btns" style="flex-wrap:nowrap;align-items:center"><button class="pill primary-btn" style="font-weight:800" data-act="listadd" data-id="${l.id}">${ICON.plus}Add</button><button class="pill sec-btn" data-act="listmap" data-id="${l.id}">${ICON.map}Show on map</button><button class="act-more" style="margin-left:auto" data-act="more" data-list="${l.id}" aria-label="More">${ICON.dots}</button></div>
     ${byCity.length ? byCity.map(g => `<div class="section-label" style="margin:12px 0 8px">${esc(g.c.name)} · ${g.ps.length}</div><div class="list card">${g.ps.map(rowSpot).join('')}</div>`).join('') : `<div class="empty card" style="border-radius:20px">This list is empty.<br>Open any place and tap ${ICON.list} to add it here.</div>`}
   </div>`;
 }
@@ -704,7 +704,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v3.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -954,11 +954,17 @@ function dialogView() {
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="confirmdel">${isTry ? 'Remove' : 'Delete'}</button></div></div>`;
   }
   if (d.type === 'more') {
-    const p = byId(d.id); if (!p) return ''; const isTry = p.status === 'totry';
-    const opt = (act, icon, label, extra = '') => `<button class="big-btn" style="height:56px;border-radius:0;font-size:16px;justify-content:flex-start;padding:0 20px;gap:12px;border-top:1px solid rgba(var(--fg),.1);${extra}" data-act="${act}" data-id="${p.id}">${icon}${label}</button>`;
-    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="action-sheet" role="dialog" aria-label="More"><div class="group-box"><div class="head"><div style="font-size:15px;font-weight:800">${esc(p.name)}</div></div>
-      ${opt('listpick', ICON.list, 'Add to a list')}${opt('share', ICON.share, 'Share')}${isTry && ui.tab !== 'home' ? opt('trymapone', ICON.map, 'Show on map') : ''}${opt('del', ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'color:var(--coral-soft)')}</div>
-      <button class="group-box" data-act="closedialog" style="border-radius:20px;font-weight:700">Cancel</button></div>`;
+    const it = (act, id, icon, label, cls = '') => `<button class="pm-item ${cls}" data-act="${act}" data-id="${id}"><span>${label}</span>${icon}</button>`;
+    let items;
+    if (d.list) {
+      const l = listOf(d.list); if (!l) return '';
+      items = it('editlist', l.id, ICON.pen, 'Edit list') + it('sharelist', l.id, ICON.share, 'Share list');
+    } else {
+      const p = byId(d.id); if (!p) return ''; const isTry = p.status === 'totry';
+      items = it('listpick', p.id, ICON.list, 'Add to a list') + it('share', p.id, ICON.share, 'Share') + (isTry && ui.tab !== 'home' ? it('trymapone', p.id, ICON.map, 'Show on map') : '') + '<div class="pm-sep"></div>' + it('del', p.id, ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'pm-danger');
+    }
+    const pos = d.up ? `bottom:${d.y}px` : `top:${d.y}px`;
+    return `<div class="dialog-scrim pm-scrim" data-act="closedialog"></div><div class="popmenu ${d.up ? 'up' : ''}" role="menu" style="right:${d.x}px;${pos}">${items}</div>`;
   }
   if (d.type === 'dirs') {
     const p = d.place;
@@ -1075,6 +1081,11 @@ function dialogView() {
       <h3 id="dlg-t">${ms.length === 1 ? 'When was this?' : 'When were these?'}</h3><p>We used the date the photo was taken. Change it if you went another time.</p>
       <div style="display:flex;flex-direction:column;gap:10px;max-height:52vh;overflow-y:auto">${ms.map(m => { const u = photoUrl(m.id); return `<div class="md-row">${u ? `<img src="${u}" alt="">` : '<span class="md-ph"></span>'}<input class="input card" type="datetime-local" data-memdate="${m.id}" value="${toLocalInput(m.at)}" max="${toLocalInput(Date.now() + 864e5)}"></div>`; }).join('')}</div>
       <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="memdatesave">Save ${ms.length === 1 ? 'memory' : ms.length + ' memories'}</button></div>`;
+  }
+  if (d.type === 'memconfirm') {
+    return `<div class="dialog-scrim" data-act="memdelno"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
+      <h3 id="dlg-t">Delete this memory?</h3><p>The photo will be removed from this place and from your account. You can’t undo this.</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="memdelno">Cancel</button><button class="big-btn coral-btn" data-act="memdelok">Delete</button></div></div>`;
   }
   if (d.type === 'memory') {
     const q = byId(d.id); if (!q) return '';
@@ -1684,13 +1695,13 @@ uiEl.addEventListener('click', e => {
     case 'listpick': if (p) ui.dialog = { type: 'listpick', id: p.id }; break; // replaces the More sheet
     case 'listtoggle': { const l = listOf(id), pid = ui.dialog.id; if (l) { l.ids = l.ids.includes(pid) ? l.ids.filter(x => x !== pid) : l.ids.concat(pid); touchList(l); } break; }
     case 'newlist': ui.dialog = { type: 'listedit', name: '', emoji: LIST_EMOJI[0], forPlace: (ui.dialog && ui.dialog.type === 'listpick') ? ui.dialog.id : null }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="listName"]'); if (i) i.focus(); }, 60); return;
-    case 'editlist': { const l = listOf(id); if (l) ui.dialog = { type: 'listedit', listId: l.id, name: l.name, emoji: l.emoji }; break; }
+    case 'editlist': { ui.dialog = null; const l = listOf(id); if (l) ui.dialog = { type: 'listedit', listId: l.id, name: l.name, emoji: l.emoji }; break; }
     case 'listemoji': ui.dialog.name = (uiEl.querySelector('[data-input="listName"]') || {}).value || ui.dialog.name; ui.dialog.emoji = t.dataset.v; break;
     case 'listsave': { const dd = ui.dialog, name = ((uiEl.querySelector('[data-input="listName"]') || {}).value || '').trim().slice(0, 40); if (!name) { flash('Give the list a name.'); return; }
       if (dd.listId) { const l = listOf(dd.listId); if (l) { l.name = name; l.emoji = dd.emoji; touchList(l); } ui.dialog = null; }
       else { const l = { id: 'l-' + uid(), name, emoji: dd.emoji, ids: dd.forPlace ? [dd.forPlace] : [], createdAt: Date.now() }; myLists().push(l); touchList(l); ui.dialog = dd.forPlace ? { type: 'listpick', id: dd.forPlace } : null; toast(l.emoji + ' ' + l.name + ' created', null); }
       break; }
-    case 'sharelist': { const l = listOf(id); if (l) shareList(l); return; }
+    case 'sharelist': { const l = listOf(id); if (ui.dialog) { ui.dialog = null; render(); } if (l) shareList(l); return; }
     case 'sharedlistsave': { const r = saveSharedList(ui.dialog.data); ui.dialog = null; ui.tab = 'spots'; ui.spotsView = 'lists'; ui.page = { list: r.l.id }; toast(r.l.emoji + ' ' + r.l.name + ' saved' + (r.added ? ' · ' + r.added + ' added to To try' : ''), null); lastMapKey = ''; break; }
     case 'openimport': ui.page = 'import'; ui.importMsg = ''; break;
     case 'importskip': setImportQ(importQ().filter(x => x.key !== id)); break;
@@ -1708,12 +1719,18 @@ uiEl.addEventListener('click', e => {
     case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; break; }
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
-    case 'memdel': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); deleteCloudMemory(ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
+    case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
+    case 'memdelno': ui.dialog = { type: 'memory', id: ui.dialog.id, m: ui.dialog.m }; break;
+    case 'memdelok': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); deleteCloudMemory(ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
     case 'memchipx': try { localStorage.setItem('sitio.memAsk.' + id + '.' + new Date().toDateString(), '1'); } catch (e2) { } break;
     case 'tournext': if (ui.tour >= TOUR.length - 1) { endTour(); return; } ui.tour++; tourSetup(); break;
     case 'tourskip': endTour(); return;
     case 'tourreplay': ui.page = null; startTour(); return;
-    case 'more': if (p) ui.dialog = { type: 'more', id: p.id }; break;
+    case 'more': {
+      const r = t.getBoundingClientRect(), rr = root.getBoundingClientRect(), up = r.top - rr.top > rr.height * 0.55;
+      ui.dialog = { type: 'more', id: p ? p.id : null, list: t.dataset.list || null, x: Math.max(12, rr.right - r.right), y: up ? rr.bottom - r.top + 8 : r.bottom - rr.top + 8, up };
+      break;
+    }
     case 'levels': ui.page = 'levels'; break;
     case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
     case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cats: catsOf(p).slice(), cuisine: p.cuisine || '' }; break;
