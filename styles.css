@@ -652,7 +652,10 @@ body.light .md-row input { color-scheme: light; }
 
 /* Recap backgrounds */
 .rc-bg { position: absolute; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; background: radial-gradient(70% 45% at 50% 18%, color-mix(in srgb, var(--c1, #FFD66B) 22%, transparent), transparent 70%), radial-gradient(60% 40% at 50% 100%, color-mix(in srgb, var(--c2, #FF8A5C) 16%, transparent), transparent 70%); animation: fade .6s; }
-.rc-bg.year { background: radial-gradient(80% 50% at 50% 20%, rgba(255,214,107,0.16), transparent 70%), radial-gradient(70% 45% at 50% 100%, rgba(255,90,78,0.12), transparent 70%); }
+.rc-bg.year { background: radial-gradient(90% 45% at 20% 10%, rgba(176,124,255,0.28), transparent 70%), radial-gradient(90% 45% at 85% 35%, rgba(63,167,255,0.20), transparent 70%), radial-gradient(90% 50% at 25% 75%, rgba(255,79,184,0.18), transparent 70%), radial-gradient(90% 50% at 80% 100%, rgba(255,159,28,0.22), transparent 70%), linear-gradient(180deg, #120a2a, #07060f 50%, #1a0a14); }
+.rc-bg.year .fw { opacity: .85; }
+.rc-bg.year .fw i { width: 5px; height: 5px; box-shadow: 0 0 10px 3px var(--c); animation-duration: var(--ft, 4.5s); }
+.rc-bg.year .spk b { background: #FFF3C4; }
 .spk b { position: absolute; width: var(--s); height: var(--s); border-radius: 50%; background: #fff; box-shadow: 0 0 6px 1px rgba(255,236,190,0.8); opacity: 0; animation: twinkle var(--t) ease-in-out var(--dl) infinite; }
 @keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.4); } 50% { opacity: .55; transform: scale(1); } }
 .fw { position: absolute; width: 0; height: 0; opacity: .5; }

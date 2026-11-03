@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -842,12 +842,14 @@ function recapSoonRows() {
 const SEASON = [['#9CC8FF', '#FFE2A8'], ['#FF9EC4', '#9BE3A8'], ['#FFD66B', '#FFB36B'], ['#FFB44D', '#3FC6D9'], ['#F5A03D', '#C2582E'], ['#8FD8FF', '#D9F2FF']];
 function recapBg(per, el = 0) {
   const r = n => { const x = Math.sin(n * 9301 + 49297) * 233280; return x - Math.floor(x); };
-  const sparks = Array.from({ length: per.year ? 34 : 18 }, (_, i) => `<b style="left:${(r(i + 1) * 100).toFixed(1)}%;top:${(r(i + 50) * 100).toFixed(1)}%;--s:${(2 + r(i + 90) * 3).toFixed(1)}px;--t:${(1.8 + r(i + 7) * 2.6).toFixed(2)}s;--dl:${(r(i + 3) * 3).toFixed(2)}s"></b>`).join('');
+  const sparks = Array.from({ length: per.year ? 60 : 18 }, (_, i) => `<b style="left:${(r(i + 1) * 100).toFixed(1)}%;top:${(r(i + 50) * 100).toFixed(1)}%;--s:${(2 + r(i + 90) * 3).toFixed(1)}px;--t:${(1.8 + r(i + 7) * 2.6).toFixed(2)}s;--dl:${(r(i + 3) * 3).toFixed(2)}s"></b>`).join('');
   if (per.year) {
-    const cols = ['#FFD66B', '#FF8A5C', '#FF7EB6', '#8FD4FF', '#B9F2A1'];
-    const bursts = Array.from({ length: 6 }, (_, b) => {
-      const c = cols[b % cols.length], parts = Array.from({ length: 16 }, (_, k) => { const ang = k / 16 * Math.PI * 2, d = 46 + (k % 2) * 14; return `<i style="--dx:${Math.round(Math.cos(ang) * d)}px;--dy:${Math.round(Math.sin(ang) * d)}px"></i>`; }).join('');
-      return `<div class="fw" style="left:${(12 + r(b + 200) * 76).toFixed(1)}%;top:${(8 + r(b + 300) * 70).toFixed(1)}%;--c:${c};--dl:${(b * 0.75 + r(b) * 0.5).toFixed(2)}s">${parts}</div>`;
+    const cols = ['#FFD23F', '#FF5E5B', '#FF4FB8', '#3FA7FF', '#7CFF6B', '#B07CFF', '#FF9F1C', '#4DF2E0'];
+    // 14 bursts spread over the whole screen in a loose grid, each on its own rhythm
+    const bursts = Array.from({ length: 14 }, (_, b) => {
+      const c = cols[b % cols.length], size = 54 + r(b + 50) * 50, n = 20, parts = Array.from({ length: n }, (_, k) => { const ang = k / n * Math.PI * 2, d = size * (k % 2 ? 1 : .78); return `<i style="--dx:${Math.round(Math.cos(ang) * d)}px;--dy:${Math.round(Math.sin(ang) * d)}px"></i>`; }).join('');
+      const col = b % 2, row = Math.floor(b / 2);
+      return `<div class="fw" style="left:${(8 + col * 46 + r(b + 200) * 38).toFixed(1)}%;top:${(2 + row * 14 + r(b + 300) * 10).toFixed(1)}%;--c:${c};--dl:${(r(b + 77) * 5).toFixed(2)}s;--ft:${(3.6 + r(b + 88) * 2).toFixed(2)}s">${parts}</div>`;
     }).join('');
     return `<div class="rc-bg year" aria-hidden="true" style="--el:${el}ms">${bursts}<div class="spk">${sparks}</div></div>`;
   }
