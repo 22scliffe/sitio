@@ -30,7 +30,7 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: starters(),
     sample: true,
-    v: 7
+    v: 8
   };
 }
 let snap = null; // id -> place JSON, used to notice edits/deletes for syncing
@@ -76,6 +76,13 @@ if (db.v < 7) {
   if (st.length) { db.places = db.places.concat(st); if (db.deleted) st.forEach(s => delete db.deleted[s.id]); }
   db.v = 7; save();
 }
+// v8: cities get map coordinates; cuisine list simplified
+if (db.v < 8) {
+  db.cities.forEach(c => { if (c.id === 'c-madrid' && c.lat == null) Object.assign(c, { lat: 40.4168, lng: -3.7038, cc: 'ES' }); });
+  const map = { Japanese: 'Asian', Chinese: 'Asian', Korean: 'Asian', Thai: 'Asian', Vietnamese: 'Asian', Lebanese: 'Eastern', Peruvian: 'Other' };
+  db.places.forEach(p => { if (map[p.cuisine]) p.cuisine = map[p.cuisine]; });
+  db.v = 8; save();
+}
 const hasSample = () => db.places.some(x => x.sample);
 function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
 const pj = p => { const { updatedAt, ...r } = p; return JSON.stringify(r); };
@@ -115,6 +122,11 @@ function photoUrl(id) {
   photoUrls[id] = '';
   idb.get(id).then(b => { if (b) { photoUrls[id] = URL.createObjectURL(b); render(); } }).catch(() => {});
   return '';
+}
+function thumbUrl(blob, size = 160) {
+  return new Promise(res => { const img = new Image(); const u = URL.createObjectURL(blob);
+    img.onload = () => { const c = document.createElement('canvas'); c.width = c.height = size; const s = Math.min(img.width, img.height); c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, size, size); URL.revokeObjectURL(u); res(c.toDataURL('image/jpeg', 0.8)); };
+    img.onerror = () => res(null); img.src = u; });
 }
 function compress(file, max = 1000) {
   return new Promise((res, rej) => {
@@ -189,7 +201,7 @@ function locate(center) {
   navigator.geolocation.getCurrentPosition(pos => {
     const first = !haveLocation;
     me = { lat: pos.coords.latitude, lng: pos.coords.longitude }; haveLocation = true;
-    if (center || first) mapApi.center(me);
+    if (center || (first && nearCity())) mapApi.center(me);
     render();
   }, () => { if (center) flash('Location is off. Allow it in Settings to see spots near you.'); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
 }
@@ -217,6 +229,14 @@ const ui = {
 };
 const city = () => db.cities.find(c => c.id === db.currentCityId) || db.cities[0];
 const cur = () => (city() && city().currency) || '€';
+// Centre of a city: where it was found, else the middle of its places
+function cityCentre(c) {
+  c = c || city(); if (!c) return null;
+  if (c.lat != null) return { lat: c.lat, lng: c.lng };
+  const ps = db.places.filter(p => p.cityId === c.id); if (!ps.length) return null;
+  return { lat: ps.reduce((s, x) => s + x.lat, 0) / ps.length, lng: ps.reduce((s, x) => s + x.lng, 0) / ps.length };
+}
+const nearCity = () => { const cc = cityCentre(); return !cc || !haveLocation || dist(cc) < 50000; };
 const cityPlaces = () => db.places.filter(p => p.cityId === db.currentCityId);
 const byId = (id) => db.places.find(p => p.id === id);
 
@@ -228,8 +248,14 @@ function matches(p, filter) {
   if (p.cat === 'restaurant' && cuis.length) return cuis.includes(p.cuisine);
   return cats.includes(p.cat);
 }
+function catMatch(p, cats) {
+  cats = cats.filter(f => f !== 'totry'); if (!cats.length) return true;
+  const cuis = cats.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
+  if (p.cat === 'restaurant' && cuis.length) return cuis.includes(p.cuisine);
+  return cats.includes(p.cat);
+}
 function filterLabel(filter) {
-  if (!filter.length) return 'All places';
+  if (!filter.length) return 'All';
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   const parts = [];
   CATS.forEach(c => {
@@ -274,7 +300,7 @@ const hoursLine = (p) => {
 /* ---------- map (sample map, or Google Maps when a key is set) ---------- */
 const mapApi = (() => {
   const el = document.createElement('div'); el.className = 'map';
-  let mode = 'mock', gmap = null, overlay = null, center = Object.assign({}, DEFAULT_ME), k = 0.13; // px per metre
+  let mode = 'mock', gmap = null, overlay = null, center = Object.assign({}, cityCentre() || DEFAULT_ME), k = 0.13; // px per metre
   const pinsEl = document.createElement('div'); pinsEl.className = 'pins';
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'streets');
   const meEl = document.createElement('div'); meEl.className = 'me-dot';
@@ -343,7 +369,7 @@ const mapApi = (() => {
     window.__sitioGmapsReady = () => {
       mode = 'google';
       const gEl = document.createElement('div'); gEl.style.cssText = 'position:absolute;inset:0'; el.appendChild(gEl);
-      gmap = new google.maps.Map(gEl, { center: haveLocation ? me : center, zoom: 15, disableDefaultUI: true, keyboardShortcuts: false, clickableIcons: false, gestureHandling: 'greedy', styles: db.settings.darkMap ? DARK : LIGHT, backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' });
+      gmap = new google.maps.Map(gEl, { center: haveLocation && nearCity() ? me : center, zoom: haveLocation && nearCity() ? 15 : 13, disableDefaultUI: true, keyboardShortcuts: false, clickableIcons: false, gestureHandling: 'greedy', styles: db.settings.darkMap ? DARK : LIGHT, backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' });
       overlay = new google.maps.OverlayView();
       overlay.onAdd = function () { this.getPanes().overlayMouseTarget.appendChild(pinsEl); this.getPanes().overlayMouseTarget.appendChild(meEl); pinsEl.style.pointerEvents = 'none'; };
       overlay.draw = positionPins; overlay.onRemove = () => {};
@@ -361,6 +387,7 @@ const mapApi = (() => {
     init() { if (CFG.googleMapsKey) initGoogle(); else { initMock(); } },
     update(list, selected) { if (mode === 'mock') drawMock(); placePins(list, selected); },
     center(c) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.panTo(center); if (gmap.getZoom() < 14) gmap.setZoom(15); } else redraw(); },
+    view(c, z) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.setCenter(center); gmap.setZoom(z); } else redraw(); },
     // Puts a place in the upper part of the screen so it stays visible above a bottom sheet
     focus(c) { const h = el.clientHeight || 844; if (gmap) { gmap.panTo(c); gmap.panBy(0, h * 0.22); } else { center = { lat: c.lat - (h * 0.22) / (110540 * k), lng: c.lng }; redraw(); } },
     setStyle() { if (gmap) gmap.setOptions({ styles: db.settings.darkMap ? DARK : LIGHT, backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' }); },
@@ -406,7 +433,7 @@ function filterMenu() {
   const f = ui.filter; const cuis = f.filter(x => x.startsWith('cuisine:')).map(x => x.slice(8));
   const used = [...new Set(cityPlaces().filter(p => p.cat === 'restaurant' && p.cuisine).map(p => p.cuisine))].sort();
   let h = `<div class="menu" role="menu" aria-label="Show on map">`;
-  h += `<button class="${!f.length ? 'on' : ''}" data-act="filt" data-f="all">All places${!f.length ? ICON.check : ''}</button>`;
+  h += `<button class="${!f.length ? 'on' : ''}" data-act="filt" data-f="all">All${!f.length ? ICON.check : ''}</button>`;
   CATS.forEach(c => {
     const on = f.includes(c.id) || (c.id === 'restaurant' && cuis.length);
     if (c.id === 'restaurant') {
@@ -440,12 +467,13 @@ function spotSheet(p) {
 function spotsView() {
   const q = ui.spotsSearch.trim().toLowerCase();
   const cats = ui.filter.filter(f => f !== 'totry');
-  let list = cityPlaces().filter(p => p.status === 'spot' && (cats.length ? matches(p, cats) : true));
+  let list = cityPlaces().filter(p => p.status === 'spot' && catMatch(p, cats));
+  if (ui.spotsFav) list = list.filter(p => p.fav);
   if (q) list = list.filter(p => (p.name + ' ' + p.area + ' ' + p.cuisine + ' ' + p.note).toLowerCase().includes(q));
   if (ui.spotsOpenNow) list = list.filter(p => { const s = status(p); return !s || s.open; });
   list.sort((a, b) => dist(a) - dist(b));
   let body = '';
-  if (!list.length) body = `<div class="empty card" style="border-radius:20px">${cityPlaces().some(p => p.status === 'spot') ? 'Nothing matches right now.' + (ui.spotsOpenNow ? '<br>Try turning off Open now.' : '') : 'No spots in ' + esc(city().name) + ' yet.<br>Tap + to add your first.'}</div>`;
+  if (!list.length) body = `<div class="empty card" style="border-radius:20px">${cityPlaces().some(p => p.status === 'spot') ? (ui.spotsFav && !cityPlaces().some(p => p.fav && p.status === 'spot') ? 'No favourites yet.<br>Tap the star on a spot to add it.' : 'Nothing matches right now.' + (ui.spotsOpenNow || ui.spotsFav ? '<br>Try turning off Open now or Favourites.' : '')) : 'No spots in ' + esc(city().name) + ' yet.<br>Tap + to add your first.'}</div>`;
   else if (!cats.length) {
     CATS.forEach(c => {
       const g = list.filter(p => p.cat === c.id); if (!g.length) return;
@@ -458,7 +486,7 @@ function spotsView() {
   return `<div class="page">
     <div class="page-head"><h1 class="page-title">Spots</h1><div style="display:flex;gap:8px"><button class="pill sec-btn" data-act="cities">${esc(city().name)}${ICON.chevDown}</button><button class="round primary-btn" style="width:44px;height:44px" data-act="add" aria-label="Add a spot">${ICON.plus}</button></div></div>
     <label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
-    <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats))}${ICON.chevDown}</button><button class="pill ${ui.spotsOpenNow ? 'green-on' : 'sec-btn'}" data-act="opennow" aria-pressed="${ui.spotsOpenNow}">${ui.spotsOpenNow ? ICON.check : ''}Open now</button></div>
+    <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats))}${ICON.chevDown}</button><button class="pill ${ui.spotsOpenNow ? 'green-on' : 'sec-btn'}" data-act="opennow" aria-pressed="${ui.spotsOpenNow}">${ui.spotsOpenNow ? ICON.check : ''}Open now</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ICON.star}Favourites</button></div>
     ${body}
   </div>${ui.menu === 'spots' ? filterMenu() : ''}`;
 }
@@ -468,27 +496,28 @@ function rowSpot(p) {
     <div class="fg"><div class="thumb">${art(p)}</div>
       <div class="row-main" data-act="open" data-id="${p.id}"><span class="row-name">${esc(p.name)}</span><span class="row-meta">${esc([p.cat === 'restaurant' ? p.cuisine : '', p.area, fmtDist(dist(p))].filter(Boolean).join(' · '))}</span>
         <span class="row-line ${s && !s.open ? 'closed' : ''}">${s ? `<span class="dot"></span>${esc(s.text.replace('Open · until', 'Until').replace('Closed · opens', 'Opens'))}<span style="color:#6A6A72">·</span>` : ''}${priceHtml(p.price)}</span></div>
-      <div class="mini-btns"><button class="round sec-btn mini" data-act="dirs" data-id="${p.id}" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</button></div></div></div>`;
+      <div class="mini-btns"><button class="round sec-btn mini" data-act="dirs" data-id="${p.id}" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</button><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button></div></div></div>`;
 }
 
 function tryView() {
-  let list = cityPlaces().filter(p => p.status === 'totry');
+  const tcats = ui.filter.filter(f => f !== 'totry');
+  let list = cityPlaces().filter(p => p.status === 'totry' && catMatch(p, tcats));
   list.sort(ui.tryNewest ? (a, b) => b.addedAt - a.addedAt : (a, b) => dist(a) - dist(b));
   const rows = list.map(p => `<div class="swipe" data-swipe="${p.id}" data-try="1"><div class="acts"><div class="save">${ICON.check}Save</div><div class="del">Delete${ICON.bin}</div></div>
     <div class="fg"><div class="thumb" style="width:58px;height:58px">${p.photos && p.photos.length ? art(p) : ART.totry}</div>
       <div class="row-main" data-act="showtry" data-id="${p.id}"><span class="row-name">${esc(p.name)}</span><span class="row-meta">${esc(metaLine(p))}</span>${p.note ? `<span class="row-note">${esc(p.note)}</span>` : ''}</div>
       <div class="mini-btns"><button class="round sec-btn mini" data-act="dirs" data-id="${p.id}" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</button><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
   return `<div class="page">
-    <div class="page-head" style="align-items:flex-end"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} place${list.length === 1 ? '' : 's'} in ${esc(city().name)}</div></div>
+    <div class="page-head" style="align-items:flex-end"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} in ${esc(city().name)}</div></div>
       <button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div>
-    <div class="row-btns"><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest first' : 'Nearest first'}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trymap">${ICON.map}Show on map</button></div>
-    ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">Nothing to try yet.<br>Found somewhere that looks good? Tap Add.</div>`}
-  </div>`;
+    <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats))}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest first' : 'Nearest first'}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trymap">${ICON.map}Show on map</button></div>
+    ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">${tcats.length && cityPlaces().some(p => p.status === 'totry') ? 'Nothing to try in ' + esc(filterLabel(tcats)) + '.' : 'Nothing to try yet.<br>Found somewhere that looks good? Tap Add.'}</div>`}
+  </div>${ui.menu === 'try' ? filterMenu() : ''}`;
 }
 
 function accountView() {
   const all = db.places; const u = db.user;
-  const av = u.photo && photoUrl(u.photo) ? `<img src="${photoUrl(u.photo)}" alt="">` : esc((u.name || 'You')[0].toUpperCase());
+  const av = u.photo && photoUrl(u.photo) ? `<img src="${photoUrl(u.photo)}" alt="">` : (u.avatar ? `<img src="${u.avatar}" alt="">` : esc((u.name || 'You')[0].toUpperCase()));
   const row = (label, val, act) => `<button class="set-row" data-act="${act}"><span>${label}</span><span class="val">${val}${ICON.chevRight}</span></button>`;
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page">
@@ -518,7 +547,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v0.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -526,14 +555,14 @@ function citiesPage() {
     <div class="section-label" style="margin-bottom:8px">Your cities</div>
     <div class="settings card">${db.cities.map(c => { const n = db.places.filter(p => p.cityId === c.id); const curr = c.id === db.currentCityId;
       return `<button class="set-row" data-act="pickcity" data-id="${c.id}" style="min-height:72px;${curr ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;font-size:18px">${esc(c.name[0])}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">${esc(c.name)}</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${esc(c.country || '')} · ${n.filter(p => p.status === 'spot').length} spots · ${n.filter(p => p.status === 'totry').length} to try · ${esc(c.currency)}</span></span></span>${curr ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button>`; }).join('')}
-      <button class="set-row" data-act="addcity" style="min-height:64px"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;background:transparent;border:1.5px dashed rgba(var(--fg),0.28)">${ICON.plus}</span><span style="font-size:16px;font-weight:800">Add a city</span></span></button></div>
+      <button class="set-row" data-act="addcity" style="min-height:64px"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;background:transparent;border:1.5px dashed rgba(var(--fg),0.28)">${ICON.plus}</span><span style="font-size:16px;font-weight:800">Add a city or town</span></span></button></div>
     <p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:10px">Each city keeps its own Spots and To try lists. Prices use that city's currency.</p>
   </div>`;
 }
 
 function profilePage() {
   if (!auth) return authPage();
-  const u = db.user; const av = u.photo && photoUrl(u.photo) ? `<img src="${photoUrl(u.photo)}" alt="">` : esc((u.name || 'You')[0].toUpperCase());
+  const u = db.user; const av = u.photo && photoUrl(u.photo) ? `<img src="${photoUrl(u.photo)}" alt="">` : (u.avatar ? `<img src="${u.avatar}" alt="">` : esc((u.name || 'You')[0].toUpperCase()));
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Account details</span></div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin:18px 0 22px"><div class="avatar" style="width:104px;height:104px;border-radius:52px;font-size:42px">${av}</div>
@@ -568,7 +597,10 @@ function authPage() {
 }
 
 const CONTACT = 'sitio.contact@gmail.com';
-const CURRENCIES = [['€', 'Euro'], ['£', 'Pound'], ['$', 'Dollar'], ['CHF', 'Swiss franc'], ['kr', 'Krona / krone'], ['zł', 'Złoty'], ['Kč', 'Koruna'], ['Ft', 'Forint'], ['¥', 'Yen / yuan'], ['₩', 'Won'], ['฿', 'Baht'], ['₹', 'Rupee'], ['R$', 'Real'], ['₺', 'Lira'], ['د.إ', 'Dirham'], ['R', 'Rand']];
+const EURO = 'AT BE HR CY EE FI FR DE GR IE IT LV LT LU MT NL PT SK SI ES AD MC SM VA ME XK BG'.split(' ');
+const CUR_BY_CC = { GB: '£', GI: '£', IM: '£', JE: '£', GG: '£', US: '$', CA: '$', AU: 'A$', NZ: '$', MX: '$', AR: '$', CL: '$', CO: '$', SG: '$', HK: '$', CH: 'CHF', LI: 'CHF', SE: 'kr', NO: 'kr', DK: 'kr', IS: 'kr', PL: 'zł', CZ: 'Kč', HU: 'Ft', JP: '¥', CN: '¥', KR: '₩', TH: '฿', IN: '₹', BR: 'R$', TR: '₺', AE: 'د.إ', ZA: 'R', MA: 'DH', RO: 'lei', IL: '₪', ID: 'Rp', VN: '₫', PH: '₱', MY: 'RM', EG: 'E£', PE: 'S/', UA: '₴', RS: 'din', GE: '₾' };
+const currencyFor = cc => cc ? (EURO.includes(cc) ? '€' : (CUR_BY_CC[cc] || '€')) : '€';
+const CURRENCIES = [['€', 'Euro'], ['£', 'Pound'], ['$', 'Dollar'], ['A$', 'Aus dollar'], ['DH', 'Dirham (MA)'], ['lei', 'Leu'], ['₪', 'Shekel'], ['Rp', 'Rupiah'], ['CHF', 'Swiss franc'], ['kr', 'Krona / krone'], ['zł', 'Złoty'], ['Kč', 'Koruna'], ['Ft', 'Forint'], ['¥', 'Yen / yuan'], ['₩', 'Won'], ['฿', 'Baht'], ['₹', 'Rupee'], ['R$', 'Real'], ['₺', 'Lira'], ['د.إ', 'Dirham'], ['R', 'Rand']];
 function privacyPage() {
   const s = (h, t) => `<div class="section-label" style="margin:18px 0 6px">${h}</div><p class="page-sub" style="line-height:1.55;font-size:14px">${t}</p>`;
   return `<div class="page" style="z-index:16">
@@ -592,7 +624,7 @@ function adminPage() {
   const cnt = (d, st) => ((d && d.places) || []).filter(p => p.status === st).length;
   return `<div class="page" style="z-index:15">${head}
     <p class="page-sub" style="margin-bottom:14px">${users.length} ${users.length === 1 ? 'account' : 'accounts'} · only you can see this</p>
-    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis">${esc((u.data && u.data.user && u.data.user.name) || 'No name yet')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-3)">Joined ${fmtDate(u.created_at)} · ${u.data ? cnt(u.data, 'spot') + ' spots · ' + cnt(u.data, 'totry') + ' to try · ' + ((u.data.cities || []).length) + ((u.data.cities || []).length === 1 ? ' city' : ' cities') : 'nothing synced yet'}</span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
+    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:72px"><span style="display:flex;align-items:center;gap:12px;min-width:0"><span class="avatar" style="width:44px;height:44px;border-radius:22px;font-size:17px;flex:none">${u.data && u.data.user && u.data.user.avatar && /^data:image\//.test(u.data.user.avatar) ? `<img src="${u.data.user.avatar}" alt="">` : esc(((u.data && u.data.user && u.data.user.name) || u.email || '?')[0].toUpperCase())}</span><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis">${esc((u.data && u.data.user && u.data.user.name) || 'No name yet')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-3)">Joined ${fmtDate(u.created_at)} · ${u.data ? cnt(u.data, 'spot') + (cnt(u.data, 'spot') === 1 ? ' spot · ' : ' spots · ') + cnt(u.data, 'totry') + ' to try · ' + ((u.data.cities || []).length) + ((u.data.cities || []).length === 1 ? ' city' : ' cities') : 'nothing synced yet'}</span></span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
   </div>`;
 }
 function adminUserPage(id, cityId) {
@@ -608,13 +640,13 @@ function adminUserPage(id, cityId) {
       <p class="page-sub" style="font-size:12px;margin:0 0 16px">Joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}</p>
       ${!u.data ? '<div class="card note">Nothing has synced to this account yet. It appears once they open Sitio while logged in and online.</div>'
       : `<div class="section-label" style="margin-bottom:8px">Cities</div><div class="settings card">${cities.map(c => { const ps = places.filter(p => p.cityId === c.id);
-          return `<button class="set-row" data-act="admincity" data-id="${esc(u.user_id)}" data-city="${esc(c.id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><span style="font-weight:800;font-size:16px">${esc(c.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${ps.filter(p => p.status === 'spot').length} spots · ${ps.filter(p => p.status === 'totry').length} to try</span></span><span class="val">${ICON.chevRight}</span></button>`; }).join('')}</div>`}
+          return `<button class="set-row" data-act="admincity" data-id="${esc(u.user_id)}" data-city="${esc(c.id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><span style="font-weight:800;font-size:16px">${esc(c.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${ps.filter(p => p.status === 'spot').length} ${ps.filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} · ${ps.filter(p => p.status === 'totry').length} to try</span></span><span class="val">${ICON.chevRight}</span></button>`; }).join('')}</div>`}
     </div>`;
   }
   const c = cities.find(x => x.id === cityId) || { name: 'City' }, cur = c.currency || '€';
   const ps = places.filter(p => p.cityId === cityId), sp = ps.filter(p => p.status === 'spot'), tt = ps.filter(p => p.status === 'totry');
   const catName = k => (CATS.find(x => x.id === k) || {}).name || k;
-  const line = p => `<div class="set-row" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${esc(p.name)}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catName(p.cat), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? esc(cur.repeat(p.price)) : ''}</span></div>`;
+  const line = p => `<button class="set-row" data-act="adminplace" data-id="${esc(u.user_id)}" data-city="${esc(cityId)}" data-place="${esc(p.id)}" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span style="font-weight:800">${esc(p.name)}${p.fav ? ' ★' : ''}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catName(p.cat), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? esc(cur.repeat(p.price)) : ''}${ICON.chevRight}</span></button>`;
   return `<div class="page" style="z-index:17">
     <div class="page-head" style="justify-content:flex-start">${back}<span style="display:flex;flex-direction:column;min-width:0"><span style="font-size:22px;font-weight:800">${esc(c.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(name)} · ${esc(u.email || '')}</span></span></div>
     <div class="section-label" style="margin:10px 0 8px">Spots (${sp.length})</div>${sp.length ? `<div class="settings card">${sp.map(line).join('')}</div>` : '<div class="card note" style="margin:0">No spots here yet.</div>'}
@@ -622,7 +654,18 @@ function adminUserPage(id, cityId) {
   </div>`;
 }
 
-function spotPage(p) {
+function spotPage(p, ro) {
+  if (ro) return `<div class="page" style="z-index:18;padding-bottom:calc(var(--safe-bottom) + 30px)">
+    <div class="hero">${art(p)}<div class="hero-btns"><button class="round glass" data-act="closepage" aria-label="Back">${ICON.back}</button><div></div></div></div>
+    <div class="spot-body">
+      <div style="display:flex;align-items:center;gap:10px"><h1 class="big-name" style="font-size:30px">${esc(p.name)}</h1>${p.status === 'totry' ? '<span class="tag">TO TRY</span>' : ''}${p.fav ? `<span class="star-btn on" style="display:flex">${ICON.star}</span>` : ''}</div>
+      <div class="meta">${esc(metaLine(p))}</div>
+      ${status(p) ? hoursLine(p) : ''}
+      ${p.status === 'spot' && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(ro.cur.repeat(p.price))}</span><span class="off">${esc(ro.cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
+      ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:16px"></div>'}
+      <p class="page-sub" style="font-size:12px;margin:0 0 14px">Saved by ${esc(ro.who)}${p.addedAt ? ' · ' + fmtDate(p.addedAt) : ''}. Their photos stay on their phone.</p>
+      ${dirButtons(p)}
+    </div></div>`;
   const photos = (p.photos || []);
   const strip = photos.map((id, i) => { const u = photoUrl(id); return `<div style="height:72px;border-radius:12px;overflow:hidden;background:var(--surface)">${u ? `<img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover">` : ''}</div>`; }).join('');
   return `<div class="page" style="z-index:15;padding-bottom:calc(var(--safe-bottom) + 30px)">
@@ -649,7 +692,6 @@ function addSheet() {
     <label class="field-label" for="a-name">Place</label>
     <div style="position:relative"><input id="a-name" class="input card" placeholder="${mapApi.google ? 'Search for a place' : 'Name of the place'}" value="${esc(a.name)}" data-input="addName" autocomplete="off">
       <div id="suggest"></div></div>
-    <input class="input card" style="margin-top:8px" placeholder="Area (e.g. Malasaña)" value="${esc(a.area)}" data-input="addArea">
     <div class="muted" style="font-size:12px;font-weight:600;margin-top:6px">${a.googleId ? 'Location from Google' : (a.lat ? 'Location set' : 'Uses your current location')}</div>
     <label class="field-label">Category</label>
     <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${a.cat === c.id ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${a.cat === c.id}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
@@ -657,8 +699,8 @@ function addSheet() {
     <label class="field-label">Photos</label>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${pics}<label class="add-photo" style="height:76px;border-radius:14px;cursor:pointer">${ICON.plus}Add yours<input type="file" accept="image/*" hidden data-addphoto="1"></label></div>
     <label class="field-label" for="a-note">Your note</label>
-    <textarea id="a-note" class="input card" rows="2" placeholder="What to order, when to go…" data-input="addNote">${esc(a.note)}</textarea>
-    <div class="stack" style="margin-top:18px"><button class="big-btn primary-btn" data-act="addsave">Save to Spots</button><button class="big-btn coral-btn" data-act="addtry">Add to To try</button></div>
+    <textarea id="a-note" class="input card" rows="1" placeholder="What to order, when to go…" data-input="addNote">${esc(a.note)}</textarea>
+    <div class="add-actions"><button class="big-btn primary-btn" data-act="addsave">Save to Spots</button><button class="big-btn coral-btn" data-act="addtry">Add to To try</button></div>
   </div>`;
 }
 
@@ -705,6 +747,13 @@ function dialogView() {
       <h3 id="dlg-t">Currency for ${esc(c.name)}</h3><p>Used for prices in this city.</p>
       <div class="cur-grid">${CURRENCIES.map(([sym, label]) => `<button class="cur ${c.currency === sym ? 'on' : ''}" data-act="pickcur" data-v="${esc(sym)}"><b>${esc(sym)}</b><span>${esc(label)}</span></button>`).join('')}</div>
       <button class="big-btn sec-btn" style="width:100%;margin-top:12px" data-act="closedialog">Cancel</button></div>`;
+  }
+  if (d.type === 'addcity') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left;top:calc(var(--safe-top) + 24px);transform:translateX(-50%)">
+      <h3 id="dlg-t">Add a city or town</h3><p>Its spots and To try list stay separate from other places.</p>
+      <input class="input card" placeholder="${mapApi.google ? 'Search, e.g. London or Sitges' : 'Name, e.g. London'}" data-input="cityQ" autocomplete="off" autocapitalize="words">
+      <div id="citysug" style="margin-top:8px"></div>
+      <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -802,6 +851,11 @@ function render() {
   else if (ui.page === 'auth') h += authPage();
   else if (ui.page === 'privacy') h += privacyPage();
   else if (ui.page === 'admin') h += adminPage();
+  else if (ui.page && ui.page.adminUser && ui.page.place) {
+    const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), ap = au && au.data && (au.data.places || []).find(x => x.id === ui.page.place);
+    const ac = au && au.data && (au.data.cities || []).find(x => x.id === ui.page.city);
+    if (ap) h += spotPage(ap, { cur: (ac && ac.currency) || '€', who: (au.data.user && au.data.user.name) || au.email }); else ui.page = { adminUser: ui.page.adminUser, city: ui.page.city };
+  }
   else if (ui.page && ui.page.adminUser) h += adminUserPage(ui.page.adminUser, ui.page.city);
   else if (ui.page && ui.page.spot) { const p = byId(ui.page.spot); if (p) h += spotPage(p); else ui.page = null; }
   if ((!ui.page || ui.page === 'cities') && !ui.sheet) h += tabbar();
@@ -917,11 +971,12 @@ async function googleSuggest(text) {
   try {
     const { AutocompleteSuggestion, AutocompleteSessionToken } = await google.maps.importLibrary('places');
     gToken = gToken || new AutocompleteSessionToken();
-    // Keep results inside the current city: centre on its spots (or you, if you're there), ~25 km around
-    const cp = cityPlaces();
-    let c = cp.length ? { lat: cp.reduce((s, x) => s + x.lat, 0) / cp.length, lng: cp.reduce((s, x) => s + x.lng, 0) / cp.length } : (haveLocation ? me : null);
+    // Keep results inside the current city or town (~25 km around its centre, or around you if you're there)
+    let c = cityCentre();
+    if (!c && haveLocation) c = me;
     if (c && haveLocation && dist(c) < 40000) c = me;
     const req = { input: text, sessionToken: gToken };
+    if (city().cc) req.includedRegionCodes = [city().cc.toLowerCase()];
     if (haveLocation) req.origin = me;
     let suggestions = [];
     if (c) {
@@ -932,6 +987,36 @@ async function googleSuggest(text) {
     box.innerHTML = `<div class="menu" style="position:absolute;top:52px;left:0;right:0;width:auto;z-index:5">${suggestions.slice(0, 5).map((s, i) => `<button data-act="gpick" data-i="${i}" style="height:auto;padding:10px 12px;flex-direction:column;align-items:flex-start;gap:2px"><span style="font-weight:800">${esc(s.placePrediction.mainText.text)}</span><span class="sub">${esc(s.placePrediction.secondaryText ? s.placePrediction.secondaryText.text : '')}</span></button>`).join('')}</div>`;
     googleSuggest.last = suggestions;
   } catch (e) { box.innerHTML = ''; }
+}
+let cityTimer = null, cityToken = null;
+async function citySuggest(text) {
+  const box = $('#citysug'); if (!box) return;
+  if (!mapApi.google || !text || text.trim().length < 2) { box.innerHTML = ''; return; }
+  try {
+    const { AutocompleteSuggestion, AutocompleteSessionToken } = await google.maps.importLibrary('places');
+    cityToken = cityToken || new AutocompleteSessionToken();
+    const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({ input: text, sessionToken: cityToken, includedPrimaryTypes: ['(cities)'] });
+    citySuggest.last = suggestions;
+    box.innerHTML = suggestions.length ? `<div class="settings card">${suggestions.slice(0, 5).map((s, i) => `<button class="set-row" data-act="citypick" data-i="${i}" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span style="font-weight:800">${esc(s.placePrediction.mainText.text)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc(s.placePrediction.secondaryText ? s.placePrediction.secondaryText.text : '')}</span></span></button>`).join('')}</div>` : '<p class="page-sub" style="font-size:13px">No matches. Try another spelling.</p>';
+  } catch (e) { box.innerHTML = '<p class="page-sub" style="font-size:13px">Search isn’t working right now. Try again in a moment.</p>'; }
+}
+async function cityPick(i) {
+  const s = citySuggest.last && citySuggest.last[i]; if (!s) return;
+  try {
+    const place = s.placePrediction.toPlace();
+    await place.fetchFields({ fields: ['displayName', 'location', 'addressComponents'] });
+    const country = (place.addressComponents || []).find(c => c.types.includes('country'));
+    const cc = country ? country.shortText : '';
+    const name = (place.displayName || s.placePrediction.mainText.text).slice(0, 40);
+    const existing = db.cities.find(c => c.name.toLowerCase() === name.toLowerCase() && (c.cc || '') === cc);
+    let c = existing;
+    if (!c) { c = { id: 'c-' + uid(), name, country: country ? country.longText : '', cc, currency: currencyFor(cc), lat: place.location.lat(), lng: place.location.lng() }; db.cities.push(c); }
+    db.currentCityId = c.id; cityToken = null; save();
+    ui.dialog = null; ui.page = null; ui.tab = 'home'; ui.filter = []; ui.selected = null; lastMapKey = '';
+    mapApi.view({ lat: c.lat, lng: c.lng }, 13);
+    toast(existing ? 'Switched to ' + c.name : c.name + ' added · prices in ' + c.currency, null);
+    render();
+  } catch (e) { flash('Couldn’t add that place. Try again.'); }
 }
 async function googlePick(i) {
   const s = googleSuggest.last && googleSuggest.last[i]; if (!s) return;
@@ -954,9 +1039,11 @@ uiEl.addEventListener('click', e => {
     case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'all') ui.menu = null; break;
     case 'cuisines': e.stopPropagation(); ui.cuisineOpen = !ui.cuisineOpen; break;
     case 'cities': ui.page = 'cities'; break;
-    case 'closepage': if (ui.page && ui.page.adminUser) { ui.page = ui.page.city ? { adminUser: ui.page.adminUser } : 'admin'; break; } ui.page = ui.prevPage || null; ui.prevPage = null; break;
-    case 'pickcity': db.currentCityId = id; save(); ui.page = null; ui.filter = []; ui.selected = null; { const c = cityPlaces(); if (c.length) mapApi.center({ lat: c.reduce((s, x) => s + x.lat, 0) / c.length, lng: c.reduce((s, x) => s + x.lng, 0) / c.length }); } break;
-    case 'addcity': ui.dialog = { type: 'text', title: 'Add a city', text: 'Its spots and To try list stay separate from other cities.', fields: [{ ph: 'City (e.g. Lisbon)' }, { ph: 'Country (e.g. Portugal)' }], ok: v => { const name = v[0].trim().slice(0, 40); if (!name) return; const c = { id: 'c-' + uid(), name, country: v[1].trim().slice(0, 40), currency: '€' }; db.cities.push(c); db.currentCityId = c.id; save(); ui.page = null; ui.tab = 'home'; setTimeout(() => { ui.dialog = { type: 'currency', cityId: c.id }; render(); }, 50); } }; break;
+    case 'closepage': if (ui.page && ui.page.adminUser) { ui.page = ui.page.place ? { adminUser: ui.page.adminUser, city: ui.page.city } : ui.page.city ? { adminUser: ui.page.adminUser } : 'admin'; break; } ui.page = ui.prevPage || null; ui.prevPage = null; break;
+    case 'pickcity': { db.currentCityId = id; save(); ui.page = null; ui.filter = []; ui.selected = null; ui.tab = 'home'; const cc = cityCentre(); if (cc) { if (haveLocation && dist(cc) < 50000) mapApi.view(me, 15); else mapApi.view(cc, 13); } lastMapKey = ''; break; }
+    case 'addcity': ui.dialog = { type: 'addcity' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="cityQ"]'); if (i) i.focus(); }, 60); return;
+    case 'citypick': cityPick(+t.dataset.i); return;
+    case 'citymanual': { const v = (uiEl.querySelector('[data-input="cityQ"]') || {}).value || ''; const name = v.trim().slice(0, 40); if (!name) { flash('Type the name first.'); return; } const c = { id: 'c-' + uid(), name, country: '', currency: '€' }; db.cities.push(c); db.currentCityId = c.id; save(); ui.page = null; ui.tab = 'home'; ui.dialog = { type: 'currency', cityId: c.id }; break; }
     case 'search': ui.tab = 'spots'; ui.spotsOpenNow = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="spotsSearch"]'); if (i) i.focus(); }, 50); return;
     case 'add': ui.add = newAdd(); ui.sheet = 'add'; ui.selected = null; break;
     case 'closesheet': ui.sheet = null; ui.selected = null; ui.add = null; break;
@@ -981,6 +1068,8 @@ uiEl.addEventListener('click', e => {
     case 'trymap': ui.tab = 'home'; ui.filter = ['totry']; break;
     case 'trysort': ui.tryNewest = !ui.tryNewest; break;
     case 'opennow': ui.spotsOpenNow = !ui.spotsOpenNow; break;
+    case 'favfilter': ui.spotsFav = !ui.spotsFav; break;
+    case 'fav': if (p) { p.fav = !p.fav; save(); } break;
     case 'expand': ui.expand[t.dataset.cat] = !ui.expand[t.dataset.cat]; break;
     case 'undo': if (ui.toast && ui.toast.undo) ui.toast.undo(); ui.toast = null; break;
     case 'toggle': db.settings[t.dataset.key] = !db.settings[t.dataset.key]; save(); if (t.dataset.key === 'darkMap') mapApi.setStyle(); lastMapKey = ''; break;
@@ -995,6 +1084,7 @@ uiEl.addEventListener('click', e => {
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': ui.page = { adminUser: id }; break;
+    case 'adminplace': ui.page = { adminUser: id, city: t.dataset.city, place: t.dataset.place }; break;
     case 'admincity': ui.page = { adminUser: id, city: t.dataset.city }; break;
     case 'delacct': ui.dialog = { type: 'delacct' }; break;
     case 'dodelacct': ui.dialog = null; deleteAccount(); return;
@@ -1023,6 +1113,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'addArea') ui.add.area = v;
   if (k === 'addNote') ui.add.note = v;
   if (k === 'userName') { db.user.name = v; save(); }
+  if (k === 'cityQ') { clearTimeout(cityTimer); cityTimer = setTimeout(() => citySuggest(v), 250); }
   if (k === 'authName' || k === 'authEmail' || k === 'authPass') { ui.authF = ui.authF || {}; ui.authF[{ authName: 'name', authEmail: 'email', authPass: 'pass' }[k]] = v; }
 });
 uiEl.addEventListener('change', async e => {
@@ -1032,7 +1123,7 @@ uiEl.addEventListener('change', async e => {
     const blob = await compress(f); const id = 'ph-' + uid(); await idb.put(id, blob); photoUrls[id] = URL.createObjectURL(blob);
     if (el.dataset.addphoto) ui.add.photos.push(id);
     else if (el.dataset.photo) { const p = byId(el.dataset.photo); p.photos = (p.photos || []).concat(id); save(); lastMapKey = ''; }
-    else if (el.dataset.userphoto) { db.user.photo = id; save(); }
+    else if (el.dataset.userphoto) { db.user.photo = id; db.user.avatar = await thumbUrl(blob); save(); }
     render();
   } catch (err) { flash('Couldn’t add that photo.'); }
 });

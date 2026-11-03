@@ -3,14 +3,14 @@ window.SITIO = window.SITIO || {};
 
 SITIO.CATS = [
   { id: 'restaurant', name: 'Restaurant', plural: 'Restaurants' },
-  { id: 'bar', name: 'Bar', plural: 'Bars' },
+  { id: 'bar', name: 'Bar / Tapas', plural: 'Bars / Tapas' },
   { id: 'cafe', name: 'Café', plural: 'Cafés' },
   { id: 'club', name: 'Club', plural: 'Clubs' },
   { id: 'chill', name: 'Chill', plural: 'Chill' },
   { id: 'padel', name: 'Padel', plural: 'Padel' }
 ];
 
-SITIO.CUISINES = ['Indian', 'Japanese', 'Spanish', 'Italian', 'Mexican', 'Peruvian', 'Vietnamese', 'Lebanese', 'Chinese', 'Korean', 'Thai', 'German', 'Other'];
+SITIO.CUISINES = ['Indian', 'Asian', 'Spanish', 'Italian', 'Mexican', 'Eastern', 'German', 'American', 'Other'];
 
 SITIO.PRICE_WORDS = ['', 'Budget', 'Medium', 'Pricey'];
 
@@ -26,6 +26,7 @@ SITIO.ICON = {
   check: S('<path d="M5 12l5 5L20 7"/>', 'stroke-width="2.8"'),
   nav: S('<path d="M3 11l18-8-8 18-2-8-8-2z"/>'),
   pin: S('<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+  star: S('<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>'),
   share: S('<path d="M12 3v12M8 7l4-4 4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>'),
   bin: S('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
   pen: S('<path d="M4 20h4L19 9l-4-4L4 16z"/>', 'style="width:14px;height:14px"'),
@@ -58,7 +59,7 @@ SITIO.ART = {
 
 // Sample Madrid data (invented places) so the app can be tried before real data is added.
 SITIO.SAMPLE = (() => {
-  const city = { id: 'c-madrid', name: 'Madrid', country: 'Spain', currency: '€' };
+  const city = { id: 'c-madrid', name: 'Madrid', country: 'Spain', cc: 'ES', currency: '€', lat: 40.4168, lng: -3.7038 };
   const h = (o, c) => ({ open: o, close: c });
   const p = (name, cat, lat, lng, area, status, extra) => Object.assign({
     id: 'p-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),

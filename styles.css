@@ -292,3 +292,16 @@ body.light .toggle::after { box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
 body.light .toggle::after { background: #FFFFFF; }
 .i-arrow.right { animation: bob-r 1.2s ease-in-out infinite; }
 @keyframes bob-r { 0%,100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+
+/* Favourites */
+.star-btn .icon { width: 17px; height: 17px; }
+.star-btn.on { color: #F5B83D; }
+.star-btn.on .icon { fill: #F5B83D; }
+.pill.fav-on { background: rgba(245,184,61,0.18); border: 1px solid rgba(245,184,61,0.55); color: #F5B83D; }
+.pill.fav-on .icon { fill: #F5B83D; }
+body.light .star-btn.on, body.light .pill.fav-on { color: #C98A0C; }
+body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
+/* Add sheet: the two buttons stay visible at the bottom */
+.add-actions { position: sticky; bottom: calc(-1 * (var(--safe-bottom) + 14px)); margin: 16px -20px calc(-1 * (var(--safe-bottom) + 14px)); padding: 12px 20px calc(var(--safe-bottom) + 14px); background: var(--sheet-bg); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-top: 1px solid rgba(var(--fg),0.08); z-index: 2; }
+.add-actions .big-btn { height: 50px; font-size: 15px; }
+.row-btns { flex-wrap: wrap; }
