@@ -299,7 +299,7 @@ function toggleFilter(token) {
 
 /* ---------- small renderers ---------- */
 const art = (p) => {
-  const id = p.photos && p.photos[0];
+  const id = (p.photos && p.photos[0]) || (p.memories && p.memories.length && p.memories[p.memories.length - 1].id);
   if (id) { const u = photoUrl(id); if (u) return `<img src="${u}" alt="">`; }
   return ART[p.cat] || ART.restaurant;
 };
@@ -453,6 +453,7 @@ function homeView() {
       <button class="round primary-btn" data-act="add" aria-label="Add a spot" style="box-shadow:0 8px 24px rgba(0,0,0,.5)">${ICON.plus}</button>
     </div>
   </div>
+  ${hereMemoryChip()}
   <div class="map-bottom">
     ${onlyTry ? `<div class="open-chip glass"><span class="dot" style="background:var(--coral)"></span>${list.length} to try</div>` : (spots.length ? `<div class="open-chip glass"><span class="dot"></span>${openN} of ${spots.length} open now</div>` : '<span></span>')}
     <button class="locate round glass" data-act="locate" aria-label="Centre on my location" style="color:var(--blue)">${ICON.nav}</button>
@@ -499,6 +500,44 @@ function worldView() {
   <div class="map-bottom"><div class="open-chip glass"><span class="dot" style="background:#F5B83D"></span>${shown} shown</div><button class="locate round glass" data-act="worldfit" aria-label="Show everything" style="color:var(--blue)">${ICON.map}</button></div>
   ${ui.menu === 'world' ? filterMenu().replace('class="menu"', 'class="menu" style="top:calc(var(--safe-top) + 126px)"') : ''}`;
 }
+// Memories: photos of you at the place, kept with the date they were taken
+const fmtWhen = t => { const d = new Date(t); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); };
+function memoriesHtml(p) {
+  const ms = (p.memories || []).slice().sort((a, b) => b.at - a.at);
+  const input = `<input type="file" accept="image/*" multiple hidden data-memory="${p.id}">`;
+  if (!ms.length) return `<label class="mem-cta card"><span class="mem-ic">📸</span><span style="display:flex;flex-direction:column;gap:2px"><b>${p.status === 'totry' ? 'Went here? Add a memory' : 'Been here? Add a memory'}</b><span>A photo of you there, saved with the date and time it was taken.</span></span>${input}</label>`;
+  return `<div class="mem"><div class="mem-head"><span>📸 Memories · ${ms.length}</span><label class="link-btn" style="color:var(--blue);cursor:pointer">${ICON.plus}Add${input}</label></div>
+    <div class="mem-strip">${ms.map(m => { const u = photoUrl(m.id); return `<button class="mem-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">Photo on another phone</span>'}<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span></button>`; }).join('')}</div></div>`;
+}
+// Read when a photo was actually taken (EXIF), so old photos get the right date
+async function photoDate(file) {
+  try {
+    const buf = new DataView(await file.slice(0, 131072).arrayBuffer());
+    if (buf.getUint16(0) !== 0xFFD8) throw 0;
+    let o = 2;
+    while (o < buf.byteLength - 4) {
+      const marker = buf.getUint16(o), len = buf.getUint16(o + 2);
+      if (marker === 0xFFE1 && buf.getUint32(o + 4) === 0x45786966) {
+        const t = o + 10, le = buf.getUint16(t) === 0x4949; const u16 = x => buf.getUint16(x, le), u32 = x => buf.getUint32(x, le);
+        const readIfd = (off, want) => { const n = u16(t + off); for (let k = 0; k < n; k++) { const e = t + off + 2 + k * 12; if (u16(e) === want) return e; } return 0; };
+        const str = e => { let s = ''; const at = t + u32(e + 8); for (let k = 0; k < 19; k++) s += String.fromCharCode(buf.getUint8(at + k)); return s; };
+        const ifd0 = u32(t + 4); let e = 0; const ex = readIfd(ifd0, 0x8769);
+        if (ex) e = readIfd(u32(ex + 8), 0x9003); if (!e) e = readIfd(ifd0, 0x0132);
+        if (e) { const m = /^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d):(\d\d)/.exec(str(e)); if (m) return new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime(); }
+        break;
+      }
+      if ((marker & 0xFF00) !== 0xFF00) break; o += 2 + len;
+    }
+  } catch (e) { }
+  return file.lastModified && Math.abs(Date.now() - file.lastModified) > 60000 ? file.lastModified : Date.now();
+}
+// Small hint on Home when you're standing at one of your places
+function hereMemoryChip() {
+  if (!haveLocation || ui.sheet || ui.menu) return '';
+  const near = cityPlaces().filter(p => dist(p) < 80).sort((a, b) => dist(a) - dist(b))[0]; if (!near) return '';
+  const key = 'sitio.memAsk.' + near.id + '.' + new Date().toDateString(); try { if (localStorage.getItem(key)) return ''; } catch (e) { }
+  return `<div class="mem-chip glass"><label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer"><span style="font-size:18px">📸</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">At <b>${esc(near.name)}</b>? Add a memory</span><input type="file" accept="image/*" multiple hidden data-memory="${near.id}"></label><button class="round" data-act="memchipx" data-id="${near.id}" aria-label="Not now">${ICON.close}</button></div>`;
+}
 function roSheet(p, ro) {
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="closeadmin">
     <div class="grab"></div>
@@ -526,6 +565,7 @@ function spotSheet(p) {
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (p.cat === 'chill' ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:14px"></div>'}
+    ${memoriesHtml(p)}
     ${dirButtons(p)}
     ${isTry && ui.tab !== 'home' ? `<button class="big-btn sec-btn" style="width:100%;height:44px;margin-top:8px" data-act="trymapone" data-id="${p.id}">${ICON.map}Show on map</button>` : ''}
     ${isTry ? `<div style="display:flex;gap:8px;margin-top:8px"><button class="big-btn sec-btn" style="flex:1;height:46px" data-act="savetry" data-id="${p.id}">${ICON.check}Save to Spots</button><button class="round x-btn" style="width:46px;height:46px;border-radius:16px;color:var(--coral-soft)" data-act="del" data-id="${p.id}" aria-label="Remove">${ICON.close}</button></div>` : ''}
@@ -565,12 +605,18 @@ function listsBody() {
     <button class="list-card new" data-act="newlist"><span class="lc-emoji">${ICON.plus}</span><span class="lc-name">New list</span><span class="lc-n">Date spots, rainy days…</span></button></div>
     ${ls.length ? '' : '<p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:12px">Group places your way. Add any spot or To try place to a list from its page with the ' + ICON.list + ' button.</p>'}`;
 }
+function listAddRows(l, q) {
+  const all = db.places.filter(p => !q || (p.name + ' ' + (p.area || '') + ' ' + (db.cities.find(c => c.id === p.cityId) || {}).name).toLowerCase().includes(q));
+  const group = (title, ps) => ps.length ? `<div class="section-label" style="margin:8px 0 6px">${title} · ${ps.length}</div><div class="settings card">${ps.map(p => { const on = l.ids.includes(p.id), c = db.cities.find(x => x.id === p.cityId); return `<button class="set-row" data-act="listaddtoggle" data-id="${p.id}" style="min-height:54px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0"><span style="font-weight:800">${esc(p.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catOf(p.cat).name, c && c.name].filter(Boolean).join(' · '))}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '';
+  const html = group('Spots', all.filter(p => p.status === 'spot')) + group('To try', all.filter(p => p.status === 'totry'));
+  return `<div style="max-height:52vh;overflow-y:auto">${html || '<p style="margin:8px 0">No places match.</p>'}</div>`;
+}
 function listPage(l) {
   const ps = l.ids.map(byId).filter(Boolean);
   const byCity = db.cities.map(c => ({ c, ps: ps.filter(p => p.cityId === c.id) })).filter(g => g.ps.length);
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:24px;margin-left:4px">${l.emoji}</span><span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name)}</span></div>
-    <div class="row-btns"><button class="pill sec-btn" data-act="listmap" data-id="${l.id}">${ICON.map}Show on map</button><button class="pill sec-btn" data-act="editlist" data-id="${l.id}">${ICON.pen}Edit</button><button class="pill sec-btn" style="color:var(--coral-soft)" data-act="dellist" data-id="${l.id}">${ICON.bin}Delete</button></div>
+    <div class="row-btns"><button class="pill sec-btn" data-act="listmap" data-id="${l.id}">${ICON.map}Show on map</button><button class="pill sec-btn" data-act="editlist" data-id="${l.id}">${ICON.pen}Edit</button><button class="pill primary-btn" style="font-weight:800" data-act="listadd" data-id="${l.id}">${ICON.plus}Add</button></div>
     ${byCity.length ? byCity.map(g => `<div class="section-label" style="margin:12px 0 8px">${esc(g.c.name)} · ${g.ps.length}</div><div class="list card">${g.ps.map(rowSpot).join('')}</div>`).join('') : `<div class="empty card" style="border-radius:20px">This list is empty.<br>Open any place and tap ${ICON.list} to add it here.</div>`}
   </div>`;
 }
@@ -631,7 +677,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v2.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -834,6 +880,7 @@ function spotPage(p, ro) {
       ${hoursLine(p)}
       <div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (p.cat === 'chill' ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>
       ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:16px"></div>'}
+      ${memoriesHtml(p)}
       <div class="section-label" style="margin-bottom:8px">Photos</div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:18px">${strip}<label class="add-photo" style="height:72px;border-radius:12px;cursor:pointer">${ICON.plus}<input type="file" accept="image/*" hidden data-photo="${p.id}"></label></div>
       ${dirButtons(p)}
@@ -964,18 +1011,35 @@ function dialogView() {
       ${myLists().length ? `<div class="settings card" style="max-height:46vh;overflow-y:auto">${myLists().map(l => { const on = l.ids.includes(p.id); return `<button class="set-row" data-act="listtoggle" data-id="${l.id}" style="min-height:54px"><span style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">${l.emoji}</span><span style="font-weight:800">${esc(l.name)}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '<p>You don’t have any lists yet.</p>'}
       <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="newlist" data-id="${p.id}">${ICON.plus}New list</button><button class="big-btn primary-btn" data-act="closedialog">Done</button></div></div>`;
   }
+  if (d.type === 'listadd') {
+    const l = listOf(d.listId); if (!l) return '';
+    const q = (d.q || '').trim().toLowerCase();
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left;top:calc(var(--safe-top) + 20px);transform:translateX(-50%)">
+      <h3 id="dlg-t">Add to ${l.emoji} ${esc(l.name)}</h3>
+      <label class="search card" style="margin:10px 0">${ICON.search}<input type="search" placeholder="Search your places" data-input="listAddQ" value="${esc(d.q || '')}"></label>
+      <div id="listaddres">${listAddRows(l, q)}</div>
+      <button class="big-btn primary-btn" style="width:100%;margin-top:12px" data-act="closedialog">Done</button></div>`;
+  }
   if (d.type === 'listedit') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
       <h3 id="dlg-t">${d.listId ? 'Edit list' : 'New list'}</h3>
       <input class="input card" data-input="listName" maxlength="40" placeholder="e.g. Date spots" value="${esc(d.name || '')}">
       <div class="emoji-grid">${LIST_EMOJI.map(e => `<button class="${d.emoji === e ? 'on' : ''}" data-act="listemoji" data-v="${e}">${e}</button>`).join('')}</div>
-      <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="listsave">${d.listId ? 'Save' : 'Create'}</button></div></div>`;
+      <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="listsave">${d.listId ? 'Save' : 'Create'}</button></div>
+      ${d.listId ? `<button class="link-btn" style="margin:14px auto 0;color:var(--coral-soft)" data-act="dellist" data-id="${d.listId}">${ICON.bin}Delete this list</button>` : ''}</div>`;
   }
   if (d.type === 'dellist') {
     const l = listOf(d.listId); if (!l) return '';
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">Delete “${esc(l.name)}”?</h3><p>Only the list goes. The places stay in your Spots and To try.</p>
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dellistok">Delete</button></div></div>`;
+  }
+  if (d.type === 'memory') {
+    const q = byId(d.id), m = q && (q.memories || []).find(x => x.id === d.m); if (!m) return '';
+    const u = photoUrl(m.id);
+    return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.88)"></div><div class="mem-view" role="dialog" aria-label="Memory">
+      ${u ? `<img src="${u}" alt="">` : '<div class="mem-gone" style="height:260px">This photo is on another phone</div>'}
+      <div class="mem-meta"><div><b>${esc(q.name)}</b><span>${esc(fmtWhen(m.at))}</span></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -1385,9 +1449,14 @@ uiEl.addEventListener('click', e => {
       else { const l = { id: 'l-' + uid(), name, emoji: dd.emoji, ids: dd.forPlace ? [dd.forPlace] : [], createdAt: Date.now() }; myLists().push(l); touchList(l); ui.dialog = dd.forPlace ? { type: 'listpick', id: dd.forPlace } : null; toast(l.emoji + ' ' + l.name + ' created', null); }
       break; }
     case 'dellist': ui.dialog = { type: 'dellist', listId: id }; break;
+    case 'listadd': ui.dialog = { type: 'listadd', listId: id, q: '' }; break;
+    case 'listaddtoggle': { const l = listOf(ui.dialog.listId); if (l) { l.ids = l.ids.includes(id) ? l.ids.filter(x => x !== id) : l.ids.concat(id); touchList(l); const box = $('#listaddres'); if (box) { const sc = box.firstElementChild ? box.firstElementChild.scrollTop : 0; box.innerHTML = listAddRows(l, (ui.dialog.q || '').trim().toLowerCase()); if (box.firstElementChild) box.firstElementChild.scrollTop = sc; } } return; }
     case 'dellistok': { const lid = ui.dialog.listId; db.lists = myLists().filter(l => l.id !== lid); db.deleted = db.deleted || {}; db.deleted[lid] = Date.now(); ui.filter = ui.filter.filter(f => f !== 'list:' + lid); save(); ui.dialog = null; ui.page = null; toast('List deleted', null); break; }
     case 'listmap': ui.filter = ['list:' + id]; ui.page = null; ui.tab = 'home'; ui.selected = null; ui.sheet = null; lastMapKey = ''; break;
     case 'trymapone': ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p) mapApi.focus(p); break;
+    case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
+    case 'memdel': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
+    case 'memchipx': try { localStorage.setItem('sitio.memAsk.' + id + '.' + new Date().toDateString(), '1'); } catch (e2) { } break;
     case 'levels': ui.page = 'levels'; break;
     case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
     case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cat: p.cat, cuisine: p.cuisine || '' }; break;
@@ -1444,6 +1513,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'userName') { db.user.name = v; save(); }
   if (k === 'unameDraft') ui.unameDraft = v;
   if (k === 'curQ' && ui.dialog && ui.dialog.type === 'currency') { ui.dialog.q = v; const box = $('#curres'); if (box) box.innerHTML = curResults(ui.dialog, db.cities.find(x => x.id === ui.dialog.cityId) || city()); }
+  if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
   if (k === 'adminCityQ') { ui.adminCityQ = v; render(); }
   if (k === 'cityQ') { clearTimeout(cityTimer); cityTimer = setTimeout(() => citySuggest(v), 250); }
@@ -1453,6 +1523,12 @@ uiEl.addEventListener('change', async e => {
   const el = e.target; const f = el.files && el.files[0]; if (!f) return;
   try {
     if (el.dataset.restore) { restore(f); return; }
+    if (el.dataset.memory) {
+      const p = byId(el.dataset.memory); if (!p) return; let n = 0;
+      for (const file of [...el.files].slice(0, 10)) { const at = await photoDate(file); const b = await compress(file); const mid = 'ph-' + uid(); await idb.put(mid, b); photoUrls[mid] = URL.createObjectURL(b); p.memories = (p.memories || []).concat({ id: mid, at }); n++; }
+      try { localStorage.setItem('sitio.memAsk.' + p.id + '.' + new Date().toDateString(), '1'); } catch (e2) { }
+      save(); lastMapKey = ''; toast(n === 1 ? 'Memory saved · ' + fmtWhen(p.memories[p.memories.length - 1].at) : n + ' memories saved', null); render(); return;
+    }
     const blob = await compress(f); const id = 'ph-' + uid(); await idb.put(id, blob); photoUrls[id] = URL.createObjectURL(blob);
     if (el.dataset.addphoto) ui.add.photos.push(id);
     else if (el.dataset.photo) { const p = byId(el.dataset.photo); p.photos = (p.photos || []).concat(id); save(); lastMapKey = ''; }
