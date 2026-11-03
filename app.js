@@ -693,8 +693,8 @@ function accountView() {
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
-    <div class="section-label" style="margin-bottom:8px">Your recaps</div>
-    <div class="settings card" style="margin-bottom:18px">${recapSoonRows()}${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button></div>
+    <div class="section-label" style="margin-bottom:8px">Memory recaps</div>
+    <div class="settings card" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.6.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -800,8 +800,7 @@ function dueRecaps(now = new Date()) {
   const y = now.getFullYear(), mo = now.getMonth(), k = Math.floor(mo / 2), out = [];
   if (mo === 11 && now.getDate() >= 30) out.push(recapYear(y));
   if (mo === 0) out.push(recapYear(y - 1));
-  const lastDay = new Date(y, k * 2 + 2, 0).getDate();
-  if (mo === k * 2 + 1 && now.getDate() === lastDay) out.push(recapPer(y, k));
+  if (now.getTime() >= releaseAt(recapPer(y, k))) out.push(recapPer(y, k));
   out.push(k ? recapPer(y, k - 1) : recapPer(y - 1, 5));
   return out;
 }
@@ -817,7 +816,7 @@ function tryRecap(demo, tries = 0) {
   if (!demo) { try { localStorage.setItem(recapKey(per), '1'); } catch (e) { } }
   ui.dialog = { type: 'recap', per, open: false }; render();
 }
-const releaseAt = per => per.year ? new Date(per.y, 11, 30).getTime() : new Date(per.y, per.k * 2 + 2, 0).getTime();
+const releaseAt = per => per.year || per.k === 5 ? new Date(per.y, 11, 30).getTime() : new Date(per.y, per.k * 2 + 2, 0).getTime();
 const ordinal = n => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th');
 const recapName = per => per.year ? '✨ ' + per.y : per.label.replace(/([A-Z][a-z]{2})[a-z]+/g, '$1');
 // Every released recap with memories (optionally for one city or country), newest first
