@@ -310,8 +310,14 @@ function toggleFilter(token) {
 }
 
 /* ---------- small renderers ---------- */
+// Thumbnail: the one you picked, else the most recently uploaded memory
+function coverOf(p) {
+  const ms = p.memories || [];
+  if (p.thumb && ms.some(m => m.id === p.thumb.id)) return p.thumb.id;
+  return (ms.length && ms[ms.length - 1].id) || (p.photos && p.photos[0]) || null;
+}
 const art = (p) => {
-  const id = (p.photos && p.photos[0]) || (p.memories && p.memories.length && p.memories[p.memories.length - 1].id);
+  const id = coverOf(p);
   if (id) { const u = photoUrl(id); if (u) return `<img src="${u}" alt="">`; }
   return ART[p.cat] || ART.restaurant;
 };
@@ -523,7 +529,8 @@ function memoryStrip(p) {
   const old = (p.photos || []).map(id => ({ id, at: 0 }));
   const input = `<input type="file" accept="image/*" multiple hidden data-memory="${p.id}">`;
   const add = `<label class="ms-add ${ms.length ? '' : 'first'}"><span class="ms-cam">📸</span><b>${ms.length ? 'Add another' : (p.status === 'totry' ? 'Went? Add a memory' : 'Add a memory')}</b><span>${ms.length ? 'Photo of you here' : 'A photo of you here, saved with the date'}</span>${input}</label>`;
-  const tiles = ms.concat(old).map(m => { const u = photoUrl(m.id); return `<button class="ms-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${u ? `<img src="${u}" alt="">` : (m.cloud ? '<span class="mem-gone">Loading…</span>' : '<span class="mem-gone">On another phone</span>')}${m.at ? `<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span>` : ''}</button>`; }).join('');
+  const cov = coverOf(p);
+  const tiles = ms.concat(old).map(m => { const u = photoUrl(m.id); return `<button class="ms-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${m.id === cov && ms.length > 1 ? '<span class="ms-cov">Thumbnail</span>' : ''}${u ? `<img src="${u}" alt="">` : (m.cloud ? '<span class="mem-gone">Loading…</span>' : '<span class="mem-gone">On another phone</span>')}${m.at ? `<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span>` : ''}</button>`; }).join('');
   const blank = ms.length || old.length ? '' : `<div class="ms-item ms-art">${ART[p.cat] || ART.restaurant}<span class="ms-hint">Your memories here will show who you came with and when</span></div>`;
   return `<div class="ms-wrap"><div class="ms-head"><span>📸 Memories${ms.length ? ' · ' + ms.length : ''}</span>${ms.length ? `<span class="ms-last">Last: ${esc(new Date(ms[0].at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</div><div class="ms-strip">${add}${tiles}${blank}</div></div>`;
 }
@@ -709,7 +716,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v3.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -717,7 +724,7 @@ function citiesPage() {
     ${db.cities.length > 3 || ui.cityQ ? `<label class="search card" style="margin-bottom:12px">${ICON.search}<input type="search" placeholder="Search your cities or a country" data-input="cityQf" value="${esc(ui.cityQ || '')}"></label>` : ''}
     ${ui.cityQ ? '' : `<div class="settings card" style="margin-bottom:16px"><button class="set-row" data-act="pickworld" style="min-height:72px;${ui.globe ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar globe-av">${ICON.globe}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">Worldwide</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${plural(db.places.filter(p => p.status === 'spot').length, 'spot')} · ${db.places.filter(p => p.status === 'totry').length} to try · ${plural(db.cities.filter(c => db.places.some(p => p.cityId === c.id)).length, 'city', 'cities')}</span></span></span>${ui.globe ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button></div>`}
     <div class="section-label" style="margin-bottom:8px">Your cities</div>
-    <div class="settings card">${cityFilter(db.cities, ui.cityQ).map(c => { const n = db.places.filter(p => p.cityId === c.id); const curr = !ui.globe && c.id === db.currentCityId;
+    <div class="settings card">${(ui.cityQ ? cityFilter(db.cities, ui.cityQ) : db.cities.slice().sort((x, y) => (y.id === db.currentCityId ? 1 : 0) - (x.id === db.currentCityId ? 1 : 0) || (y.usedAt || 0) - (x.usedAt || 0))).map(c => { const n = db.places.filter(p => p.cityId === c.id); const curr = !ui.globe && c.id === db.currentCityId;
       return `<button class="set-row" data-act="pickcity" data-id="${c.id}" style="min-height:72px;${curr ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;font-size:18px">${esc(c.name[0])}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">${esc(c.name)}</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${esc(c.country || '')} · ${plural(n.filter(p => p.status === 'spot').length, 'spot')} · ${n.filter(p => p.status === 'totry').length} to try · ${esc(c.currency)}</span></span></span>${curr ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button>`; }).join('')}
       <button class="set-row" data-act="addcity" style="min-height:64px"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;background:transparent;border:1.5px dashed rgba(var(--fg),0.28)">${ICON.plus}</span><span style="font-size:16px;font-weight:800">Add a city or town</span></span></button></div>
     <p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:10px">Each city keeps its own Spots and To try lists. Prices use that city's currency.</p>
@@ -1098,8 +1105,9 @@ function dialogView() {
     const all = (q.memories || []).slice().sort((x, y) => y.at - x.at); const k = Math.max(0, all.findIndex(x => x.id === d.m)); const m = all[k]; if (!m) return '';
     return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.9)"></div><div class="mem-view" role="dialog" aria-label="Memory">
       <div class="mv-strip" data-start="${k}">${all.map(x => { const u = photoUrl(x.id); return `<div class="mv-slide" data-m="${x.id}" data-when="${esc(x.at ? fmtWhen(x.at) : 'No date')}">${u ? `<img src="${u}" alt="">` : `<div class="mem-gone" style="height:260px;width:100%">${x.cloud ? 'Loading…' : 'This photo is on another phone'}</div>`}</div>`; }).join('')}</div>
+      ${(q.memories || []).length > 1 ? `<button class="mv-thumb ${coverOf(q) === m.id ? 'on' : ''}" data-act="memcover">${coverOf(q) === m.id ? ICON.check + 'Thumbnail' : 'Set as thumbnail'}</button>` : ''}
       ${all.length > 1 ? `<div class="mv-count">${all.map((x, i) => `<i class="${i === k ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
+      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button></div><div style="display:flex;gap:8px;align-items:center"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
   if (d.type === 'sharedlist') {
     const s = d.data, shown = s.p.slice(0, 6);
@@ -1226,7 +1234,7 @@ function render() {
   document.body.classList.toggle('light', !db.settings.darkMap);
   // Map pins
   const list = (ui.world ? worldList() : cityPlaces()).filter(p => matches(p, ui.filter));
-  const key = JSON.stringify([ui.world ? 'w' : 'c', list.map(p => p.id + p.status + p.price + (p.photos || []).join() + (photoUrls[(p.photos || [])[0]] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
+  const key = JSON.stringify([ui.world ? 'w' : 'c', list.map(p => p.id + p.status + p.price + coverOf(p) + (photoUrls[coverOf(p)] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
   if (key !== lastMapKey) { mapApi.update(list, ui.selected); lastMapKey = key; }
   mapApi.el.style.visibility = ui.tab === 'home' || ui.world ? 'visible' : 'hidden';
 
@@ -1275,6 +1283,7 @@ function render() {
     let t = null; mv.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => {
       const i = Math.round(mv.scrollLeft / mv.clientWidth), sl = mv.children[i]; if (!sl || !ui.dialog || ui.dialog.type !== 'memory') return;
       ui.dialog.m = sl.dataset.m; const w = uiEl.querySelector('.mw-t'); if (w) w.textContent = sl.dataset.when;
+      const tb = uiEl.querySelector('.mv-thumb'), q = byId(ui.dialog.id); if (tb && q) { const on = coverOf(q) === sl.dataset.m; tb.classList.toggle('on', on); tb.innerHTML = on ? ICON.check + 'Thumbnail' : 'Set as thumbnail'; }
       uiEl.querySelectorAll('.mv-count i').forEach((d, k) => d.classList.toggle('on', k === i)); }, 80); });
   }
   if (focus) { const el = uiEl.querySelector(`[data-input="${focus}"]`); if (el) { el.focus(); try { el.setSelectionRange(selStart, selStart); } catch (e) { } } }
@@ -1615,7 +1624,7 @@ async function cityPick(i) {
     const existing = db.cities.find(c => c.name.toLowerCase() === name.toLowerCase() && (c.cc || '') === cc);
     let c = existing;
     if (!c) { c = { id: 'c-' + uid(), name, country: country ? country.longText : '', cc, currency: currencyFor(cc), lat: place.location.lat(), lng: place.location.lng() }; db.cities.push(c); }
-    db.currentCityId = c.id; cityToken = null; save();
+    db.currentCityId = c.id; c.usedAt = Date.now(); ui.globe = false; cityToken = null; save();
     ui.dialog = null; ui.page = null; ui.tab = 'home'; ui.filter = []; ui.selected = null; lastMapKey = '';
     mapApi.view({ lat: c.lat, lng: c.lng }, 13);
     toast(existing ? 'Switched to ' + c.name : c.name + ' added · prices in ' + c.currency, null);
@@ -1645,10 +1654,10 @@ uiEl.addEventListener('click', e => {
     case 'cities': ui.page = 'cities'; ui.cityQ = ''; break;
     case 'closepage': ui.adminSheet = null; if (ui.page && ui.page.adminUser) { ui.page = ui.page.place ? { adminUser: ui.page.adminUser, city: ui.page.city } : ui.page.city ? { adminUser: ui.page.adminUser } : 'admin'; break; } ui.page = ui.prevPage || null; ui.prevPage = null; break;
     case 'pickworld': ui.globe = true; ui.page = null; ui.filter = []; ui.selected = null; ui.sheet = null; ui.tab = 'home'; lastMapKey = ''; render(); setTimeout(() => mapApi.flyOut({ lat: 25, lng: 10 }, 2), 60); return;
-    case 'pickcity': { ui.globe = false; db.currentCityId = id; save(); ui.page = null; ui.filter = []; ui.selected = null; ui.tab = 'home'; const cc = cityCentre(); if (cc) { if (haveLocation && dist(cc) < 50000) mapApi.view(me, 15); else mapApi.view(cc, 13); } lastMapKey = ''; break; }
+    case 'pickcity': { ui.globe = false; db.currentCityId = id; { const pc = db.cities.find(x => x.id === id); if (pc) pc.usedAt = Date.now(); } save(); ui.page = null; ui.filter = []; ui.selected = null; ui.tab = 'home'; const cc = cityCentre(); if (cc) { if (haveLocation && dist(cc) < 50000) mapApi.view(me, 15); else mapApi.view(cc, 13); } lastMapKey = ''; break; }
     case 'addcity': ui.dialog = { type: 'addcity' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="cityQ"]'); if (i) i.focus(); }, 60); return;
     case 'citypick': cityPick(+t.dataset.i); return;
-    case 'citymanual': { const v = (uiEl.querySelector('[data-input="cityQ"]') || {}).value || ''; const name = v.trim().slice(0, 40); if (!name) { flash('Type the name first.'); return; } const c = { id: 'c-' + uid(), name, country: '', currency: '€' }; db.cities.push(c); db.currentCityId = c.id; save(); ui.page = null; ui.tab = 'home'; ui.dialog = { type: 'currency', cityId: c.id }; break; }
+    case 'citymanual': { const v = (uiEl.querySelector('[data-input="cityQ"]') || {}).value || ''; const name = v.trim().slice(0, 40); if (!name) { flash('Type the name first.'); return; } const c = { id: 'c-' + uid(), name, country: '', currency: '€' }; db.cities.push(c); db.currentCityId = c.id; c.usedAt = Date.now(); ui.globe = false; save(); ui.page = null; ui.tab = 'home'; ui.dialog = { type: 'currency', cityId: c.id }; break; }
     case 'search': ui.tab = 'spots'; ui.spotsOpenNow = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="spotsSearch"]'); if (i) i.focus(); }, 50); return;
     case 'add': ui.add = newAdd(); ui.sheet = 'add'; ui.selected = null; break;
     case 'closesheet': ui.sheet = null; ui.selected = null; ui.add = null; ui.pinMode = false; break;
@@ -1727,6 +1736,7 @@ uiEl.addEventListener('click', e => {
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
+    case 'memcover': { const q = byId(ui.dialog.id); if (q && coverOf(q) !== ui.dialog.m) { q.thumb = { id: ui.dialog.m, set: Date.now() }; save(); lastMapKey = ''; toast('Thumbnail updated', null); } break; }
     case 'memdelno': ui.dialog = { type: 'memory', id: ui.dialog.id, m: ui.dialog.m }; break;
     case 'memdelok': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); deleteCloudMemory(ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
     case 'memchipx': try { localStorage.setItem('sitio.memAsk.' + id + '.' + new Date().toDateString(), '1'); } catch (e2) { } break;
@@ -1746,7 +1756,7 @@ uiEl.addEventListener('click', e => {
     case 'ecatsave': { const q = byId(ui.dialog.id); if (q) { q.cats = ui.dialog.cats.slice(); q.cat = q.cats[0]; q.cuisine = ui.dialog.cuisine || ''; save(); lastMapKey = ''; toast('Updated', null); } ui.dialog = null; break; }
     case 'hereyes': { const h = ui.dialog.h; let c = h.city || db.cities.find(x => x.name.toLowerCase() === h.name.toLowerCase());
       if (!c) { c = { id: 'c-' + uid(), name: h.name.slice(0, 40), country: h.country, cc: h.cc, currency: currencyFor(h.cc), lat: h.lat, lng: h.lng }; db.cities.push(c); }
-      db.currentCityId = c.id; save(); ui.dialog = null; ui.tab = 'home'; ui.filter = []; ui.selected = null; lastMapKey = ''; mapApi.view(me, 15);
+      db.currentCityId = c.id; c.usedAt = Date.now(); ui.globe = false; save(); ui.dialog = null; ui.tab = 'home'; ui.filter = []; ui.selected = null; lastMapKey = ''; mapApi.view(me, 15);
       toast('Switched to ' + c.name + ' · prices in ' + c.currency, null); break; }
     case 'hereno': { const h = ui.dialog.h; if (h.key) try { localStorage.setItem(h.key, String(Date.now() + 7 * 864e5)); } catch (e) { } ui.dialog = null; break; }
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
@@ -1807,6 +1817,7 @@ uiEl.addEventListener('change', async e => {
     if (el.dataset.restore) { restore(f); return; }
     if (el.dataset.memory) {
       const p = byId(el.dataset.memory); if (!p) return; let n = 0;
+      if (p.thumb && new Date(p.thumb.set).toDateString() !== new Date().toDateString()) delete p.thumb;
       for (const file of [...el.files].slice(0, 10)) { const at = await photoDate(file); const b = await compress(file, 800); const mid = 'ph-' + uid(); await idb.put(mid, b); photoUrls[mid] = URL.createObjectURL(b); p.memories = (p.memories || []).concat({ id: mid, at }); n++; }
       try { localStorage.setItem('sitio.memAsk.' + p.id + '.' + new Date().toDateString(), '1'); } catch (e2) { }
       save(); setTimeout(uploadMemories, 300); lastMapKey = ''; ui.dialog = { type: 'memdate', id: p.id, ms: p.memories.slice(-n).map(m => m.id) }; render(); return;
