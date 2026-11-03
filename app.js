@@ -30,7 +30,7 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: starters(),
     sample: true,
-    v: 5
+    v: 6
   };
 }
 let db = loadDb();
@@ -63,6 +63,11 @@ if (db.v < 4) {
 if (db.v < 5) {
   if (db.places.some(x => x.sample)) db.places = db.places.filter(x => !x.sample).concat(starters());
   db.v = 5; save();
+}
+// v6: early installs were given the name "Sitio" by default; clear it so everyone sets their own
+if (db.v < 6) {
+  if (db.user && db.user.name === 'Sitio') db.user.name = '';
+  db.v = 6; save();
 }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } }
