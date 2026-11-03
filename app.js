@@ -252,7 +252,11 @@ function cityFilter(list, q) {
   return q ? out.sort((a, b) => (a.country || '').localeCompare(b.country || '') || a.name.localeCompare(b.name)) : out;
 }
 const nearCity = () => { const cc = cityCentre(); return !cc || !haveLocation || dist(cc) < 50000; };
-const cityPlaces = () => db.places.filter(p => p.cityId === db.currentCityId);
+const cityPlaces = () => ui.globe ? db.places.slice() : db.places.filter(p => p.cityId === db.currentCityId);
+const plural = (n, one, many) => n + ' ' + (n === 1 ? one : (many || one + 's'));
+const cityLabel = () => ui.globe ? 'Worldwide' : city().name;
+const cityOf = p => db.cities.find(c => c.id === p.cityId);
+const placeCur = p => (p && ui.globe && cityOf(p) && cityOf(p).currency) || cur();
 const byId = (id) => db.places.find(p => p.id === id);
 
 function matches(p, filter) {
@@ -311,8 +315,8 @@ const art = (p) => {
   if (id) { const u = photoUrl(id); if (u) return `<img src="${u}" alt="">`; }
   return ART[p.cat] || ART.restaurant;
 };
-const priceHtml = (n) => `<span class="price"><span class="on">${cur().repeat(n)}</span><span class="off">${cur().repeat(3 - n)}</span></span>`;
-const metaLine = (p, withDist = true) => [catNames(p), p.cuisine || '', p.area, withDist ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · ');
+const priceHtml = (n, p) => { const c = placeCur(p); return `<span class="price"><span class="on">${c.repeat(n)}</span><span class="off">${c.repeat(3 - n)}</span></span>`; };
+const metaLine = (p, withDist = true) => [catNames(p), p.cuisine || '', p.area, ui.globe && cityOf(p) ? cityOf(p).name : '', withDist ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · ');
 const gLink = (p) => p.googleId ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}&query_place_id=${encodeURIComponent(p.googleId)}` : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
 const aLink = (p) => `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}`;
 const dirButtons = (p) => {
@@ -426,6 +430,7 @@ const mapApi = (() => {
       else { center = { lat: list.reduce((s, p) => s + p.lat, 0) / list.length, lng: list.reduce((s, p) => s + p.lng, 0) / list.length }; redraw(); }
     },
     getCenter() { if (gmap) { const c = gmap.getCenter(); return { lat: c.lat(), lng: c.lng() }; } return Object.assign({}, center); },
+    flyOut(c, z) { center = { lat: c.lat, lng: c.lng }; if (!gmap) return redraw(); const step = () => { const cz = gmap.getZoom(); if (cz <= z) return; gmap.setZoom(Math.max(z, cz - 2)); setTimeout(step, 260); }; gmap.panTo(center); setTimeout(step, 150); },
     view(c, z) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.setCenter(center); gmap.setZoom(z); } else redraw(); },
     // Puts a place in the upper part of the screen so it stays visible above a bottom sheet
     focus(c) { const h = el.clientHeight || 844; if (gmap) { gmap.panTo(c); gmap.panBy(0, h * 0.22); } else { center = { lat: c.lat - (h * 0.22) / (110540 * k), lng: c.lng }; redraw(); } },
@@ -454,7 +459,7 @@ function homeView() {
   const pillCls = onlyTry ? 'totry' : (ui.menu === 'home' ? 'active' : '');
   return `
   <div class="top">
-    <button class="city-title" data-act="cities" aria-label="Change city"><span>${esc(city().name)}</span>${ICON.chevDown}</button>
+    <button class="city-title" data-act="cities" aria-label="Change city"><span>${esc(cityLabel())}</span>${ICON.chevDown}</button>
     <div class="filter-wrap"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="home">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="all" aria-label="Clear filter, show all">${ICON.close}</button>` : ''}</div>
     <div class="top-right">
       <button class="round glass" data-act="search" aria-label="Search your spots">${ICON.search}</button>
@@ -586,7 +591,7 @@ function spotSheet(p) {
     <div class="act-row">${first}${more}</div>
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${hoursLine(p)}
-    ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
+    ${isTry ? '' : `<div class="price-line">${priceHtml(p.price, p)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button>` : '<div style="height:12px"></div>'}
     ${dirButtons(p)}
   </div>`;
@@ -605,7 +610,7 @@ function spotsView() {
   if (ui.spotsOpenNow) list = list.filter(p => { const s = status(p); return !s || s.open; });
   list.sort((a, b) => dist(a) - dist(b));
   let body = '';
-  if (!list.length) body = `<div class="empty card" style="border-radius:20px">${cityPlaces().some(p => p.status === 'spot') ? (ui.spotsFav && !cityPlaces().some(p => p.fav && p.status === 'spot') ? 'No favourites yet.<br>Tap the star on a spot to add it.' : 'Nothing matches right now.' + (ui.spotsOpenNow || ui.spotsFav ? '<br>Try turning off Open now or Favourites.' : '')) : 'No spots in ' + esc(city().name) + ' yet.<br>Tap + to add your first.'}</div>`;
+  if (!list.length) body = `<div class="empty card" style="border-radius:20px">${cityPlaces().some(p => p.status === 'spot') ? (ui.spotsFav && !cityPlaces().some(p => p.fav && p.status === 'spot') ? 'No favourites yet.<br>Tap the star on a spot to add it.' : 'Nothing matches right now.' + (ui.spotsOpenNow || ui.spotsFav ? '<br>Try turning off Open now or Favourites.' : '')) : (ui.globe ? 'No spots yet' : 'No spots in ' + esc(city().name) + ' yet') + '.<br>Tap + to add your first.'}</div>`;
   else if (!cats.length) {
     CATS.forEach(c => {
       const g = list.filter(p => catsOf(p).includes(c.id)); if (!g.length) return;
@@ -616,7 +621,7 @@ function spotsView() {
     body = `<div class="group"><div class="group-head"><span class="section-label">${list.length} ${esc(filterLabel(cats).toLowerCase())} · nearest first</span></div><div class="list card">${list.map(rowSpot).join('')}</div></div>`;
   }
   return `<div class="page">
-    <div class="page-head head2"><div><h1 class="page-title">Spots</h1><div class="page-sub">${cityPlaces().filter(p => p.status === 'spot').length} ${cityPlaces().filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} in ${esc(city().name)}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(city().name)}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
+    <div class="page-head head2"><div><h1 class="page-title">Spots</h1><div class="page-sub">${cityPlaces().filter(p => p.status === 'spot').length} ${cityPlaces().filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(cityLabel())}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
     <div class="seg" role="tablist"><button class="${ui.spotsView !== 'lists' ? 'on' : ''}" data-act="spview" data-v="places" role="tab">Places</button><button class="${ui.spotsView === 'lists' ? 'on' : ''}" data-act="spview" data-v="lists" role="tab">Lists${myLists().length ? ` <span class="seg-n">${myLists().length}</span>` : ''}</button></div>
     ${ui.spotsView === 'lists' ? listsBody() : `<label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
     <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats))}${ICON.chevDown}</button><button class="pill ${ui.spotsOpenNow ? 'green-on' : 'sec-btn'}" data-act="opennow" aria-pressed="${ui.spotsOpenNow}">${ui.spotsOpenNow ? ICON.check : ''}Open now</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ICON.star}Favourites</button></div>
@@ -648,8 +653,8 @@ function rowSpot(p) {
   const s = status(p);
   return `<div class="swipe" data-swipe="${p.id}"><div class="acts"><div class="save"></div><div class="del">Delete${ICON.bin}</div></div>
     <div class="fg"><div class="thumb">${art(p)}</div>
-      <div class="row-main" data-act="open" data-id="${p.id}"><span class="row-name">${esc(p.name)}${p.status === 'totry' ? ' <span class="tag" style="font-size:9px;padding:2px 6px;vertical-align:middle">TO TRY</span>' : ''}</span><span class="row-meta">${esc([p.cat === 'restaurant' ? p.cuisine : '', p.area, fmtDist(dist(p))].filter(Boolean).join(' · '))}</span>
-        <span class="row-line ${s && !s.open ? 'closed' : ''}">${s ? `<span class="dot"></span>${esc(s.text.replace('Open · until', 'Until').replace('Closed · opens', 'Opens'))}<span style="color:#6A6A72">·</span>` : ''}${priceHtml(p.price)}</span></div>
+      <div class="row-main" data-act="open" data-id="${p.id}"><span class="row-name">${esc(p.name)}${p.status === 'totry' ? ' <span class="tag" style="font-size:9px;padding:2px 6px;vertical-align:middle">TO TRY</span>' : ''}</span><span class="row-meta">${esc([p.cat === 'restaurant' ? p.cuisine : '', p.area, ui.globe && cityOf(p) ? cityOf(p).name : '', fmtDist(dist(p))].filter(Boolean).join(' · '))}</span>
+        <span class="row-line ${s && !s.open ? 'closed' : ''}">${s ? `<span class="dot"></span>${esc(s.text.replace('Open · until', 'Until').replace('Closed · opens', 'Opens'))}<span style="color:#6A6A72">·</span>` : ''}${priceHtml(p.price, p)}</span></div>
       <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button><button class="round sec-btn mini" data-act="dirs" data-id="${p.id}" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</button></div></div></div>`;
 }
 
@@ -662,8 +667,8 @@ function tryView() {
       <div class="row-main" data-act="showtry" data-id="${p.id}"><span class="row-name">${esc(p.name)}</span><span class="row-meta">${esc(metaLine(p))}</span>${p.note ? `<span class="row-note">${esc(p.note)}</span>` : ''}</div>
       <div class="mini-btns"><button class="round sec-btn mini" data-act="dirs" data-id="${p.id}" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</button><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
   return `<div class="page">
-    <div class="page-head head2"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} in ${esc(city().name)}</div></div>
-      <div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(city().name)}${ICON.chevDown}</button><button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
+    <div class="page-head head2"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div>
+      <div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(cityLabel())}${ICON.chevDown}</button><button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
     <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats))}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest' : 'Nearest'}${ICON.chevDown}</button><button class="pill sec-btn" style="flex:none" data-act="trymap">${ICON.map}Show on map</button></div>
     ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">${tcats.length && cityPlaces().some(p => p.status === 'totry') ? 'Nothing to try in ' + esc(filterLabel(tcats)) + '.' : 'Nothing to try yet.<br>Found somewhere that looks good? Tap Add.'}</div>`}
   </div>${ui.menu === 'try' ? filterMenu() : ''}`;
@@ -704,15 +709,16 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v3.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v3.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
     <div class="page-head"><h1 class="page-title">Cities</h1><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Close">${ICON.close}</button></div>
     ${db.cities.length > 3 || ui.cityQ ? `<label class="search card" style="margin-bottom:12px">${ICON.search}<input type="search" placeholder="Search your cities or a country" data-input="cityQf" value="${esc(ui.cityQ || '')}"></label>` : ''}
+    ${ui.cityQ ? '' : `<div class="settings card" style="margin-bottom:16px"><button class="set-row" data-act="pickworld" style="min-height:72px;${ui.globe ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar globe-av">${ICON.globe}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">Worldwide</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${plural(db.places.filter(p => p.status === 'spot').length, 'spot')} · ${db.places.filter(p => p.status === 'totry').length} to try · ${plural(db.cities.filter(c => db.places.some(p => p.cityId === c.id)).length, 'city', 'cities')}</span></span></span>${ui.globe ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button></div>`}
     <div class="section-label" style="margin-bottom:8px">Your cities</div>
-    <div class="settings card">${cityFilter(db.cities, ui.cityQ).map(c => { const n = db.places.filter(p => p.cityId === c.id); const curr = c.id === db.currentCityId;
-      return `<button class="set-row" data-act="pickcity" data-id="${c.id}" style="min-height:72px;${curr ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;font-size:18px">${esc(c.name[0])}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">${esc(c.name)}</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${esc(c.country || '')} · ${n.filter(p => p.status === 'spot').length} spots · ${n.filter(p => p.status === 'totry').length} to try · ${esc(c.currency)}</span></span></span>${curr ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button>`; }).join('')}
+    <div class="settings card">${cityFilter(db.cities, ui.cityQ).map(c => { const n = db.places.filter(p => p.cityId === c.id); const curr = !ui.globe && c.id === db.currentCityId;
+      return `<button class="set-row" data-act="pickcity" data-id="${c.id}" style="min-height:72px;${curr ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;font-size:18px">${esc(c.name[0])}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">${esc(c.name)}</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${esc(c.country || '')} · ${plural(n.filter(p => p.status === 'spot').length, 'spot')} · ${n.filter(p => p.status === 'totry').length} to try · ${esc(c.currency)}</span></span></span>${curr ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button>`; }).join('')}
       <button class="set-row" data-act="addcity" style="min-height:64px"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;background:transparent;border:1.5px dashed rgba(var(--fg),0.28)">${ICON.plus}</span><span style="font-size:16px;font-weight:800">Add a city or town</span></span></button></div>
     <p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:10px">Each city keeps its own Spots and To try lists. Prices use that city's currency.</p>
   </div>`;
@@ -905,7 +911,7 @@ function spotPage(p, ro) {
       <h1 class="big-name" style="font-size:30px">${esc(p.name)}</h1>
       <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
       ${hoursLine(p)}
-      <div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>
+      <div class="price-line">${priceHtml(p.price, p)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>
       ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:16px"></div>'}
       ${memoriesHtml(p)}
       <div class="section-label" style="margin-bottom:8px">Photos</div>
@@ -1583,7 +1589,7 @@ function whereAmI() {
 }
 function tryHerePrompt() {
   if (!herePrompt) return;
-  if (ui.dialog || ui.install || ui.sheet || ui.page === 'auth' || ui.tour != null) { setTimeout(tryHerePrompt, 1500); return; }
+  if (ui.dialog || ui.install || ui.sheet || ui.page === 'auth' || ui.tour != null || ui.globe) { setTimeout(tryHerePrompt, 1500); return; }
   ui.dialog = { type: 'here', h: herePrompt }; herePrompt = null; render();
 }
 let cityTimer = null, cityToken = null;
@@ -1638,7 +1644,8 @@ uiEl.addEventListener('click', e => {
     case 'cuisines': e.stopPropagation(); ui.cuisineOpen = !ui.cuisineOpen; break;
     case 'cities': ui.page = 'cities'; ui.cityQ = ''; break;
     case 'closepage': ui.adminSheet = null; if (ui.page && ui.page.adminUser) { ui.page = ui.page.place ? { adminUser: ui.page.adminUser, city: ui.page.city } : ui.page.city ? { adminUser: ui.page.adminUser } : 'admin'; break; } ui.page = ui.prevPage || null; ui.prevPage = null; break;
-    case 'pickcity': { db.currentCityId = id; save(); ui.page = null; ui.filter = []; ui.selected = null; ui.tab = 'home'; const cc = cityCentre(); if (cc) { if (haveLocation && dist(cc) < 50000) mapApi.view(me, 15); else mapApi.view(cc, 13); } lastMapKey = ''; break; }
+    case 'pickworld': ui.globe = true; ui.page = null; ui.filter = []; ui.selected = null; ui.sheet = null; ui.tab = 'home'; lastMapKey = ''; render(); setTimeout(() => mapApi.flyOut({ lat: 25, lng: 10 }, 2), 60); return;
+    case 'pickcity': { ui.globe = false; db.currentCityId = id; save(); ui.page = null; ui.filter = []; ui.selected = null; ui.tab = 'home'; const cc = cityCentre(); if (cc) { if (haveLocation && dist(cc) < 50000) mapApi.view(me, 15); else mapApi.view(cc, 13); } lastMapKey = ''; break; }
     case 'addcity': ui.dialog = { type: 'addcity' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="cityQ"]'); if (i) i.focus(); }, 60); return;
     case 'citypick': cityPick(+t.dataset.i); return;
     case 'citymanual': { const v = (uiEl.querySelector('[data-input="cityQ"]') || {}).value || ''; const name = v.trim().slice(0, 40); if (!name) { flash('Type the name first.'); return; } const c = { id: 'c-' + uid(), name, country: '', currency: '€' }; db.cities.push(c); db.currentCityId = c.id; save(); ui.page = null; ui.tab = 'home'; ui.dialog = { type: 'currency', cityId: c.id }; break; }
