@@ -693,9 +693,10 @@ function accountView() {
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
-    ${recapList().length ? `<div class="section-label" style="margin-bottom:8px">Your recaps</div><div class="settings card" style="margin-bottom:18px">${recapList().slice(0, 6).map(p => { const n = recapItems(p).length, live = Date.now() < p.end; return `<button class="set-row" data-act="recapshow" data-y="${p.y}" data-k="${p.k}"><span>${p.year ? '✨ ' + p.y + (live ? ' so far' : '') : esc(p.label.replace(/([A-Z][a-z]{2})[a-z]+/g, '$1')) + (p.y !== new Date().getFullYear() ? ' ' + p.y : '') + (live ? ' so far' : '')}</span><span class="val">${plural(n, 'memory', 'memories')}${ICON.chevRight}</span></button>`; }).join('')}</div>` : ''}
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
+      ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
+      ${row('Memory recaps', recapList().length ? plural(recapList().length, 'recap') : 'None yet', 'recaps')}
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
       ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
       ${row('Directions open in', db.settings.dirApp === 'apple' ? 'Apple Maps' : 'Google Maps', 'dirapp')}
@@ -706,7 +707,6 @@ function accountView() {
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${row('Import from Google Maps', importQ().length ? importQ().length + ' to add' : '', 'openimport')}
-      ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
       ${row('Privacy', '', 'privacy')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
@@ -718,7 +718,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.5.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.6.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1058,6 +1058,13 @@ function dialogView() {
       <input class="input card" placeholder="${mapApi.google ? 'Search, e.g. London or Sitges' : 'Name, e.g. London'}" data-input="cityQ" autocomplete="off" autocapitalize="words">
       <div id="citysug" style="margin-top:8px"></div>
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
+  }
+  if (d.type === 'recaps') {
+    const l = recapList();
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
+      <h3 id="dlg-t">Memory recaps</h3><p>Every two months, on the last day, and for the whole year on 30 December.</p>
+      ${l.length ? `<div class="settings card" style="max-height:50vh;overflow-y:auto">${l.map(p => { const live = Date.now() < p.end; return `<button class="set-row" data-act="recapshow" data-y="${p.y}" data-k="${p.k}"><span>${p.year ? '✨ ' + p.y + (live ? ' so far' : '') : esc(p.label.replace(/([A-Z][a-z]{2})[a-z]+/g, '$1')) + (p.y !== new Date().getFullYear() ? ' ' + p.y : '') + (live ? ' so far' : '')}</span><span class="val">${plural(recapItems(p).length, 'memory', 'memories')}${ICON.chevRight}</span></button>`; }).join('')}</div>` : '<p style="margin:0">Add a memory to a spot and your first recap will show here.</p>'}
+      <button class="big-btn sec-btn" style="width:100%;margin-top:14px" data-act="closedialog">Close</button></div>`;
   }
   if (d.type === 'recap') {
     const items = recapItems(d.per).filter(x => photoUrl(x.m.id)); if (!items.length) return '';
@@ -1797,6 +1804,7 @@ uiEl.addEventListener('click', e => {
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
+    case 'recaps': ui.dialog = { type: 'recaps' }; break;
     case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k; ui.dialog = { type: 'recap', per: k === 'y' ? recapYear(y) : recapPer(y, +k), open: false }; break; }
     case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') ui.dialog.open = true; break;
     case 'memcover': { const q = byId(ui.dialog.id); if (q && coverOf(q) !== ui.dialog.m) { q.thumb = { id: ui.dialog.m, set: Date.now() }; save(); lastMapKey = ''; toast('Thumbnail updated', null); } break; }
