@@ -511,13 +511,13 @@ function accountView() {
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
     <p class="page-sub" style="font-size:11px;margin-top:16px;opacity:.6" id="diag">${diag()}</p>
-    <p class="page-sub" style="font-size:12px;margin-top:8px;line-height:1.5">${auth ? 'Logged in as ' + esc(auth.user.email) + ' · ' + (syncState === 'error' ? 'Couldn’t reach your account just now. Your changes are safe on this phone and will sync when you’re back online.' : 'Your spots are saved to your account.') : 'Your spots are only on this phone until you create an account.'}</p>
+    <p class="page-sub" style="font-size:12px;margin-top:8px;line-height:1.5">${auth ? 'Logged in as ' + esc(auth.user.email) + ' · ' + (/^error/.test(syncState) ? 'Couldn’t reach your account just now. Your changes are safe on this phone and will sync when you’re back online.' : 'Your spots are saved to your account.') : 'Your spots are only on this phone until you create an account.'}</p>
   </div>`;
 }
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v0.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -587,24 +587,25 @@ function adminPage() {
   const head = `<div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">All users</span></div>`;
   if (ui.adminErr) return `<div class="page" style="z-index:15">${head}<div class="card note">${esc(ui.adminErr)}</div></div>`;
   if (!users) return `<div class="page" style="z-index:15">${head}<p class="page-sub">Loading…</p></div>`;
-  const cnt = (d, st) => ((d && d.places) || []).filter(p => p.status === st && !p.sample).length;
+  const cnt = (d, st) => ((d && d.places) || []).filter(p => p.status === st).length;
   return `<div class="page" style="z-index:15">${head}
     <p class="page-sub" style="margin-bottom:14px">${users.length} ${users.length === 1 ? 'account' : 'accounts'} · only you can see this</p>
-    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc((u.data && u.data.user && u.data.user.name) || 'No name')} · joined ${fmtDate(u.created_at)} · ${cnt(u.data, 'spot')} spots · ${cnt(u.data, 'totry')} to try</span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
+    <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc((u.data && u.data.user && u.data.user.name) || 'No name')} · joined ${fmtDate(u.created_at)} · ${u.data ? cnt(u.data, 'spot') + ' spots · ' + cnt(u.data, 'totry') + ' to try · ' + ((u.data.cities || []).length) + ((u.data.cities || []).length === 1 ? ' city' : ' cities') : 'nothing synced yet'}</span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
   </div>`;
 }
 function adminUserPage(id) {
   const u = (ui.adminData || []).find(x => x.user_id === id); if (!u) return '';
-  const d = u.data || {}, places = (d.places || []).filter(p => !p.sample), cities = d.cities || [];
+  const d = u.data || {}, places = d.places || [], cities = (d.cities || []).slice();
+  places.forEach(p => { if (!cities.some(c => c.id === p.cityId)) cities.push({ id: p.cityId, name: 'Other' }); });
   const catName = c => (CATS.find(x => x.id === c) || {}).name || c;
-  const line = p => `<div class="set-row" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${esc(p.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catName(p.cat), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? '€'.repeat(p.price) : ''}</span></div>`;
-  const byCity = cities.map(c => { const ps = places.filter(p => p.cityId === c.id); if (!ps.length) return '';
+  const line = p => `<div class="set-row" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${esc(p.name)}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catName(p.cat), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span></span><span class="val">${p.price ? '€'.repeat(p.price) : ''}</span></div>`;
+  const byCity = cities.map(c => { const ps = places.filter(p => p.cityId === c.id); if (!ps.length) return `<div class="section-label" style="margin:18px 0 8px">${esc(c.name)}</div><div class="card note" style="margin:0">No places in ${esc(c.name)} yet.</div>`;
     const sp = ps.filter(p => p.status === 'spot'), tt = ps.filter(p => p.status === 'totry');
     return `<div class="section-label" style="margin:18px 0 8px">${esc(c.name)}</div>${sp.length ? `<div class="page-sub" style="margin:0 0 6px;font-size:12px">Spots (${sp.length})</div><div class="settings card">${sp.map(line).join('')}</div>` : ''}${tt.length ? `<div class="page-sub" style="margin:12px 0 6px;font-size:12px">To try (${tt.length})</div><div class="settings card">${tt.map(line).join('')}</div>` : ''}`; }).join('');
   return `<div class="page" style="z-index:16">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:18px;font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(u.email || '')}</span></div>
     <p class="page-sub">${esc((d.user && d.user.name) || 'No name')} · joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}</p>
-    ${byCity || '<div class="card note">No places saved yet.</div>'}
+    ${u.data ? (byCity || '<div class="card note">No places saved yet.</div>') : '<div class="card note">Nothing has synced to this account yet. It appears once they open Sitio while logged in and online.</div>'}
   </div>`;
 }
 
@@ -1083,7 +1084,7 @@ function sync() {
       const changed = JSON.stringify(db) !== before;
       const was = syncState; syncState = 'ok';
       if (changed || was !== 'ok') { lastMapKey = ''; render(); }
-    } catch (e) { syncState = 'error'; if (e.status === 401) setAuth(null); if (ui.tab === 'account') render(); }
+    } catch (e) { syncState = 'error: ' + (e.status || '') + ' ' + (e.message || '').slice(0, 60); if (e.status === 401) setAuth(null); if (ui.tab === 'account') render(); }
     finally { syncing = null; if (syncAgain) { syncAgain = false; queuePush(); } }
   })();
   return syncing;
