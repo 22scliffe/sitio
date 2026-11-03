@@ -517,7 +517,7 @@ function tryView() {
   return `<div class="page">
     <div class="page-head" style="align-items:flex-end"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} in ${esc(city().name)}</div></div>
       <button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div>
-    <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats))}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest first' : 'Nearest first'}${ICON.chevDown}</button><button class="round sec-btn" style="width:44px;height:44px;flex:none;margin-left:auto" data-act="trymap" aria-label="Show on map" title="Show on map">${ICON.map}</button></div>
+    <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats))}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest' : 'Nearest'}${ICON.chevDown}</button><button class="pill sec-btn" style="flex:none" data-act="trymap">${ICON.map}Show on map</button></div>
     ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">${tcats.length && cityPlaces().some(p => p.status === 'totry') ? 'Nothing to try in ' + esc(filterLabel(tcats)) + '.' : 'Nothing to try yet.<br>Found somewhere that looks good? Tap Add.'}</div>`}
   </div>${ui.menu === 'try' ? filterMenu() : ''}`;
 }
@@ -528,7 +528,7 @@ function accountView() {
   const row = (label, val, act) => `<button class="set-row" data-act="${act}"><span>${label}</span><span class="val">${val}${ICON.chevRight}</span></button>`;
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page">
-    <div style="display:flex;align-items:center;gap:14px"><button class="avatar" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div>${(() => { const li = levelOf(spotCount()); return li >= 0 ? `<button class="lvl-chip" data-act="levels"><span class="lvl-ico">${LEVELS[li].badge}</span><span class="lvl-txt"><span class="lvl-lv">Level ${li + 1}</span><span class="lvl-nm">${LEVELS[li].name}</span></span>${ICON.chevRight}</button>` : `<button class="lvl-chip start" data-act="levels"><span class="lvl-ico">🌱</span><span class="lvl-txt"><span class="lvl-lv">Level 0</span><span class="lvl-nm">Add a spot to level up</span></span>${ICON.chevRight}</button>`; })()}</div></div>
+    <div style="display:flex;align-items:center;gap:14px"><button class="avatar acct-av" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div>${(() => { const li = levelOf(spotCount()); return li >= 0 ? `<button class="lvl-chip" data-act="levels"><span class="lvl-ico">${LEVELS[li].badge}</span><span class="lvl-txt"><span class="lvl-lv">Level ${li + 1}</span><span class="lvl-nm">${LEVELS[li].name}</span></span>${ICON.chevRight}</button>` : `<button class="lvl-chip start" data-act="levels"><span class="lvl-ico">🌱</span><span class="lvl-txt"><span class="lvl-lv">Level 0</span><span class="lvl-nm">Add a spot to level up</span></span>${ICON.chevRight}</button>`; })()}</div></div>
     ${cloudOn() && !auth ? `<button class="card acct-cta" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
@@ -554,7 +554,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v1.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -639,8 +639,8 @@ function levelsPage() {
       ${next ? `<div class="lvl-bar"><span style="width:${pct}%"></span></div><div class="page-sub" style="font-size:13px">${next.min - n} more ${next.min - n === 1 ? 'spot' : 'spots'} to <b style="color:var(--text)">${next.name}</b> ${next.badge}</div>` : '<div class="page-sub" style="margin-top:12px;font-size:13px">Top level reached. You know every spot worth knowing.</div>'}
     </div>
     <div class="section-label" style="margin:20px 0 8px">All levels</div>
-    <div class="settings card">${LEVELS.map((l, k) => { const done = k <= i; const to = LEVELS[k + 1] ? LEVELS[k + 1].min - 1 : null;
-      return `<div class="set-row" style="min-height:66px;${k === i ? 'background:rgba(var(--fg),0.06)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="lvl-badge ${done ? '' : 'locked'}">${l.badge}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${l.name}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${to ? l.min + '–' + to : l.min + '+'} spots</span></span></span><span class="val">${k === i ? '<span style="color:var(--green);font-weight:800;font-size:12px">You’re here</span>' : done ? ICON.check : ''}</span></div>`; }).join('')}</div>
+    <div class="settings card lvl-list">${LEVELS.map((l, k) => { const done = k <= i; const to = LEVELS[k + 1] ? LEVELS[k + 1].min - 1 : null;
+      return `<div class="set-row" style="min-height:66px;${k === i ? 'background:rgba(var(--fg),0.06)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="lvl-badge ${done ? '' : 'locked'}">${l.badge}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${l.name}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${to ? l.min + '–' + to : l.min + '+'} spots</span></span></span><span class="tl ${k === 0 ? 'first' : ''} ${k === LEVELS.length - 1 ? 'last' : ''} ${k < i ? 'past' : ''} ${k === i ? 'here' : ''} ${k > i ? 'future' : ''} ${k <= i ? 'up-gold' : ''}" aria-label="${k === i ? 'You are here' : done ? 'Reached' : 'Not reached yet'}"><i class="tl-up"></i><i class="tl-dot"></i><i class="tl-down"></i></span></div>`; }).join('')}</div>
     <p class="page-sub" style="font-size:12px;margin-top:10px">Every place in Spots counts, in every city.</p>
   </div>`;
 }
@@ -737,10 +737,10 @@ function addSheet() {
   return `<div class="sheet" role="dialog" aria-label="Add a spot" style="max-height:94%">
     <div class="grab"></div>
     <div class="name-row"><div><div class="muted" style="font-size:13px;font-weight:700">Add a spot</div><div style="font-size:22px;font-weight:800">${esc(a.name || 'New place')}</div></div><button class="round sec-btn" style="width:44px;height:44px" data-act="closesheet" aria-label="Close">${ICON.close}</button></div>
-    <label class="field-label" for="a-name">Place</label>
-    <div style="position:relative"><input id="a-name" class="input card" placeholder="${mapApi.google ? 'Search for a place' : 'Name of the place'}" value="${esc(a.name)}" data-input="addName" autocomplete="off" maxlength="80">
+    <label class="field-label" for="a-name">${a.custom ? 'Spot name' : 'Place'}</label>
+    <div style="position:relative"><input id="a-name" class="input card" placeholder="${a.custom ? 'Give the spot a name' : (mapApi.google ? 'Search for a place' : 'Name of the place')}" value="${esc(a.name)}" data-input="addName" autocomplete="off" maxlength="80">
       <div id="suggest"></div></div>
-    <div class="loc-line">${a.googleId ? `<span class="muted">✓ Location from Google</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button>` : a.custom ? `<span style="color:var(--green)">✓ Pin dropped on the map</span><button class="link-btn" data-act="droppin">${ICON.pin}Move</button>` : `<span class="muted">Not on Google Maps?</span><button class="link-btn" data-act="droppin">${ICON.pin}Drop a pin</button>`}</div>
+    <div class="loc-line">${a.googleId ? `<span class="muted">✓ Location from Google</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button>` : a.custom ? `<span style="color:var(--green)">✓ Pin dropped</span><span style="display:flex;gap:14px"><button class="link-btn" data-act="droppin">${ICON.pin}Move</button><button class="link-btn" style="color:var(--text-2)" data-act="unpin">${ICON.search}Search instead</button></span>` : `<span class="muted">Not on Google Maps?</span><button class="link-btn" data-act="droppin">${ICON.pin}Drop a pin</button>`}</div>
     <label class="field-label">Category</label>
     <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${a.cat === c.id ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${a.cat === c.id}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
     ${cuisineChips}
@@ -1182,7 +1182,8 @@ uiEl.addEventListener('click', e => {
       mapApi.view(start, 17); break;
     }
     case 'pincancel': ui.pinMode = false; break;
-    case 'pinok': { const c = mapApi.getCenter(); Object.assign(ui.add, { lat: c.lat, lng: c.lng, googleId: null, custom: true }); ui.pinMode = false; break; }
+    case 'unpin': Object.assign(ui.add, { custom: false, lat: null, lng: null, name: '' }); break;
+    case 'pinok': { const c = mapApi.getCenter(); const wasGoogle = !!ui.add.googleId; Object.assign(ui.add, { lat: c.lat, lng: c.lng, googleId: null, custom: true }); if (!wasGoogle) ui.add.name = ui.add.name || ''; ui.pinMode = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="addName"]'); if (i && !ui.add.name) i.focus(); }, 60); return; }
     case 'addcat': ui.add.cat = t.dataset.v; break;
     case 'addcuisine': { const l = cuisList(ui.add), v = t.dataset.v; ui.add.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
     case 'addrmphoto': ui.add.photos.splice(+t.dataset.i, 1); break;
@@ -1263,7 +1264,7 @@ uiEl.addEventListener('click', e => {
 uiEl.addEventListener('input', e => {
   const k = e.target.dataset.input; if (!k) return; const v = e.target.value;
   if (k === 'spotsSearch') { ui.spotsSearch = v; render(); }
-  if (k === 'addName') { ui.add.name = v; if (ui.add.googleId) { ui.add.googleId = null; ui.add.lat = null; ui.add.lng = null; } clearTimeout(gTimer); gTimer = setTimeout(() => googleSuggest(v), 250); }
+  if (k === 'addName') { ui.add.name = v; if (ui.add.custom) return; if (ui.add.googleId) { ui.add.googleId = null; ui.add.lat = null; ui.add.lng = null; } clearTimeout(gTimer); gTimer = setTimeout(() => googleSuggest(v), 250); }
   if (k === 'addArea') ui.add.area = v;
   if (k === 'addNote') ui.add.note = v;
   if (k === 'userName') { db.user.name = v; save(); }

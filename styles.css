@@ -368,3 +368,18 @@ body.light .star-btn.on .icon, body.light .pill.fav-on .icon { fill: #E0A21E; }
 .pm-bar { position: absolute; left: 16px; right: 16px; bottom: calc(var(--safe-bottom) + 16px); display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
 .pm-bar .big-btn { height: 54px; }
 .pm-loc { position: absolute; right: 16px; bottom: calc(var(--safe-bottom) + 84px); width: 52px; height: 52px; }
+
+/* Account header: photo as tall as the name + level badge */
+.acct-av { width: 84px !important; height: 84px !important; border-radius: 42px !important; font-size: 34px !important; flex: none; }
+/* Levels: golden timeline on the right */
+.lvl-list .set-row { position: relative; }
+.tl { position: relative; width: 22px; align-self: stretch; margin: -10px 0 -11px; flex: none; display: block; }
+.tl i { position: absolute; left: 50%; transform: translateX(-50%); }
+.tl-up, .tl-down { width: 3px; background: rgba(var(--fg),0.16); }
+.tl-up { top: 0; height: 50%; }
+.tl-down { bottom: 0; height: 50%; }
+.tl.up-gold .tl-up, .tl.past .tl-down { background: linear-gradient(#F5B83D, #FFD166); box-shadow: 0 0 6px rgba(245,184,61,0.5); }
+.tl.first .tl-up, .tl.last .tl-down { display: none; }
+.tl-dot { top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 6px; background: #F5B83D; box-shadow: 0 0 0 3px rgba(245,184,61,0.25); }
+.tl.future .tl-dot { background: var(--bg); border: 2px solid rgba(var(--fg),0.25); box-shadow: none; }
+.tl.here .tl-dot { width: 18px; height: 18px; margin-top: -9px; border-radius: 9px; background: #FFFFFF; border: 3px solid #F5B83D; box-shadow: 0 0 0 4px rgba(245,184,61,0.3), 0 0 14px rgba(255,214,120,0.8); }
