@@ -30,7 +30,7 @@ function loadDb() {
     currentCityId: SAMPLE.cities[0].id,
     places: starters(),
     sample: true,
-    v: 6
+    v: 7
   };
 }
 let snap = null; // id -> place JSON, used to notice edits/deletes for syncing
@@ -69,6 +69,12 @@ if (db.v < 5) {
 if (db.v < 6) {
   if (db.user && db.user.name === 'Sitio') db.user.name = '';
   db.v = 6; save();
+}
+// v7: "Start fresh" removed from settings; bring the starter places back if they were cleared
+if (db.v < 7) {
+  const st = starters().filter(s => !db.places.some(p => p.id === s.id || p.name === s.name));
+  if (st.length) { db.places = db.places.concat(st); if (db.deleted) st.forEach(s => delete db.deleted[s.id]); }
+  db.v = 7; save();
 }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
@@ -330,12 +336,13 @@ const mapApi = (() => {
     window.addEventListener('resize', redraw);
   }
   function redraw() { if (mode === 'mock') drawMock(); positionPins(); }
+  const LIGHT = [{ elementType: 'geometry', stylers: [{ color: '#F2EFE9' }] }, { elementType: 'labels.text.fill', stylers: [{ color: '#5E5E66' }] }, { elementType: 'labels.text.stroke', stylers: [{ color: '#F2EFE9' }] }, { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] }, { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] }, { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#FCE8B2' }] }, { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#AAD3E8' }] }, { featureType: 'poi', stylers: [{ visibility: 'off' }] }, { featureType: 'poi.park', elementType: 'geometry', stylers: [{ visibility: 'on' }, { color: '#D3E8C8' }] }, { featureType: 'transit', stylers: [{ visibility: 'off' }] }, { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }];
   const DARK = [{ elementType: 'geometry', stylers: [{ color: '#141418' }] }, { elementType: 'labels.text.fill', stylers: [{ color: '#8A8A94' }] }, { elementType: 'labels.text.stroke', stylers: [{ color: '#141418' }] }, { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#24242B' }] }, { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#2A2A33' }] }, { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#33333C' }] }, { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#182434' }] }, { featureType: 'poi', stylers: [{ visibility: 'off' }] }, { featureType: 'poi.park', elementType: 'geometry', stylers: [{ visibility: 'on' }, { color: '#1A2620' }] }, { featureType: 'transit', stylers: [{ visibility: 'off' }] }, { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] }];
   function initGoogle() {
     window.__sitioGmapsReady = () => {
       mode = 'google';
       const gEl = document.createElement('div'); gEl.style.cssText = 'position:absolute;inset:0'; el.appendChild(gEl);
-      gmap = new google.maps.Map(gEl, { center: haveLocation ? me : center, zoom: 15, disableDefaultUI: true, keyboardShortcuts: false, clickableIcons: false, gestureHandling: 'greedy', styles: db.settings.darkMap ? DARK : [], backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' });
+      gmap = new google.maps.Map(gEl, { center: haveLocation ? me : center, zoom: 15, disableDefaultUI: true, keyboardShortcuts: false, clickableIcons: false, gestureHandling: 'greedy', styles: db.settings.darkMap ? DARK : LIGHT, backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' });
       overlay = new google.maps.OverlayView();
       overlay.onAdd = function () { this.getPanes().overlayMouseTarget.appendChild(pinsEl); this.getPanes().overlayMouseTarget.appendChild(meEl); pinsEl.style.pointerEvents = 'none'; };
       overlay.draw = positionPins; overlay.onRemove = () => {};
@@ -355,7 +362,7 @@ const mapApi = (() => {
     center(c) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.panTo(center); if (gmap.getZoom() < 14) gmap.setZoom(15); } else redraw(); },
     // Puts a place in the upper part of the screen so it stays visible above a bottom sheet
     focus(c) { const h = el.clientHeight || 844; if (gmap) { gmap.panTo(c); gmap.panBy(0, h * 0.22); } else { center = { lat: c.lat - (h * 0.22) / (110540 * k), lng: c.lng }; redraw(); } },
-    setStyle() { if (gmap) gmap.setOptions({ styles: db.settings.darkMap ? DARK : [], backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' }); },
+    setStyle() { if (gmap) gmap.setOptions({ styles: db.settings.darkMap ? DARK : LIGHT, backgroundColor: db.settings.darkMap ? '#141418' : '#f2efe9' }); },
     get google() { return mode === 'google'; }
   };
   return api;
@@ -497,7 +504,6 @@ function accountView() {
       ${row('Currency', esc(city().currency) + ' (' + esc(city().name) + ')', 'currency')}
       ${row('Back up my spots', 'Save a file', 'backup')}
       <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
-      ${hasSample() ? row('Remove starter spots', 'Start fresh', 'clearsample') : ''}
       ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${auth ? row('Account details', 'Name, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
@@ -511,7 +517,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe}`;
+  return `v0.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1065,6 +1071,7 @@ function mergeData(local, remote) {
 function queuePush() { if (!auth || !cloudOn()) return; clearTimeout(pushTimer); pushTimer = setTimeout(sync, 1500); }
 function sync() {
   if (!auth || !cloudOn()) return Promise.resolve();
+  if (!isAdmin) { adminChecked = false; checkAdmin(); }
   if (syncing) { syncAgain = true; return syncing; }
   syncing = (async () => {
     try {
@@ -1074,7 +1081,7 @@ function sync() {
       if (remote && remote.places) { db = mergeData(db, remote); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
       await sbFetch('/rest/v1/sitio_data?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ user_id: auth.user.id, data: db, updated_at: new Date().toISOString() }) }, true);
       const changed = JSON.stringify(db) !== before;
-      const was = syncState; syncState = 'ok'; checkAdmin();
+      const was = syncState; syncState = 'ok';
       if (changed || was !== 'ok') { lastMapKey = ''; render(); }
     } catch (e) { syncState = 'error'; if (e.status === 401) setAuth(null); if (ui.tab === 'account') render(); }
     finally { syncing = null; if (syncAgain) { syncAgain = false; queuePush(); } }
@@ -1108,10 +1115,10 @@ async function doAuth() {
   } catch (e) { ui.authMsg = { text: friendly(e) }; }
   ui.authBusy = false; render();
 }
-var isAdmin = false, adminChecked = false;
+var isAdmin = false, adminChecked = false, adminErr = '';
 function checkAdmin() {
   if (!auth || adminChecked) return; adminChecked = true;
-  sbFetch('/rest/v1/rpc/sitio_is_admin', { method: 'POST', body: '{}' }, true).then(v => { isAdmin = v === true; if (isAdmin && ui.tab === 'account') render(); }).catch(() => { adminChecked = false; });
+  sbFetch('/rest/v1/rpc/sitio_is_admin', { method: 'POST', body: '{}' }, true).then(v => { isAdmin = v === true; adminErr = isAdmin ? '' : 'not admin'; if (ui.tab === 'account') render(); }).catch(e => { adminErr = (e && (e.status + ' ' + e.message)) || 'error'; if (ui.tab === 'account') render(); });
 }
 async function loadAdmin() {
   try { ui.adminData = await sbFetch('/rest/v1/rpc/sitio_admin_users', { method: 'POST', body: '{}' }, true) || []; }
