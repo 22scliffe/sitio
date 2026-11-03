@@ -510,3 +510,23 @@ body.light .seg button.on { background: #fff; }
 .hw-caps { position: relative; height: 44px; margin-top: 12px; }
 .hw-cap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700; text-align: center; opacity: 0; }
 .hw-n { width: 24px; height: 24px; border-radius: 12px; background: var(--text); color: var(--bg); font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex: none; }
+
+/* Place sheet: memories lead */
+.ms-wrap { margin: 0 0 12px; }
+.ms-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+.ms-last { font-size: 11px; font-weight: 700; color: var(--text-2); }
+.ms-strip { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.ms-strip::-webkit-scrollbar { display: none; }
+.ms-add, .ms-item { flex: none; width: 92px; height: 112px; border-radius: 16px; overflow: hidden; position: relative; }
+.ms-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-align: center; padding: 8px; cursor: pointer; background: linear-gradient(150deg, rgba(255,214,120,0.30), rgba(255,90,78,0.18)); border: 1.5px solid rgba(245,184,61,0.7); box-shadow: 0 0 18px rgba(245,184,61,0.22); }
+.ms-add.first { width: 150px; animation: msGlow 2.8s ease-in-out infinite; }
+@keyframes msGlow { 0%, 100% { box-shadow: 0 0 10px rgba(245,184,61,0.18); } 50% { box-shadow: 0 0 24px rgba(245,184,61,0.45); } }
+.ms-cam { font-size: 26px; line-height: 1; }
+.ms-add b { font-size: 12px; font-weight: 800; color: var(--text); line-height: 1.15; }
+.ms-add span:last-of-type { font-size: 10px; font-weight: 600; color: var(--text-2); line-height: 1.2; }
+.ms-item { border: 0; padding: 0; background: var(--surface); }
+.ms-item img, .ms-item svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ms-art { width: 150px; }
+.ms-hint { position: absolute; inset: auto 0 0 0; padding: 18px 8px 7px; font-size: 10px; font-weight: 700; color: #fff; line-height: 1.25; background: linear-gradient(transparent, rgba(0,0,0,0.75)); }
+.note-short { display: block; width: 100%; text-align: left; font: inherit; font-size: 14px; font-weight: 500; color: var(--text-soft); margin: 10px 0 12px; padding: 10px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.note-short.open { white-space: pre-wrap; }

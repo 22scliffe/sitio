@@ -258,7 +258,7 @@ function matches(p, filter) {
   if (p.status === 'totry') return filter.includes('totry');
   const cats = filter.filter(f => !f.startsWith('cuisine:') && f !== 'totry');
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
-  if (catsOf(p).includes('restaurant') && cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
+  if (cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
   return catsOf(p).some(c => cats.includes(c));
 }
 const myLists = () => db.lists || (db.lists = []);
@@ -274,7 +274,7 @@ function catMatch(p, cats) {
   if (lt.length && !lt.some(t => { const l = listOf(t.slice(5)); return l && l.ids.includes(p.id); })) return false;
   cats = cats.filter(f => f !== 'totry' && !f.startsWith('list:')); if (!cats.length) return true;
   const cuis = cats.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
-  if (catsOf(p).includes('restaurant') && cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
+  if (cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
   return catsOf(p).some(c => cats.includes(c));
 }
 function filterLabel(filter) {
@@ -308,7 +308,7 @@ const art = (p) => {
   return ART[p.cat] || ART.restaurant;
 };
 const priceHtml = (n) => `<span class="price"><span class="on">${cur().repeat(n)}</span><span class="off">${cur().repeat(3 - n)}</span></span>`;
-const metaLine = (p, withDist = true) => [catNames(p), catsOf(p).includes('restaurant') && p.cuisine ? p.cuisine : '', p.area, withDist ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · ');
+const metaLine = (p, withDist = true) => [catNames(p), p.cuisine || '', p.area, withDist ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · ');
 const gLink = (p) => p.googleId ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}&query_place_id=${encodeURIComponent(p.googleId)}` : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
 const aLink = (p) => `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}`;
 const dirButtons = (p) => {
@@ -467,7 +467,7 @@ function homeView() {
 
 function filterMenu() {
   const f = ui.filter; const cuis = f.filter(x => x.startsWith('cuisine:')).map(x => x.slice(8));
-  const used = [...new Set((ui.world ? worldList() : cityPlaces()).filter(p => catsOf(p).includes('restaurant')).flatMap(cuisList))].sort();
+  const used = [...new Set((ui.world ? worldList() : cityPlaces()).flatMap(cuisList))].sort();
   let h = `<div class="menu" role="menu" aria-label="Show on map">`;
   h += `<button class="${!f.length ? 'on' : ''}" data-act="filt" data-f="all">All${!f.length ? ICON.check : ''}</button>`;
   CATS.forEach(c => {
@@ -506,6 +506,16 @@ function worldView() {
 }
 // Memories: photos of you at the place, kept with the date they were taken
 const fmtWhen = t => { const d = new Date(t); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); };
+// Top of a place: your memories first, with a big "add" tile; the place's illustration only until you add one
+function memoryStrip(p) {
+  const ms = (p.memories || []).slice().sort((a, b) => b.at - a.at);
+  const old = (p.photos || []).map(id => ({ id, at: 0 }));
+  const input = `<input type="file" accept="image/*" multiple hidden data-memory="${p.id}">`;
+  const add = `<label class="ms-add ${ms.length ? '' : 'first'}"><span class="ms-cam">📸</span><b>${ms.length ? 'Add another' : (p.status === 'totry' ? 'Went? Add a memory' : 'Add a memory')}</b><span>${ms.length ? 'Photo of you here' : 'A photo of you here, saved with the date'}</span>${input}</label>`;
+  const tiles = ms.concat(old).map(m => { const u = photoUrl(m.id); return `<button class="ms-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">On another phone</span>'}${m.at ? `<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span>` : ''}</button>`; }).join('');
+  const blank = ms.length || old.length ? '' : `<div class="ms-item ms-art">${ART[p.cat] || ART.restaurant}<span class="ms-hint">Your memories here will show who you came with and when</span></div>`;
+  return `<div class="ms-wrap"><div class="ms-head"><span>📸 Memories${ms.length ? ' · ' + ms.length : ''}</span>${ms.length ? `<span class="ms-last">Last: ${esc(new Date(ms[0].at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</div><div class="ms-strip">${add}${tiles}${blank}</div></div>`;
+}
 function memoriesHtml(p) {
   const ms = (p.memories || []).slice().sort((a, b) => b.at - a.at);
   const input = `<input type="file" accept="image/*" multiple hidden data-memory="${p.id}">`;
@@ -558,18 +568,15 @@ function roSheet(p, ro) {
 }
 function spotSheet(p) {
   const isTry = p.status === 'totry';
-  const photos = (p.photos || []).slice(0, 3).map(id => { const u = photoUrl(id); return `<div>${u ? `<img src="${u}" alt="">` : ART[p.cat]}</div>`; });
-  while (photos.length < 3) photos.push(photos.length === 0 ? `<div>${ART[p.cat]}</div>` : `<label class="add-photo">${ICON.camera}Add photo<input type="file" accept="image/*" hidden data-photo="${p.id}"></label>`);
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
-    <div class="sheet-photos">${photos.slice(0, 3).join('')}</div>
+    ${memoryStrip(p)}
     <div class="name-row"><div style="display:flex;align-items:center;gap:10px;min-width:0"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}</div>
       <div class="mini-btns"><button class="round sec-btn mini" data-act="listpick" data-id="${p.id}" aria-label="Add to a list">${ICON.list}</button><button class="round sec-btn mini" data-act="share" data-id="${p.id}" aria-label="Share">${ICON.share}</button>${isTry ? '' : `<button class="round sec-btn mini" data-act="del" data-id="${p.id}" aria-label="Delete" style="color:var(--coral-soft)">${ICON.bin}</button>`}</div></div>
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
-    ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:14px"></div>'}
-    ${memoriesHtml(p)}
+    ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button>` : '<div style="height:12px"></div>'}
     ${dirButtons(p)}
     ${isTry && ui.tab !== 'home' ? `<button class="big-btn sec-btn" style="width:100%;height:44px;margin-top:8px" data-act="trymapone" data-id="${p.id}">${ICON.map}Show on map</button>` : ''}
     ${isTry ? `<div style="display:flex;gap:8px;margin-top:8px"><button class="big-btn sec-btn" style="flex:1;height:46px" data-act="savetry" data-id="${p.id}">${ICON.check}Save to Spots</button><button class="round x-btn" style="width:46px;height:46px;border-radius:16px;color:var(--coral-soft)" data-act="del" data-id="${p.id}" aria-label="Remove">${ICON.close}</button></div>` : ''}
@@ -681,7 +688,7 @@ function accountView() {
 
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
+  return `v2.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -893,7 +900,7 @@ function spotPage(p, ro) {
 
 function addSheet() {
   const a = ui.add;
-  const cuisineChips = catsOf(a).includes('restaurant') ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(a).includes(c) ? 'on' : ''}" data-act="addcuisine" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
+  const cuisineChips = true ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· optional, pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(a).includes(c) ? 'on' : ''}" data-act="addcuisine" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
   const pics = a.photos.map((id, i) => `<div style="height:76px;border-radius:14px;overflow:hidden;position:relative"><img src="${photoUrl(id)}" alt="" style="width:100%;height:100%;object-fit:cover"><button class="round" data-act="addrmphoto" data-i="${i}" aria-label="Remove photo" style="position:absolute;top:4px;right:4px;width:28px;height:28px;background:rgba(0,0,0,.6);border:0">${ICON.close}</button></div>`).join('');
   return `<div class="sheet" role="dialog" aria-label="Add a spot" style="max-height:94%">
     <div class="grab"></div>
@@ -981,7 +988,7 @@ function dialogView() {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
       <h3 id="dlg-t">Categories for ${esc(p.name)}</h3>
       <p style="margin:6px 0 0">Pick one or more.</p><div class="cat-grid" style="margin-top:10px">${CATS.map(c => `<button class="sec-btn ${d.cats.includes(c.id) ? 'on' : ''}" data-act="ecat" data-v="${c.id}" aria-pressed="${d.cats.includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
-      ${d.cats.includes('restaurant') ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(d).includes(c) ? 'on' : ''}" data-act="ecuis" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
+      ${true ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· optional, pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(d).includes(c) ? 'on' : ''}" data-act="ecuis" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
       <div class="btn-grid" style="margin-top:16px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="ecatsave">Save</button></div></div>`;
   }
   if (d.type === 'here') {
@@ -1039,11 +1046,11 @@ function dialogView() {
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dellistok">Delete</button></div></div>`;
   }
   if (d.type === 'memory') {
-    const q = byId(d.id), m = q && (q.memories || []).find(x => x.id === d.m); if (!m) return '';
+    const q = byId(d.id), m = q && ((q.memories || []).find(x => x.id === d.m) || ((q.photos || []).includes(d.m) ? { id: d.m, at: 0 } : null)); if (!m) return '';
     const u = photoUrl(m.id);
     return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.88)"></div><div class="mem-view" role="dialog" aria-label="Memory">
       ${u ? `<img src="${u}" alt="">` : '<div class="mem-gone" style="height:260px">This photo is on another phone</div>'}
-      <div class="mem-meta"><div><b>${esc(q.name)}</b><span>${esc(fmtWhen(m.at))}</span></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
+      <div class="mem-meta"><div><b>${esc(q.name)}</b><span>${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span></div><div style="display:flex;gap:8px"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -1211,7 +1218,7 @@ function newAdd() { return { name: '', area: '', cat: 'restaurant', cats: ['rest
 function placeFromAdd(status, price) {
   const a = ui.add;
   const jitter = () => (Math.random() - 0.5) * 0.0006;
-  return { id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: catsOf(a)[0], cats: catsOf(a), cuisine: catsOf(a).includes('restaurant') ? a.cuisine : '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
+  return { id: uid(), cityId: db.currentCityId, name: a.name.trim(), area: a.area.trim(), cat: catsOf(a)[0], cats: catsOf(a), cuisine: a.cuisine || '', status, price: status === 'spot' ? price : 0, note: a.note.trim(), photos: a.photos.slice(), lat: a.lat != null ? a.lat : me.lat + jitter(), lng: a.lng != null ? a.lng : me.lng + jitter(), googleId: a.googleId, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() };
 }
 function afterSave(p) { checkLevel(); if (!p.hours) fetchOsmHours(p); setTimeout(() => maybeNudge('saved'), 2600); }
 // Ask people without an account to make one, so their list isn't stuck on one phone
@@ -1309,16 +1316,21 @@ function restore(file) {
 async function fetchOsmHours(p) {
   if (!p || p.hoursSrc === 'manual') return;
   try {
-    const q = `[out:json][timeout:15];nwr(around:80,${p.lat},${p.lng})["name"]["opening_hours"];out tags center 20;`;
+    const q = `[out:json][timeout:15];nwr(around:150,${p.lat},${p.lng})["name"]["opening_hours"];out tags center 40;`;
     const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(q) });
     if (!r.ok) return;
     const j = await r.json(); const norm = s => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
-    const n = norm(p.name); const hit = (j.elements || []).find(e => { const m = norm(e.tags.name || ''); return m && (m.includes(n) || n.includes(m)); });
+    const n = norm(p.name); const words = p.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/[^a-z0-9]+/).filter(w => w.length >= 4 && !['restaurante', 'restaurant', 'cafe', 'cafeteria', 'taberna', 'casa', 'madrid'].includes(w));
+    const els = j.elements || [];
+    const hit = els.find(e => { const m = norm(e.tags.name || ''); return m && (m.includes(n) || n.includes(m)); })
+      || els.find(e => { const m = norm((e.tags.name || '') + ' ' + (e.tags.brand || '')); return words.length && words.every(w => m.includes(w)); })
+      || els.find(e => { const m = norm(e.tags.name || ''); return words.some(w => w.length >= 5 && m.includes(w)); });
     const week = hit && parseOH(hit.tags.opening_hours);
-    if (week) { const live = byId(p.id); if (live) { live.hours = week; live.hoursSrc = 'osm'; live.hoursAt = Date.now(); save(); render(); } }
+    const live = byId(p.id); if (!live) return;
+    if (week) { live.hours = week; live.hoursSrc = 'osm'; live.hoursAt = Date.now(); save(); render(); } else { live.hoursTry = Date.now(); save(); }
   } catch (e) { /* offline or blocked: try again later */ }
 }
-function refreshHours() { const due = Date.now() - 14 * 864e5; db.places.filter(p => p.hoursSrc === 'osm' && (p.hoursAt || 0) < due).slice(0, 10).forEach((p, i) => setTimeout(() => fetchOsmHours(p), i * 1500)); }
+function refreshHours() { const due = Date.now() - 14 * 864e5, retry = Date.now() - 3 * 864e5; db.places.filter(p => p.hoursSrc !== 'manual' && ((p.hoursSrc === 'osm' && p.hours && (p.hoursAt || 0) < due) || (!p.hours && (p.hoursTry || 0) < retry))).slice(0, 10).forEach((p, i) => setTimeout(() => fetchOsmHours(p), i * 1500)); }
 
 // Google place search (only when a Google key is set). Only the place ID and coordinates are kept.
 let gToken = null, gTimer = null;
@@ -1494,15 +1506,16 @@ uiEl.addEventListener('click', e => {
     case 'dellistok': { const lid = ui.dialog.listId; db.lists = myLists().filter(l => l.id !== lid); db.deleted = db.deleted || {}; db.deleted[lid] = Date.now(); ui.filter = ui.filter.filter(f => f !== 'list:' + lid); save(); ui.dialog = null; ui.page = null; toast('List deleted', null); break; }
     case 'listmap': ui.filter = ['list:' + id]; ui.page = null; ui.tab = 'home'; ui.selected = null; ui.sheet = null; lastMapKey = ''; break;
     case 'trymapone': ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p) mapApi.focus(p); break;
+    case 'notetoggle': ui.noteOpen = ui.noteOpen === id ? null : id; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
-    case 'memdel': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
+    case 'memdel': { const q = byId(ui.dialog.id); if (q) { q.memories = (q.memories || []).filter(m => m.id !== ui.dialog.m); q.photos = (q.photos || []).filter(x => x !== ui.dialog.m); idb.del(ui.dialog.m).catch(() => {}); save(); lastMapKey = ''; } ui.dialog = null; toast('Memory deleted', null); break; }
     case 'memchipx': try { localStorage.setItem('sitio.memAsk.' + id + '.' + new Date().toDateString(), '1'); } catch (e2) { } break;
     case 'levels': ui.page = 'levels'; break;
     case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
     case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cats: catsOf(p).slice(), cuisine: p.cuisine || '' }; break;
     case 'ecat': { const l = ui.dialog.cats, v = t.dataset.v; ui.dialog.cats = l.includes(v) ? (l.length > 1 ? l.filter(x => x !== v) : l) : l.concat(v); break; }
     case 'ecuis': { const l = cuisList(ui.dialog), v = t.dataset.v; ui.dialog.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
-    case 'ecatsave': { const q = byId(ui.dialog.id); if (q) { q.cats = ui.dialog.cats.slice(); q.cat = q.cats[0]; q.cuisine = q.cats.includes('restaurant') ? ui.dialog.cuisine : ''; save(); lastMapKey = ''; toast('Updated', null); } ui.dialog = null; break; }
+    case 'ecatsave': { const q = byId(ui.dialog.id); if (q) { q.cats = ui.dialog.cats.slice(); q.cat = q.cats[0]; q.cuisine = ui.dialog.cuisine || ''; save(); lastMapKey = ''; toast('Updated', null); } ui.dialog = null; break; }
     case 'hereyes': { const h = ui.dialog.h; let c = h.city || db.cities.find(x => x.name.toLowerCase() === h.name.toLowerCase());
       if (!c) { c = { id: 'c-' + uid(), name: h.name.slice(0, 40), country: h.country, cc: h.cc, currency: currencyFor(h.cc), lat: h.lat, lng: h.lng }; db.cities.push(c); }
       db.currentCityId = c.id; save(); ui.dialog = null; ui.tab = 'home'; ui.filter = []; ui.selected = null; lastMapKey = ''; mapApi.view(me, 15);
