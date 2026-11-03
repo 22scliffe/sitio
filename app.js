@@ -672,7 +672,7 @@ function placeFromAdd(status, price) {
 }
 function afterSave(p) { if (!p.hours) fetchOsmHours(p); }
 
-function openPrice(place, opts = {}) { ui.dialog = Object.assign({ type: 'price', place, value: opts.edit ? place.price : (opts.value || 0) }, opts); render(); }
+function openPrice(place, opts = {}) { ui.dialog = Object.assign({ type: 'price', place, value: opts.value || place.price || 0 }, opts); render(); }
 function confirmPrice() {
   const d = ui.dialog; if (!d.value) return;
   if (d.edit) { d.place.price = d.value; save(); ui.dialog = null; render(); return; }
