@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.1.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.1.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1504,7 +1504,7 @@ async function takeHandoff() {
     const rt = await sbFetch('/rest/v1/rpc/sitio_handoff_take', { method: 'POST', body: JSON.stringify({ c: m[1] }) });
     if (!rt) return;
     const s = await sbFetch('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: JSON.stringify({ refresh_token: rt }) });
-    if (s && s.access_token) { setAuth(s); memberState = null; ui.page = null; render(); checkMember(); toast('Welcome back, you’re logged in', null); }
+    if (s && s.access_token) { setAuth(s); memberState = null; ui.page = null; render(); checkMember(); toast('Welcome back, you’re logged in', null); setTimeout(maybeFirstTour, 1200); }
   } catch (e) { }
 }
 setTimeout(takeHandoff, 0);
@@ -1702,7 +1702,16 @@ const TOUR = [
 ];
 const tourForced = /[?&]tour=1/.test(location.search);
 function startTour() { if (ui.install || ui.tour != null) return; ui.tour = 0; ui.tab = 'home'; ui.sheet = null; ui.selected = null; ui.page = null; ui.menu = null; ui.dialog = null; render(); }
-function endTour() { ui.tour = null; ui.sheet = null; ui.selected = null; db.tourDone = true; save(); render(); }
+function endTour() { ui.tour = null; ui.sheet = null; ui.selected = null; db.tourDone = true; save(); try { localStorage.setItem('sitio.tourSeen', '1'); } catch (e) { } render(); }
+// New members get the tour once on each phone they set up (Safari and the home-screen app are separate),
+// as soon as nothing else is in the way. Accounts older than two weeks never see it automatically.
+function maybeFirstTour(tries = 0) {
+  try { if (localStorage.getItem('sitio.tourSeen')) return; } catch (e) { return; }
+  if (!auth || !auth.user) return;
+  const made = Date.parse(auth.user.created_at || ''); if (!made || Date.now() - made > 14 * 864e5) return;
+  if (gated() || memberState === null || ui.install || ui.dialog || ui.page || ui.sheet || ui.tour != null) { if (tries < 120) setTimeout(() => maybeFirstTour(tries + 1), 700); return; }
+  startTour();
+}
 function tourSetup() {
   const s = TOUR[ui.tour];
   if (s && s.open === 'spot') { const sp = cityPlaces().find(p => p.status === 'spot') || db.places.find(p => p.status === 'spot'); if (sp) { ui.selected = sp.id; ui.sheet = 'spot'; } }
@@ -2272,7 +2281,7 @@ uiEl.addEventListener('click', e => {
     case 'logout': ui.dialog = { type: 'logout' }; break;
     case 'dologout': ui.dialog = null; logout(); return;
     case 'installnow': if (installPrompt) { installPrompt.prompt(); installPrompt.userChoice.then(c => { if (c.outcome === 'accepted') ui.installed = true; installPrompt = null; render(); }); } return;
-    case 'skipinstall': ui.install = false; try { sessionStorage.setItem('sitio.skipInstall', '1'); } catch (e2) { } setTimeout(() => { if (tourForced) startTour(); else maybeNudge('open'); }, 600); break;
+    case 'skipinstall': ui.install = false; try { sessionStorage.setItem('sitio.skipInstall', '1'); } catch (e2) { } setTimeout(() => { if (tourForced) startTour(); else maybeFirstTour(); }, 600); break;
     case 'openinstall': ui.install = true; ui.installed = false; break;
     case 'copylink': navigator.clipboard.writeText(appUrl()).then(() => toast('Link copied', null)).catch(() => flash(appUrl())); return;
     case 'invite': { const text = 'This is Sitio, my map of the best spots. Add it to your home screen:'; (navigator.share ? navigator.share({ title: 'Sitio', text, url: appUrl() }) : Promise.reject()).catch(err => { if (err && err.name === 'AbortError') return; navigator.clipboard.writeText(text + ' ' + appUrl()).then(() => toast('Invite link copied', null)).catch(() => flash(appUrl())); }); return; }
@@ -2449,7 +2458,7 @@ async function doAuth() {
         if (!db.user.name && s.user && s.user.user_metadata && s.user.user_metadata.name) db.user.name = s.user.user_metadata.name;
         setAuth(s); memberState = null; ui.suspended = false; setTimeout(checkMember, 50); prepareHandoff(email, f.pass); try { if (!+localStorage.getItem('sitio.opens')) localStorage.setItem('sitio.opens', '1'); } catch (e2) { } if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
         toast(m === 'signup' ? 'Account created. Your spots are saved.' : 'Logged in', null);
-        if (m === 'signup' && !db.tourDone) setTimeout(startTour, 900);
+        setTimeout(maybeFirstTour, 900);
         sync();
       }
     }
@@ -2718,7 +2727,7 @@ readAuthHash();
 readShared();
 render();
 sync();
-setTimeout(() => { if (tourForced && !ui.install) startTour(); else maybeNudge('open'); }, 1500);
+setTimeout(() => { if (tourForced && !ui.install) startTour(); else maybeFirstTour(); }, 1500);
 var hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { hiddenAt = Date.now(); return; }
