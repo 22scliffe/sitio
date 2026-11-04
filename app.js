@@ -1420,7 +1420,7 @@ function render() {
   }
   if (focus) { const el = uiEl.querySelector(`[data-input="${focus}"]`); if (el) { el.focus(); try { el.setSelectionRange(selStart, selStart); } catch (e) { } } }
 }
-function flash(text) { ui.flash = text; render(); clearTimeout(flash.t); flash.t = setTimeout(() => { ui.flash = null; render(); }, 3500); }
+function flash(text, ms = 3500) { ui.flash = text; render(); clearTimeout(flash.t); flash.t = setTimeout(() => { ui.flash = null; render(); }, ms); }
 function toast(text, undo, ok = true) { ui.toast = { text, undo, ok }; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { ui.toast = null; render(); }, 5000); }
 
 /* ---------- actions ---------- */
@@ -2374,8 +2374,8 @@ function adminPushPreview(tries = 0) {
   if (!isAdmin || !pushOn) return;
   try { localStorage.setItem('sitio.pushPreviewND3', '1'); } catch (e) { }
   sbFetch('/functions/v1/sitio-push', { method: 'POST', body: JSON.stringify({ test: true, preview: { y: 2026, k: 5 }, delay: 20 }) }, true)
-    .then(r => flash(r && r.sent ? 'Preview notification sent to ' + r.sent + ' phone' + (r.sent === 1 ? '' : 's') + '.' : 'Preview didn’t send: ' + JSON.stringify(r)))
-    .catch(e => flash('Preview failed: ' + friendly(e) + (e.status ? ' (' + e.status + ')' : '')));
+    .then(r => flash(r && r.sent ? 'Preview notification sent to ' + r.sent + ' phone' + (r.sent === 1 ? '' : 's') + '.' : 'Preview didn’t send: ' + JSON.stringify(r), 60000))
+    .catch(e => flash('Preview failed: ' + friendly(e) + (e.status ? ' (' + e.status + ')' : ''), 60000));
   toast('Lock your phone: the Nov / Dec notification arrives in about 20 seconds', null);
 }
 setTimeout(adminPushPreview, 1500);
