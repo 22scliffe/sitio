@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.23'; // also in version.txt: bump both
+const APP_VERSION = '0.6.24'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1939,6 +1939,7 @@ const uiEl = document.createElement('div');
 window.SITIO_LANG = db.settings.lang === 'es' ? 'es' : 'en'; document.documentElement.lang = window.SITIO_LANG;
 if (window.MutationObserver && window.SITIO_I18N) new MutationObserver(() => { if (window.SITIO_LANG === 'es') window.SITIO_I18N.apply(uiEl); }).observe(uiEl, { childList: true, subtree: true });
 let lastMapKey = ''; const scrollMem = {};
+const REDUCED_MOTION = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
 function render() {
   window.SITIO_LANG = db.settings.lang === 'es' ? 'es' : 'en';
   document.body.classList.toggle('light', !db.settings.darkMap);
@@ -2016,7 +2017,17 @@ function render() {
   if (ui.tour != null && !ui.install) h += tourView();
   uiEl.querySelectorAll('[data-sk]').forEach(e => { scrollMem[e.dataset.sk] = e.scrollTop; });
   const oldMenu = uiEl.querySelector('.menu'), menuTop = oldMenu ? oldMenu.scrollTop : 0;
+  // Smooth transitions: overlays that stay open don't replay their entrance; ones that close animate out
+  const ANIM = ['.sheet', '.dialog', '.action-sheet', '.menu', '.scrim', '.dialog-scrim', '.toast'];
+  const before = {}; ANIM.forEach(s => { const e = uiEl.querySelector(':scope > ' + s); if (e && !e.classList.contains('leaving')) before[s] = e; });
+  const oldPage = uiEl.querySelector(':scope > [data-sk^="p:"]'), oldPageKey = oldPage ? oldPage.dataset.sk : '';
   uiEl.innerHTML = h;
+  ANIM.forEach(s => { const o = before[s], n = uiEl.querySelector(':scope > ' + s);
+    if (o && n) n.style.animation = 'none';
+    else if (o && !n && !REDUCED_MOTION) { o.classList.add('leaving'); o.style.pointerEvents = 'none'; uiEl.appendChild(o); setTimeout(() => o.remove(), 260); } });
+  const newPage = uiEl.querySelector(':scope > [data-sk^="p:"]'), newPageKey = newPage ? newPage.dataset.sk : '';
+  if (newPage && newPageKey !== 'p:null' && newPageKey !== oldPageKey && !REDUCED_MOTION) newPage.classList.add('page-in');
+  else if (oldPage && oldPageKey !== 'p:null' && (!newPage || newPageKey === 'p:null') && !REDUCED_MOTION) { oldPage.classList.add('page-out'); oldPage.style.pointerEvents = 'none'; uiEl.appendChild(oldPage); setTimeout(() => oldPage.remove(), 240); }
   const newMenu = uiEl.querySelector('.menu'); if (oldMenu && newMenu) { newMenu.style.animation = 'none'; newMenu.scrollTop = menuTop; } // a menu that stays open doesn't flash or jump
   const live = new Set(); uiEl.querySelectorAll('[data-sk]').forEach(e => { live.add(e.dataset.sk); const y = scrollMem[e.dataset.sk]; if (y) e.scrollTop = y; });
   Object.keys(scrollMem).forEach(k => { if (!k.startsWith('t:') && !live.has(k)) delete scrollMem[k]; });

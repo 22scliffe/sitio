@@ -850,3 +850,29 @@ html[lang=es] .page-title { font-size: 27px; letter-spacing: -0.6px; }
 .big-btn.cta-glow::before { content: ""; position: absolute; z-index: -2; left: 50%; top: 50%; width: 300%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(0deg); background: conic-gradient(from 0deg, transparent 0deg 230deg, rgba(255,200,190,0.2) 290deg, rgba(255,255,255,0.85) 340deg, rgba(255,170,160,0.6) 352deg, transparent 360deg); animation: ctaSpin 6s linear infinite; }
 .big-btn.cta-glow::after { content: ""; position: absolute; z-index: -1; inset: 2px; border-radius: inherit; background: var(--coral); }
 @media (prefers-reduced-motion: reduce) { .big-btn.cta-glow::before { animation: none; } }
+
+/* ---- Smoother motion ---- */
+@keyframes sheetIn { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes sheetOut { to { transform: translateY(100%); } }
+@keyframes fadeOut { to { opacity: 0; } }
+@keyframes dlgIn { from { transform: translate(-50%,-50%) scale(.94); opacity: 0; } to { transform: translate(-50%,-50%); opacity: 1; } }
+@keyframes dlgOut { to { transform: translate(-50%,-50%) scale(.96); opacity: 0; } }
+@keyframes menuIn { from { transform: scale(.94) translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes menuOut { to { transform: scale(.96) translateY(-4px); opacity: 0; } }
+@keyframes slideDownOut { to { transform: translateY(30px); opacity: 0; } }
+@keyframes pageIn { from { transform: translateX(28%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes pageOut { to { transform: translateX(28%); opacity: 0; } }
+.sheet { animation: sheetIn .34s cubic-bezier(.2,.85,.25,1); }
+.sheet.leaving { animation: sheetOut .24s cubic-bezier(.4,0,.8,.6) forwards !important; }
+.dialog { animation: dlgIn .24s cubic-bezier(.2,.85,.25,1); }
+.dialog.leaving { animation: dlgOut .18s ease-in forwards !important; }
+.scrim.leaving, .dialog-scrim.leaving { animation: fadeOut .22s ease forwards !important; }
+.menu { transform-origin: top left; animation: menuIn .2s cubic-bezier(.2,.85,.25,1); }
+.menu.leaving { animation: menuOut .16s ease-in forwards !important; }
+.action-sheet.leaving, .toast.leaving { animation: slideDownOut .2s ease-in forwards !important; }
+.page.page-in { animation: pageIn .3s cubic-bezier(.2,.85,.25,1); }
+.page.page-out { animation: pageOut .22s ease-in forwards; z-index: 15; }
+.big-btn, .pill, .round, .chip, .sec-btn, .primary-btn, .coral-btn { transition: transform .14s ease, background-color .18s ease, opacity .18s ease; }
+.big-btn:active, .pill:active, .round:active, .chip:active, .sec-btn:active { transform: scale(.97); }
+.set-row { transition: background-color .15s ease; } .set-row:active { background: rgba(var(--fg),0.06); }
+@media (prefers-reduced-motion: reduce) { .sheet, .dialog, .menu, .page.page-in { animation: none !important; } }
