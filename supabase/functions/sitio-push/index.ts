@@ -56,8 +56,11 @@ Deno.serve(async (req) => {
     const { data: rows } = await db.from("sitio_push").select("endpoint,user_id,sub").eq("user_id", body.friend.to);
     if (!rows || !rows.length) return json({ sent: 0 });
     const { data: d } = await db.from("sitio_data").select("data").eq("user_id", body.friend.to).maybeSingle();
-    if (d?.data?.settings?.nFriends === false) return json({ sent: 0, off: true });
-    const sent = await send(rows as Sub[], { title: "Sitio", body: String(body.friend.body || "").slice(0, 160), url: body.friend.url === "./#totry" ? "./#totry" : "./#friends" });
+    // Group lists are off unless the person turned them on; everything else follows "Spots and friends"
+    const isList = body.friend.kind === "lists";
+    if (isList ? d?.data?.settings?.nLists !== true : d?.data?.settings?.nFriends === false) return json({ sent: 0, off: true });
+    const url = isList ? "./#lists" : body.friend.url === "./#totry" ? "./#totry" : "./#friends";
+    const sent = await send(rows as Sub[], { title: "Sitio", body: String(body.friend.body || "").slice(0, 160), url });
     return json({ sent });
   }
 

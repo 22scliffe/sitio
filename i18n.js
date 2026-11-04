@@ -126,7 +126,7 @@
     'Every two months, and your year in December': 'Cada dos meses, y tu año en diciembre', 'Off unless you turn it on': 'Desactivado salvo que lo actives',
     'When someone adds you, you become friends, or a friend sends you a spot': 'Cuando alguien te añade, os hacéis amigos o un amigo te envía un sitio',
     'How we use notifications': 'Cómo usamos las notificaciones', 'What we keep': 'Qué guardamos', 'Changing your mind': 'Si cambias de opinión', 'Turn on': 'Activar',
-    'We only send the types you switch on above. Events are promotional, so they stay off unless you choose them. We never sell or share your details, and there are no ads from other companies.': 'Solo enviamos los tipos que actives arriba. Los eventos son promocionales, así que están desactivados salvo que los elijas. Nunca vendemos ni compartimos tus datos, y no hay anuncios de otras empresas.',
+    'We only send the types you switch on above. Group lists and events stay off unless you choose them. We never sell or share your details, and there are no ads from other companies.': 'Solo enviamos los tipos que actives arriba. Las listas de grupo y los eventos están desactivados salvo que los elijas. Nunca vendemos ni compartimos tus datos, y no hay anuncios de otras empresas.',
     'When you turn notifications on, your phone gives Sitio a private notification address. We keep it with your account only to send the notifications you chose, and delete it when you turn them off, block them on your phone, or delete your account.': 'Cuando activas las notificaciones, tu móvil da a Sitio una dirección privada de notificaciones. La guardamos con tu cuenta solo para enviarte las que elegiste, y la borramos cuando las desactivas, las bloqueas en tu móvil o eliminas tu cuenta.',
     'Notifications are blocked for Sitio. Turn them on in your phone’s Settings → Notifications → Sitio.': 'Las notificaciones de Sitio están bloqueadas. Actívalas en Ajustes del móvil → Notificaciones → Sitio.',
     'Notifications are blocked. Turn them on for Sitio in your phone’s Settings → Notifications.': 'Las notificaciones están bloqueadas. Actívalas para Sitio en Ajustes del móvil → Notificaciones.',
@@ -196,7 +196,7 @@
     'the photos you add and the date you give them, stored privately in your account and shown to your friends unless you turn off Share memories with friends in Settings.': 'las fotos que añades y la fecha que les pones, guardadas de forma privada en tu cuenta y visibles para tus amigos salvo que desactives Compartir recuerdos con amigos en Ajustes.',
     'who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices) and your memory photos there with their dates. They never see spots in Hidden from friends or notes you mark private, and you can stop sharing memories any time in Settings.': 'con quién eres amigo. Tus amigos pueden ver tus Sitios y Por probar (nombres, lugares, notas, precios) y las fotos de tus recuerdos allí con sus fechas. Nunca ven los sitios en Oculto para amigos ni las notas que marques como privadas, y puedes dejar de compartir recuerdos cuando quieras en Ajustes.',
     'when a friend sends you a spot in Sitio, we briefly keep who sent it, to whom and the place (name, category, area, location, city, never notes or photos) so it can reach your To try. It is deleted 2 days after it arrives on your phone, or after 30 days if it never does. Each person can send a friend up to 3 spots a day.': 'cuando un amigo te envía un sitio en Sitio, guardamos brevemente quién lo envió, a quién y el lugar (nombre, categoría, zona, ubicación, ciudad; nunca notas ni fotos) para que llegue a tu Por probar. Se borra 2 días después de llegar a tu móvil, o a los 30 días si no llega. Cada persona puede enviar a un amigo hasta 3 sitios al día.',
-    'only if you turn them on, a private notification address from your phone and which types you chose (memory recaps; when a friend adds you, you become friends or sends you a spot; events).': 'solo si las activas, una dirección privada de notificaciones de tu móvil y qué tipos elegiste (resúmenes de recuerdos; cuando un amigo te añade, os hacéis amigos o te envía un sitio; eventos).',
+    'only if you turn them on, a private notification address from your phone and which types you chose (memory recaps; when a friend adds you, you become friends or sends you a spot; group lists; events).': 'solo si las activas, una dirección privada de notificaciones de tu móvil y qué tipos elegiste (resúmenes de recuerdos; cuando un amigo te añade, os hacéis amigos o te envía un sitio; listas de grupo; eventos).',
     'used on your phone to show distances, centre the map and suggest your city. It is not stored on our servers. When you search or the app works out your city, your rough location is sent to Google or OpenStreetMap to answer that request.': 'se usa en tu móvil para mostrar distancias, centrar el mapa y sugerir tu ciudad. No se guarda en nuestros servidores. Cuando buscas o la app averigua tu ciudad, tu ubicación aproximada se envía a Google u OpenStreetMap para responder a esa petición.',
     'like any website, our hosts see your IP address and device type when you open Sitio.': 'como cualquier web, nuestros proveedores ven tu dirección IP y tipo de dispositivo cuando abres Sitio.',
     '(keeping your places, memories and lists, syncing your phones, sharing links you create): this is needed to provide the service you signed up for (contract).': '(guardar tus lugares, recuerdos y listas, sincronizar tus móviles, compartir los enlaces que creas): es necesario para darte el servicio en el que te registraste (contrato).',
@@ -295,6 +295,43 @@
     [/^(\d+) places? added to To try(.*)$/, (m, a, b) => a + ' ' + n(a, 'lugar añadido', 'lugares añadidos') + ' a Por probar' + b.replace(' to check in Import', ' por revisar en Importar')],
     [/^(\d+) currencies\. Search to see them all\.$/, (m, a) => a + ' monedas. Busca para verlas todas.']
   ];
+  Object.assign(ES, {
+    'See their spots on the map': 'Ver sus sitios en el mapa', 'Back to your spots': 'Volver a tus sitios',
+    'Shared': 'Compartido', 'Group': 'Grupo', 'Group lists': 'Listas de grupo', 'Group list': 'Lista de grupo',
+    'Only you see this list. The places in it still show on your map for friends, as usual.': 'Solo tú ves esta lista. Sus lugares siguen apareciendo en tu mapa para tus amigos, como siempre.',
+    'Your friends see this list on your profile, with the places they can already see.': 'Tus amigos ven esta lista en tu perfil, con los lugares que ya pueden ver.',
+    'You and up to 9 friends add places together. Everyone sees who added what.': 'Tú y hasta 9 amigos añadís lugares juntos. Todos ven quién añadió cada uno.',
+    'e.g. Weekend plans': 'p. ej. Planes de finde', 'Who’s in it': 'Quién está', 'Saving…': 'Guardando…', 'Add a place': 'Añadir un lugar', 'Add': 'Añadir',
+    'Nothing here yet.': 'Aún no hay nada.', 'Tap Add a place, or open any spot and tap': 'Toca Añadir un lugar, o abre cualquier sitio y toca', 'to add it.': 'para añadirlo.',
+    'Everyone in this list can add places and see who added what. You made this list, so you can rename it, take places out and remove people.': 'Todos en esta lista pueden añadir lugares y ver quién añadió qué. Tú la creaste, así que puedes renombrarla, quitar lugares y quitar personas.',
+    'Everyone in this list can add places and see who added what. You can take out the places you added. Leaving takes them with you.': 'Todos en esta lista pueden añadir lugares y ver quién añadió qué. Puedes quitar los lugares que añadiste. Si te vas, se van contigo.',
+    'Spots in Hidden from friends can’t be added.': 'Los sitios en Oculto para amigos no se pueden añadir.', 'made this list': 'creó esta lista', 'Add friends': 'Añadir amigos',
+    'This list has 10 people, the most a group list can have.': 'Esta lista tiene 10 personas, el máximo para una lista de grupo.', 'Adding…': 'Añadiendo…',
+    'The list goes for everyone in it. Your own Spots and To try aren’t touched.': 'La lista desaparece para todos. Tus Sitios y Por probar no se tocan.',
+    'The places you added leave with you.': 'Los lugares que añadiste se van contigo.', 'The places you added leave with you. Someone else in the list will take it over.': 'Los lugares que añadiste se van contigo. Otra persona de la lista se quedará con ella.',
+    'Leave': 'Salir', 'Leave list': 'Salir de la lista', 'Delete list': 'Eliminar lista', 'People': 'Personas', 'Take out of this list': 'Quitar de esta lista', 'Added by you': 'Añadido por ti',
+    'No one new to add': 'No hay nadie nuevo que añadir', 'no one yet': 'nadie aún', 'Loading your friends…': 'Cargando tus amigos…',
+    'All your friends are already in this list.': 'Todos tus amigos ya están en esta lista.', 'Add friends first, then you can make group lists with them.': 'Añade amigos primero y luego podrás hacer listas de grupo con ellos.',
+    'This spot is hidden from friends. Take it out of Hidden from friends first.': 'Este sitio está oculto para amigos. Sácalo primero de Oculto para amigos.',
+    'Log in to make group lists with friends.': 'Inicia sesión para hacer listas de grupo con amigos.', 'A group list can have up to 10 people.': 'Una lista de grupo puede tener hasta 10 personas.',
+    'Group lists aren’t switched on yet.': 'Las listas de grupo aún no están activadas.',
+    'When a friend adds you to a group list or adds a place to one. Off unless you turn it on': 'Cuando un amigo te añade a una lista de grupo o añade un lugar a una. Desactivado salvo que lo actives',
+    'Shared and group lists:': 'Listas compartidas y de grupo:',
+    'a list you mark Shared is shown to your friends with only the places they can already see. A group list is shared by you and the friends in it: each person in it sees the list, who is in it and, for each place, who added it and a copy of its basics (name, category, area, location, price, city and the note, never private notes, photos or memories). Leaving a group list removes the places you added.': 'una lista que marcas como Compartida se muestra a tus amigos solo con los lugares que ya pueden ver. Una lista de grupo la compartes con los amigos que están en ella: cada persona ve la lista, quién está y, de cada lugar, quién lo añadió y una copia de lo básico (nombre, categoría, zona, ubicación, precio, ciudad y la nota, nunca notas privadas, fotos ni recuerdos). Al salir de una lista de grupo se quitan los lugares que añadiste.'
+  });
+  P.push(
+    [/^(\d+) (?:person|people)$/, (m, a) => a + ' ' + n(a, 'persona', 'personas')],
+    [/^Added by (.+)$/, (m, a) => 'Añadido por ' + (a === 'you' ? 'ti' : a)], [/^With (.+)$/, (m, a) => 'Con ' + (a === 'no one yet' ? 'nadie aún' : a)],
+    [/^People in (.+)$/, (m, a) => 'Personas en ' + a], [/^Add (\d+)$/, (m, a) => 'Añadir ' + a], [/^Add to (.+)$/, (m, a) => 'Añadir a ' + a],
+    [/^Leave “(.+)”\?$/, (m, a) => '¿Salir de «' + a + '»?'], [/^Remove (.+)\?$/, (m, a) => '¿Quitar a ' + a + '?'],
+    [/^The places (.+) added go with them\.$/, (m, a) => 'Los lugares que añadió ' + a + ' se van con esa persona.'],
+    [/^In the group list (.+?)\.( It only becomes one of your Spots once you’ve been and save it yourself\.)?$/, (m, a, b) => 'En la lista de grupo ' + a + '.' + (b ? ' Solo será uno de tus Sitios cuando hayas ido y lo guardes tú.' : '')],
+    [/^(.+) added it, so only they can take it out\.$/, (m, a) => a + ' lo añadió, así que solo esa persona puede quitarlo.'],
+    [/^Added (\d+) (?:person|people)$/, (m, a) => 'Añadid' + (a === '1' ? 'a 1 persona' : 'as ' + a + ' personas')], [/^Removed from (.+)$/, (m, a) => 'Quitado de ' + a],
+    [/^You left (.+)$/, (m, a) => 'Has salido de ' + a], [/^(.+) taken out of (.+)$/, (m, a, b) => a + ' quitado de ' + b], [/^(.+) deleted$/, (m, a) => a + ' eliminada'],
+    [/^(.+)’s lists$/, (m, a) => 'Listas de ' + a],
+    [/^(.+) created$/, (m, a) => a + ' creada'], [/^Delete “(.+)”\?$/, (m, a) => '¿Eliminar «' + a + '»?']
+  );
   let tr;
   tr = function (s) {
     if (!s) return s;

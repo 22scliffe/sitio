@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.25'; // also in version.txt: bump both
+const APP_VERSION = '0.6.26'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -524,14 +524,13 @@ function homeView() {
     <button class="city-title" data-act="cities" aria-label="Change city"><span>${esc(cityLabel())}</span>${ICON.chevDown}</button>
     <div class="filter-wrap"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="home">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="reset" aria-label="Back to My spots">${ICON.close}</button>` : ''}</div>
     <div class="top-right">
-      <button class="round glass fr-toggle ${ui.friendsLayer ? 'on' : ''}" data-act="friendlayer" aria-pressed="${!!ui.friendsLayer}" aria-label="Show friends’ spots">${ICON.friends}${friendsTodo() ? '<span class="seg-dot"></span>' : ''}</button>
       <button class="round glass" data-act="search" aria-label="Search your spots">${ICON.search}</button>
       <button class="round primary-btn" data-act="add" aria-label="Add a spot" style="box-shadow:0 8px 24px rgba(0,0,0,.5)">${ICON.plus}</button>
     </div>
   </div>
   ${hereMemoryChip()}
   <div class="map-bottom">
-    ${ui.friendsLayer && !ui.world ? `<div class="open-chip glass"><span class="dot" style="background:#7FD8C6"></span>Friends’ spots</div>` : onlyTry ? `<div class="open-chip glass"><span class="dot" style="background:var(--coral)"></span>${list.length} to try</div>` : (list.length ? `<div class="open-chip glass"><span class="dot"></span>${ui.filter.includes('everything') ? plural(spots.length, 'spot') + ' · ' + (list.length - spots.length) + ' to try' : plural(spots.length, 'spot')}</div>` : '<span></span>')}
+    ${ui.friendsLayer && !ui.world ? `<button class="open-chip glass fr-exit" data-act="friendlayeroff" aria-label="Back to your spots"><span class="dot" style="background:#7FD8C6"></span>Friends’ spots${ICON.close}</button>` : onlyTry ? `<div class="open-chip glass"><span class="dot" style="background:var(--coral)"></span>${list.length} to try</div>` : (list.length ? `<div class="open-chip glass"><span class="dot"></span>${ui.filter.includes('everything') ? plural(spots.length, 'spot') + ' · ' + (list.length - spots.length) + ' to try' : plural(spots.length, 'spot')}</div>` : '<span></span>')}
     <button class="locate round glass" data-act="locate" aria-label="Centre on my location" style="color:var(--blue)">${ICON.nav}</button>
   </div>
   ${ui.menu === 'home' ? filterMenu() : ''}`;
@@ -694,7 +693,7 @@ function spotsView() {
   }
   return `<div class="page">
     <div class="page-head head2"><div><h1 class="page-title">Spots</h1><div class="page-sub">${cityPlaces().filter(p => p.status === 'spot').length} ${cityPlaces().filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(cityLabel())}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
-    <div class="seg" role="tablist"><button class="${!ui.spotsView || ui.spotsView === 'places' ? 'on' : ''}" data-act="spview" data-v="places" role="tab">Places</button><button class="${ui.spotsView === 'lists' ? 'on' : ''}" data-act="spview" data-v="lists" role="tab">Lists${myLists().length ? ` <span class="seg-n">${myLists().length}</span>` : ''}</button><button class="${ui.spotsView === 'friends' ? 'on' : ''}" data-act="spview" data-v="friends" role="tab">Friends${friendsTodo() && ui.spotsView !== 'friends' ? ' <span class="seg-dot"></span>' : ''}</button></div>
+    <div class="seg" role="tablist"><button class="${!ui.spotsView || ui.spotsView === 'places' ? 'on' : ''}" data-act="spview" data-v="places" role="tab">Places</button><button class="${ui.spotsView === 'lists' ? 'on' : ''}" data-act="spview" data-v="lists" role="tab">Lists${myLists().length + myGroups().length ? ` <span class="seg-n">${myLists().length + myGroups().length}</span>` : ''}</button><button class="${ui.spotsView === 'friends' ? 'on' : ''}" data-act="spview" data-v="friends" role="tab">Friends${friendsTodo() && ui.spotsView !== 'friends' ? ' <span class="seg-dot"></span>' : ''}</button></div>
     ${ui.spotsView === 'friends' ? friendsBody() : ui.spotsView === 'lists' ? listsBody() : `<label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
     <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats, true))}${ICON.chevDown}</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ICON.star}Favourites</button></div>
     ${body}`}
@@ -702,7 +701,8 @@ function spotsView() {
 }
 function listsBody() {
   const ls = myLists();
-  return `<div class="list-grid">${ls.map(l => { const n = l.ids.filter(id => byId(id)).length; return `<button class="list-card card ${isHidden(l) ? 'lc-hidden' : ''}" data-act="openlist" data-id="${l.id}"><span class="lc-emoji">${isHidden(l) ? `<span class="lc-lock">${ICON.lock}</span>` : l.emoji}</span><span class="lc-name">${esc(l.name)}</span><span class="lc-n">${n} ${n === 1 ? 'place' : 'places'}</span></button>`; }).join('')}
+  return `<div class="list-grid">${ls.map(l => { const n = l.ids.filter(id => byId(id)).length; return `<button class="list-card card ${isHidden(l) ? 'lc-hidden' : ''}" data-act="openlist" data-id="${l.id}"><span class="lc-emoji">${isHidden(l) ? `<span class="lc-lock">${ICON.lock}</span>` : l.emoji}</span><span class="lc-name">${esc(l.name)}</span><span class="lc-n">${n} ${n === 1 ? 'place' : 'places'}${l.share ? ' · Shared' : ''}</span></button>`; }).join('')}
+    ${myGroups().map(g => `<button class="list-card card lc-group" data-act="opengroup" data-id="${esc(g.id)}"><span class="lc-emoji">${esc(g.emoji)}</span><span class="lc-name">${esc(g.name)}</span><span class="lc-n">${plural((g.items || []).length, 'place')} · ${plural((g.members || []).length, 'person', 'people')}</span><span class="g-stack sm">${(g.members || []).slice(0, 4).map(m => gAv(m, 20)).join('')}</span></button>`).join('')}
     <button class="list-card new" data-act="newlist"><span class="lc-emoji">${ICON.plus}</span><span class="lc-name">New list</span><span class="lc-n">Date spots, rainy days…</span></button></div>
     ${ls.length > 1 ? '' : '<p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:12px">Group places your way. Add any spot or To try place to a list from its page with the ' + ICON.list + ' button.</p>'}`;
 }
@@ -722,6 +722,73 @@ function listPage(l) {
     ${byCity.length ? byCity.map(g => `<div class="section-label" style="margin:12px 0 8px">${esc(g.c.name)} · ${g.ps.length}</div><div class="list card">${g.ps.map(rowSpot).join('')}</div>`).join('') : `<div class="empty card" style="border-radius:20px">${isHidden(l) ? 'Nothing hidden yet.<br>Open a spot, tap ••• → Add to a list, and choose Hidden from friends.' : 'This list is empty.<br>Open any place and tap ' + ICON.list + ' to add it here.'}</div>`}
   </div>`;
 }
+// Group lists live on the server: you and up to 9 friends add places together, and each place says who added it
+const meId = () => auth && auth.user && auth.user.id;
+const gKey = () => 'sitio.groups.' + (meId() || '');
+function myGroups() { if (!auth) return []; if (!ui.groups) { try { ui.groups = JSON.parse(localStorage.getItem(gKey())) || null; } catch (e) { } } return ui.groups || []; }
+const groupOf = id => myGroups().find(g => g.id === id);
+let groupsBusy = null;
+function loadGroups() {
+  if (!auth || !cloudOn()) return Promise.resolve();
+  if (groupsBusy) return groupsBusy;
+  groupsBusy = sbFetch('/rest/v1/rpc/sitio_my_groups', { method: 'POST', body: '{}' }, true).then(r => {
+    ui.groups = Array.isArray(r) ? r : []; ui.groupsOff = false; try { localStorage.setItem(gKey(), JSON.stringify(ui.groups)); } catch (e) { }
+    if (ui.page && ui.page.group && !groupOf(ui.page.group)) ui.page = null;
+    if (!ui.dialog || ui.dialog.type === 'listpick') render();
+  }).catch(e => { if (!ui.groups) ui.groups = []; ui.groupsOff = e.status === 404; }).finally(() => { groupsBusy = null; });
+  return groupsBusy;
+}
+function groupCall(fn, args) { return sbFetch('/rest/v1/rpc/' + fn, { method: 'POST', body: JSON.stringify(args) }, true); }
+// What a group list keeps of a place: the basics, never private notes, photos or memories
+function groupSnap(p) {
+  const c = db.cities.find(x => x.id === p.cityId) || {};
+  return { name: p.name, cat: p.cat, cats: catsOf(p), cuisine: p.cuisine || '', area: p.area || '', lat: p.lat, lng: p.lng, googleId: p.googleId || null,
+    price: p.status === 'spot' ? p.price || null : null, cityName: c.name || '', currency: c.currency || '', note: p.notePrivate ? '' : (p.note || ''), srcId: p.id };
+}
+const gMatch = (it, p) => it.p.srcId === p.id || (p.googleId && it.p.googleId === p.googleId) || (it.p.name === p.name && Math.abs((it.p.lat || 0) - (p.lat || 0)) < 0.0005);
+const isHiddenPlace = p => ((listOf(HIDDEN) || { ids: [] }).ids || []).includes(p.id);
+const gAv = (m, sz = 26) => `<span class="avatar g-av" style="width:${sz}px;height:${sz}px;font-size:${Math.round(sz * .45)}px">${m && m.avatar ? `<img src="${esc(m.avatar)}" alt="">` : esc((fname(m && m.name)[0] || '?').toUpperCase())}</span>`;
+const gWho = (g, id) => id === meId() ? 'you' : fname(((g.members || []).find(m => m.id === id) || {}).name);
+function groupToggle(g, p) {
+  const it = (g.items || []).find(x => gMatch(x, p));
+  if (it) {
+    if (it.by !== meId() && g.owner !== meId()) { flash(fname(it.byName) + ' added it, so only they can take it out.'); return; }
+    g.items = g.items.filter(x => x !== it); render();
+    groupCall('sitio_group_remove_item', { item: it.id }).then(loadGroups).catch(e => { flash(friendly(e)); loadGroups(); });
+    return;
+  }
+  if (isHiddenPlace(p)) { flash('This spot is hidden from friends. Take it out of Hidden from friends first.'); return; }
+  g.items = [{ id: 'tmp', by: meId(), byName: db.user.name, at: Date.now(), p: groupSnap(p) }].concat(g.items || []); render();
+  groupCall('sitio_group_add', { g: g.id, p: groupSnap(p) }).then(loadGroups).catch(e => { flash(friendly(e)); loadGroups(); });
+}
+function groupPage(g) {
+  const mine = g.owner === meId(), its = g.items || [];
+  const by = {}; its.forEach(it => { const k = it.p.cityName || 'Other'; (by[k] = by[k] || []).push(it); });
+  const row = it => `<button class="set-row fr-spot" data-act="groupspot" data-id="${esc(g.id)}" data-item="${esc(it.id)}"><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>${esc(it.p.name)}</b><span>${esc([catNames(it.p), it.p.area].filter(Boolean).join(' · '))}</span><span class="g-by">${gAv((g.members || []).find(m => m.id === it.by) || { name: it.byName }, 18)}Added by ${esc(gWho(g, it.by))}</span></span>${ICON.chevRight}</button>`;
+  const ms = g.members || [];
+  return `<div class="page" style="z-index:15">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:24px;margin-left:4px">${esc(g.emoji)}</span><span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:6px">${esc(g.name)}</span></div>
+    <button class="g-members card" data-act="groupinvite" data-id="${esc(g.id)}"><span class="g-stack">${ms.slice(0, 5).map(m => gAv(m, 30)).join('')}</span><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>Group list · ${plural(ms.length, 'person', 'people')}</b><span>${esc(ms.slice().sort((x, y) => (y.id === meId()) - (x.id === meId())).map(m => m.id === meId() ? 'You' : fname(m.name)).join(', '))}</span></span>${ms.length < 10 ? `<span class="pill sec-btn g-addp">${ICON.plus}Add</span>` : ''}</button>
+    <div class="row-btns" style="flex-wrap:nowrap;align-items:center"><button class="pill primary-btn" style="font-weight:800" data-act="groupadd" data-id="${esc(g.id)}">${ICON.plus}Add a place</button><button class="act-more" style="margin-left:auto" data-act="more" data-group="${esc(g.id)}" aria-label="More">${ICON.dots}</button></div>
+    ${its.length ? Object.keys(by).map(k => `<div class="section-label" style="margin:12px 0 8px">${esc(k)} · ${by[k].length}</div><div class="settings card">${by[k].map(row).join('')}</div>`).join('')
+      : `<div class="empty card" style="border-radius:20px">Nothing here yet.<br>Tap Add a place, or open any spot and tap ${ICON.list} to add it.</div>`}
+    <p class="page-sub" style="font-size:12px;line-height:1.45;margin-top:14px">Everyone in this list can add places and see who added what. ${mine ? 'You made this list, so you can rename it, take places out and remove people.' : 'You can take out the places you added. Leaving takes them with you.'}</p>
+  </div>`;
+}
+function groupAddRows(g, q) {
+  const all = db.places.filter(p => !isHiddenPlace(p) && (!q || (p.name + ' ' + (p.area || '') + ' ' + (db.cities.find(c => c.id === p.cityId) || {}).name).toLowerCase().includes(q)));
+  const sec = (title, ps) => ps.length ? `<div class="section-label" style="margin:8px 0 6px">${title} · ${ps.length}</div><div class="settings card">${ps.map(p => { const on = (g.items || []).some(x => gMatch(x, p)), c = db.cities.find(x => x.id === p.cityId); return `<button class="set-row" data-act="groupaddtoggle" data-id="${p.id}" style="min-height:54px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0"><span style="font-weight:800">${esc(p.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catNames(p), c && c.name].filter(Boolean).join(' · '))}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '';
+  const html = sec('Spots', all.filter(p => p.status === 'spot')) + sec('To try', all.filter(p => p.status === 'totry'));
+  return `<div style="max-height:52vh;overflow-y:auto">${html || '<p style="margin:8px 0">No places match.</p>'}</div>`;
+}
+// Friends you can pick for a group list
+function friendPicks(sel, skip) {
+  const F = ui.friends; if (!F) return '<p class="page-sub" style="font-size:13px">Loading your friends…</p>';
+  const mates = (F.friends || []).filter(f => f.status === 'accepted' && !(skip || []).includes(f.id));
+  if (!mates.length) return `<p class="page-sub" style="font-size:13px;line-height:1.45">${(skip || []).length ? 'All your friends are already in this list.' : 'Add friends first, then you can make group lists with them.'}</p>`;
+  return `<div class="settings card" style="max-height:34vh;overflow-y:auto">${mates.map(f => { const on = sel.includes(f.id); return `<button class="set-row" data-act="gmember" data-id="${esc(f.id)}" style="min-height:52px"><span class="fr-who">${gAv(f, 32)}<span><b>${esc(fname(f.name))}</b></span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>`;
+}
+function openListsTab() { ui.tab = 'spots'; ui.spotsView = 'lists'; ui.page = null; ui.sheet = null; ui.dialog = null; render(); loadGroups(); }
 function rowSpot(p) {
   const s = status(p);
   return `<div class="swipe" data-swipe="${p.id}"><div class="acts"><div class="save"></div><div class="del">Delete${ICON.bin}</div></div>
@@ -1068,9 +1135,10 @@ function notifsPage() {
     <div class="settings card">
       ${sw('Memory recaps', 'Every two months, and your year in December', 'nRecaps', !pushOn)}
       ${sw('Spots and friends', 'When someone adds you, you become friends, or a friend sends you a spot', 'nFriends', !pushOn)}
+      ${sw('Group lists', 'When a friend adds you to a group list or adds a place to one. Off unless you turn it on', 'nLists', !pushOn)}
       ${sw('Events in my city', 'Off unless you turn it on', 'nEvents', !pushOn)}
     </div>
-    ${s('How we use notifications', 'We only send the types you switch on above. Events are promotional, so they stay off unless you choose them. We never sell or share your details, and there are no ads from other companies.')}
+    ${s('How we use notifications', 'We only send the types you switch on above. Group lists and events stay off unless you choose them. We never sell or share your details, and there are no ads from other companies.')}
     ${s('What we keep', 'When you turn notifications on, your phone gives Sitio a private notification address. We keep it with your account only to send the notifications you chose, and delete it when you turn them off, block them on your phone, or delete your account.')}
     ${s('Changing your mind', 'Switch any type off here, or turn notifications off completely here or in your phone’s Settings. It takes effect straight away. Questions: ' + CONTACT + '.')}
   </div>`;
@@ -1096,8 +1164,9 @@ function privacyPage() {
       '<b>Your places and lists:</b> the places you save (names, locations, notes, prices, categories, cities), your lists and your settings.',
       '<b>Memories:</b> the photos you add and the date you give them, stored privately in your account and shown to your friends unless you turn off Share memories with friends in Settings.',
       '<b>Friends:</b> who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices) and your memory photos there with their dates. They never see spots in Hidden from friends or notes you mark private, and you can stop sharing memories any time in Settings.',
+      '<b>Shared and group lists:</b> a list you mark Shared is shown to your friends with only the places they can already see. A group list is shared by you and the friends in it: each person in it sees the list, who is in it and, for each place, who added it and a copy of its basics (name, category, area, location, price, city and the note, never private notes, photos or memories). Leaving a group list removes the places you added.',
       '<b>Spots friends send you:</b> when a friend sends you a spot in Sitio, we briefly keep who sent it, to whom and the place (name, category, area, location, city, never notes or photos) so it can reach your To try. It is deleted 2 days after it arrives on your phone, or after 30 days if it never does. Each person can send a friend up to 3 spots a day.',
-      '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose (memory recaps; when a friend adds you, you become friends or sends you a spot; events).',
+      '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose (memory recaps; when a friend adds you, you become friends or sends you a spot; group lists; events).',
       '<b>Your location:</b> used on your phone to show distances, centre the map and suggest your city. It is not stored on our servers. When you search or the app works out your city, your rough location is sent to Google or OpenStreetMap to answer that request.',
       '<b>Technical data:</b> like any website, our hosts see your IP address and device type when you open Sitio.'
     ]],
@@ -1272,7 +1341,10 @@ function dialogView() {
   if (d.type === 'more') {
     const it = (act, id, icon, label, cls = '') => `<button class="pm-item ${cls}" data-act="${act}" data-id="${id}"><span>${label}</span>${icon}</button>`;
     let items;
-    if (d.list) {
+    if (d.group) {
+      const g = groupOf(d.group); if (!g) return ''; const mine = g.owner === meId();
+      items = (mine ? it('editgroup', g.id, ICON.pen, 'Edit list') : '') + it('groupinvite', g.id, ICON.friends, 'People') + '<div class="pm-sep"></div>' + it('groupleave', g.id, ICON.close, 'Leave list', 'pm-danger') + (mine ? it('groupdel', g.id, ICON.bin, 'Delete list', 'pm-danger') : '');
+    } else if (d.list) {
       const l = listOf(d.list); if (!l) return '';
       items = it('editlist', l.id, ICON.pen, 'Edit list') + it('sharelist', l.id, ICON.share, 'Share list');
     } else {
@@ -1444,6 +1516,7 @@ function dialogView() {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
       <h3 id="dlg-t">Add ${esc(p.name)} to…</h3>
       ${myLists().length ? `<div class="settings card" style="max-height:46vh;overflow-y:auto">${myLists().filter(l => !isHidden(l)).concat(myLists().filter(isHidden)).map(l => { const on = l.ids.includes(p.id); return `<button class="set-row" data-act="listtoggle" data-id="${l.id}" style="min-height:54px"><span style="display:flex;align-items:center;gap:10px">${isHidden(l) ? `<span class="lc-lock sm">${ICON.lock}</span>` : `<span style="font-size:20px">${l.emoji}</span>`}<span style="display:flex;flex-direction:column;gap:1px;text-align:left"><span style="font-weight:800">${esc(l.name)}</span>${isHidden(l) ? '<span style="font-size:12px;font-weight:600;color:var(--text-2)">Stays on your map. Friends won’t see it.</span>' : ''}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '<p>You don’t have any lists yet.</p>'}
+      ${myGroups().length ? `<div class="section-label" style="margin:12px 0 6px">Group lists</div><div class="settings card" style="max-height:30vh;overflow-y:auto">${myGroups().map(g => { const on = (g.items || []).some(x => gMatch(x, p)); return `<button class="set-row" data-act="grouptoggle" data-id="${esc(g.id)}" style="min-height:54px"><span style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">${esc(g.emoji)}</span><span style="display:flex;flex-direction:column;gap:1px;text-align:left"><span style="font-weight:800">${esc(g.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">With ${esc((g.members || []).filter(m => m.id !== meId()).map(m => fname(m.name)).join(', ') || 'no one yet')}</span></span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : ''}
       <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="newlist" data-id="${p.id}">${ICON.plus}New list</button><button class="big-btn primary-btn" data-act="closedialog">Done</button></div></div>`;
   }
   if (d.type === 'listadd') {
@@ -1456,12 +1529,46 @@ function dialogView() {
       <button class="big-btn primary-btn" style="width:100%;margin-top:12px" data-act="closedialog">Done</button></div>`;
   }
   if (d.type === 'listedit') {
-    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
-      <h3 id="dlg-t">${d.listId ? 'Edit list' : 'New list'}</h3>
-      <input class="input card" data-input="listName" maxlength="40" placeholder="e.g. Date spots" value="${esc(d.name || '')}">
+    const kinds = [['private', 'Private', 'Only you see this list. The places in it still show on your map for friends, as usual.'], ['shared', 'Shared', 'Your friends see this list on your profile, with the places they can already see.'], ['group', 'Group', 'You and up to 9 friends add places together. Everyone sees who added what.']];
+    const kind = d.kind || 'private', editing = d.listId || d.groupId, opts = d.listId ? kinds.slice(0, 2) : kinds;
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left${kind === 'group' && !editing ? ';top:calc(var(--safe-top) + 20px);transform:translateX(-50%)' : ''}">
+      <h3 id="dlg-t">${editing ? 'Edit list' : 'New list'}</h3>
+      ${d.groupId ? '' : `<div class="seg lk-seg" role="tablist">${opts.map(k => `<button class="${kind === k[0] ? 'on' : ''}" data-act="listkind" data-v="${k[0]}" role="tab">${k[1]}</button>`).join('')}</div>
+      <p class="page-sub lk-sub">${(kinds.find(k => k[0] === kind) || kinds[0])[2]}</p>`}
+      <input class="input card" data-input="listName" maxlength="40" placeholder="${kind === 'group' ? 'e.g. Weekend plans' : 'e.g. Date spots'}" value="${esc(d.name || '')}">
       <div class="emoji-grid">${LIST_EMOJI.map(e => `<button class="${d.emoji === e ? 'on' : ''}" data-act="listemoji" data-v="${e}">${e}</button>`).join('')}</div>
-      <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="listsave">${d.listId ? 'Save' : 'Create'}</button></div>
+      ${kind === 'group' && !editing ? `<div class="section-label" style="margin:12px 0 6px">Who’s in it${(d.members || []).length ? ' · ' + (d.members.length + 1) : ''}</div>${friendPicks(d.members || [])}` : ''}
+      <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="listsave" ${d.busy ? 'disabled' : ''}>${d.busy ? 'Saving…' : editing ? 'Save' : 'Create'}</button></div>
       ${d.listId ? `<button class="link-btn" style="margin:14px auto 0;color:var(--coral-soft)" data-act="dellist" data-id="${d.listId}">${ICON.bin}Delete this list</button>` : ''}</div>`;
+  }
+  if (d.type === 'groupadd') {
+    const g = groupOf(d.groupId); if (!g) return '';
+    const q = (d.q || '').trim().toLowerCase();
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left;top:calc(var(--safe-top) + 20px);transform:translateX(-50%)">
+      <h3 id="dlg-t">Add to ${esc(g.emoji)} ${esc(g.name)}</h3>
+      <label class="search card" style="margin:10px 0">${ICON.search}<input type="search" placeholder="Search your places" data-input="groupAddQ" value="${esc(d.q || '')}"></label>
+      <div id="groupaddres">${groupAddRows(g, q)}</div>
+      <p class="page-sub" style="font-size:12px;margin:8px 0 0">Spots in Hidden from friends can’t be added.</p>
+      <button class="big-btn primary-btn" style="width:100%;margin-top:12px" data-act="closedialog">Done</button></div>`;
+  }
+  if (d.type === 'groupinvite') {
+    const g = groupOf(d.groupId); if (!g) return '';
+    const mine = g.owner === meId(), others = (g.members || []).filter(m => m.id !== meId());
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left;top:calc(var(--safe-top) + 20px);transform:translateX(-50%)">
+      <h3 id="dlg-t">People in ${esc(g.emoji)} ${esc(g.name)}</h3>
+      <div class="settings card" style="max-height:28vh;overflow-y:auto"><div class="set-row" style="min-height:52px"><span class="fr-who">${gAv((g.members || []).find(m => m.id === meId()) || { name: db.user.name }, 32)}<span><b>You</b><span>${mine ? 'made this list' : ''}</span></span></span></div>${others.map(m => `<div class="set-row" style="min-height:52px"><span class="fr-who">${gAv(m, 32)}<span><b>${esc(fname(m.name))}</b><span>${m.id === g.owner ? 'made this list' : ''}</span></span></span>${mine ? `<button class="link-btn" style="font-size:13px;color:var(--coral-soft)" data-act="gkick" data-id="${esc(m.id)}">Remove</button>` : ''}</div>`).join('')}</div>
+      ${(g.members || []).length < 10 ? `<div class="section-label" style="margin:14px 0 6px">Add friends</div>${friendPicks(d.members || [], (g.members || []).map(m => m.id))}` : '<p class="page-sub" style="font-size:13px">This list has 10 people, the most a group list can have.</p>'}
+      <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="closedialog">${(d.members || []).length ? 'Cancel' : 'Done'}</button><button class="big-btn primary-btn" data-act="ginvitego" ${(d.members || []).length && !d.busy ? '' : 'disabled'}>${d.busy ? 'Adding…' : 'Add' + ((d.members || []).length ? ' ' + d.members.length : '')}</button></div></div>`;
+  }
+  if (d.type === 'groupleave' || d.type === 'groupdel' || d.type === 'gkick') {
+    const g = groupOf(d.groupId); if (!g) return '';
+    const who = d.type === 'gkick' ? fname(((g.members || []).find(m => m.id === d.who) || {}).name) : '';
+    const t = d.type === 'groupdel' ? ['Delete “' + g.name + '”?', 'The list goes for everyone in it. Your own Spots and To try aren’t touched.', 'Delete']
+      : d.type === 'gkick' ? ['Remove ' + who + '?', 'The places ' + who + ' added go with them.', 'Remove']
+      : ['Leave “' + g.name + '”?', 'The places you added leave with you.' + (g.owner === meId() && (g.members || []).length > 1 ? ' Someone else in the list will take it over.' : ''), 'Leave'];
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
+      <h3 id="dlg-t">${esc(t[0])}</h3><p>${esc(t[1])}</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="${d.type}ok">${t[2]}</button></div></div>`;
   }
   if (d.type === 'dellist') {
     const l = listOf(d.listId); if (!l) return '';
@@ -1748,6 +1855,7 @@ function friendsBody() {
   const av = f => `<span class="avatar fr-av">${f.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc((fname(f.name)[0] || '?').toUpperCase())}</span>`;
   const need = Math.max(0, 5 - spotCount());
   return `<div class="fr-head card"><div><b>${(F.cap || 25) >= 1000 ? plural(F.count, 'friend') + ' · no limit' : F.count + ' of ' + (F.cap || 25) + ' friends'}</b><span>You’re friends once you’ve both added each other. Friends see your Spots, what you want to try and your memories there, never your hidden spots or private notes.</span></div><button class="pill primary-btn" style="height:38px;font-weight:800;flex:none" data-act="addfriend">${ICON.plus}Add</button></div>
+    ${mates.length ? `<button class="big-btn sec-btn fr-mapbtn" data-act="friendsmap">${ICON.map}See their spots on the map</button>` : ''}
     ${!F.unlocked ? `<div class="card note fr-lock">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
     ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Added you · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>added you</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="fryes" data-id="${esc(f.id)}">${ICON.plus}Add back</button></div>`).join('')}</div>` : ''}
     <div class="section-label" style="margin:14px 0 8px">Friends${mates.length ? ' · ' + mates.length : ''}</div>
@@ -1773,6 +1881,7 @@ function friendPage(id) {
   return `<div class="page" style="z-index:15">${head}
     <p class="page-sub" style="margin:-4px 0 6px">${plural(spots.length, 'spot')}${tries.length ? ' · wants to try ' + tries.length : ''}${spots.some(p => p.lastMem) ? ' · latest memories first' : ''}</p>
     ${spots.length ? group(spots) : `<div class="empty card" style="border-radius:20px">${esc(who)} hasn’t saved any spots yet.</div>`}
+    ${(M.lists || []).length ? `<div class="section-label" style="margin:16px 0 8px">${esc(who)}’s lists · ${M.lists.length}</div>${M.lists.map(l => { const ps = (l.ids || []).map(i => M.places.find(p => p.id === i)).filter(Boolean); return ps.length ? `<details class="fr-tries fr-list"><summary><span style="font-size:18px">${esc(l.emoji || '📍')}</span> ${esc(l.name)} · ${ps.length}</summary><div class="settings card">${ps.map(row).join('')}</div></details>` : ''; }).join('')}` : ''}
     ${tries.length ? `<details class="fr-tries"><summary>${esc(who)} wants to try · ${tries.length}</summary>${group(tries)}</details>` : ''}
     <button class="link-btn" style="margin:22px auto 0;color:var(--coral-soft)" data-act="unfriendask" data-id="${esc(id)}">Remove ${esc(who)} as a friend</button></div>`;
 }
@@ -1780,7 +1889,7 @@ function friendSheet(f) {
   const p = f.p, who = fname(f.ownerName), cur = (f.city && f.city.currency) || '€', isTry = p.status === 'totry';
   const mine = db.places.find(x => (p.googleId && x.googleId === p.googleId) || (x.name === p.name && Math.abs((x.lat || 0) - p.lat) < 0.0005));
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="closesheet"><div class="grab"></div>
-    <div class="fr-cover">${ART[p.cat] || ART.restaurant}<span class="fr-tag">${isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'}</span></div>
+    <div class="fr-cover">${ART[p.cat] || ART.restaurant}<span class="fr-tag">${f.group ? 'Added by ' + esc(f.group.by) : isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'}</span></div>
     <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2></div>
     <div class="meta">${esc([catNames(p), p.cuisine, p.area, f.city && f.city.name, typeof p.lat === 'number' ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · '))}</div>
     ${!isTry && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(cur.repeat(p.price))}</span><span class="off">${esc(cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
@@ -1789,7 +1898,9 @@ function friendSheet(f) {
       : p.mem ? `<div class="fr-mem">📸 ${esc(who)} has ${plural(p.mem, 'memory', 'memories')} here</div>` : ''}
     ${mine ? `<div class="card note" style="margin:12px 0">Already in your ${mine.status === 'spot' ? 'Spots' : 'To try'}.</div>` : `<button class="big-btn coral-btn" style="width:100%;margin:12px 0 8px" data-act="frsave">${ICON.plus}Save to To try</button>`}
     ${typeof p.lat !== 'number' ? '' : ui.tab !== 'home' || ui.page ? mapDirButtons(p, 'frmapone') : dirButtons(p)}
-    <p class="page-sub" style="font-size:12px;margin:10px 0 0">From ${esc(who)}’s map. It only becomes one of your Spots once you’ve been and save it yourself.</p>
+    ${f.group ? `${f.group.canRemove ? `<button class="link-btn" style="margin:12px auto 0;color:var(--coral-soft)" data-act="gitemdel">${ICON.bin}Take out of this list</button>` : ''}
+    <p class="page-sub" style="font-size:12px;margin:10px 0 0">In the group list ${esc(f.group.name)}.${f.owner !== meId() ? ' It only becomes one of your Spots once you’ve been and save it yourself.' : ''}</p>${f.owner !== meId() ? `<div style="text-align:center">${reportLink('Group list ' + f.group.name + ': ' + p.name + ' added by ' + who)}</div>` : ''}`
+    : `<p class="page-sub" style="font-size:12px;margin:10px 0 0">From ${esc(who)}’s map. It only becomes one of your Spots once you’ve been and save it yourself.</p>`}
   </div>`;
 }
 // Memories became visible to friends (v2.3.6): tell people who already have photos online, once per account
@@ -1991,6 +2102,7 @@ function render() {
   else if (ui.page === 'backup') h += backupPage();
   else if (ui.page === 'lang') h += langPage();
   else if (ui.page && ui.page.list) { const l = listOf(ui.page.list); if (l) h += listPage(l); else ui.page = null; }
+  else if (ui.page && ui.page.group) { const g = groupOf(ui.page.group); if (g) h += groupPage(g); else ui.page = null; }
   else if (ui.page === 'admin') h += adminPage();
   else if (false) {
     const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), ap = au && au.data && (au.data.places || []).find(x => x.id === ui.page.place);
@@ -2361,6 +2473,7 @@ function recapFromHash(hash, tries = 0) {
 function readSharedList() {
   if (recapFromHash(location.hash)) return true;
   if (/(?:^#|&)friends\b/.test(location.hash)) { history.replaceState(null, '', location.pathname); openFriendsTab(); return true; }
+  if (/(?:^#|&)lists\b/.test(location.hash)) { history.replaceState(null, '', location.pathname); openListsTab(); return true; }
   if (/(?:^#|&)totry\b/.test(location.hash)) { history.replaceState(null, '', location.pathname); ui.tab = 'totry'; ui.page = null; ui.sheet = null; render(); setTimeout(takeShares, 300); return true; }
   const rm = location.hash.match(/(?:^#|&)r=([A-Za-z0-9]{6,16})/);
   if (rm) { history.replaceState(null, '', location.pathname);
@@ -2612,17 +2725,55 @@ uiEl.addEventListener('click', e => {
     case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
     case 'saveuname': saveUsername((ui.unameDraft != null ? ui.unameDraft : db.user.name || '').trim()); return;
     case 'unamedlg': saveUsername(((uiEl.querySelector('[data-input="unameDraft"]') || {}).value || '').trim(), true); return;
-    case 'spview': ui.spotsView = t.dataset.v; ui.menu = null; if (ui.spotsView === 'friends') { ui.newFriendsShown = newFriendIds(); markFriendsSeen(); loadFriends(); } break;
+    case 'spview': ui.spotsView = t.dataset.v; ui.menu = null; if (ui.spotsView === 'lists') loadGroups(); if (ui.spotsView === 'friends') { ui.newFriendsShown = newFriendIds(); markFriendsSeen(); loadFriends(); } break;
     case 'openlist': ui.page = { list: id }; break;
-    case 'listpick': if (p) ui.dialog = { type: 'listpick', id: p.id }; break; // replaces the More sheet
+    case 'listpick': if (p) { ui.dialog = { type: 'listpick', id: p.id }; loadGroups(); } break; // replaces the More sheet
     case 'listtoggle': { const l = listOf(id), pid = ui.dialog.id; if (l) { l.ids = l.ids.includes(pid) ? l.ids.filter(x => x !== pid) : l.ids.concat(pid); touchList(l); } break; }
-    case 'newlist': ui.dialog = { type: 'listedit', name: '', emoji: LIST_EMOJI[0], forPlace: (ui.dialog && ui.dialog.type === 'listpick') ? ui.dialog.id : null }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="listName"]'); if (i) i.focus(); }, 60); return;
-    case 'editlist': { ui.dialog = null; const l = listOf(id); if (l && !isHidden(l)) ui.dialog = { type: 'listedit', listId: l.id, name: l.name, emoji: l.emoji }; break; }
+    case 'newlist': ui.dialog = { type: 'listedit', kind: 'private', members: [], name: '', emoji: LIST_EMOJI[0], forPlace: (ui.dialog && ui.dialog.type === 'listpick') ? ui.dialog.id : null }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="listName"]'); if (i) i.focus(); }, 60); return;
+    case 'editlist': { ui.dialog = null; const l = listOf(id); if (l && !isHidden(l)) ui.dialog = { type: 'listedit', listId: l.id, kind: l.share ? 'shared' : 'private', name: l.name, emoji: l.emoji }; break; }
     case 'listemoji': ui.dialog.name = (uiEl.querySelector('[data-input="listName"]') || {}).value || ui.dialog.name; ui.dialog.emoji = t.dataset.v; break;
     case 'listsave': { const dd = ui.dialog, name = ((uiEl.querySelector('[data-input="listName"]') || {}).value || '').trim().slice(0, 40); if (!name) { flash('Give the list a name.'); return; }
-      if (dd.listId) { const l = listOf(dd.listId); if (l) { l.name = name; l.emoji = dd.emoji; touchList(l); } ui.dialog = null; }
-      else { const l = { id: 'l-' + uid(), name, emoji: dd.emoji, ids: dd.forPlace ? [dd.forPlace] : [], createdAt: Date.now() }; myLists().push(l); touchList(l); ui.dialog = dd.forPlace ? { type: 'listpick', id: dd.forPlace } : null; toast(l.emoji + ' ' + l.name + ' created', null); }
+      if (dd.busy) return;
+      if (dd.groupId) { dd.name = name; dd.busy = true; render(); groupCall('sitio_group_update', { g: dd.groupId, gname: name, gemoji: dd.emoji }).then(() => { const g = groupOf(dd.groupId); if (g) { g.name = name; g.emoji = dd.emoji; } if (ui.dialog === dd) ui.dialog = null; render(); loadGroups(); }).catch(e => { dd.busy = false; render(); flash(friendly(e)); }); return; }
+      if (dd.kind === 'group' && !dd.listId) {
+        dd.name = name; dd.busy = true; render();
+        groupCall('sitio_group_create', { gname: name, gemoji: dd.emoji, members: dd.members || [] }).then(async gid => {
+          const src = dd.forPlace && byId(dd.forPlace);
+          if (src && !isHiddenPlace(src)) await groupCall('sitio_group_add', { g: gid, p: groupSnap(src) }).catch(() => {});
+          await loadGroups(); if (ui.dialog === dd) ui.dialog = src ? { type: 'listpick', id: src.id } : null; if (!src) { ui.tab = 'spots'; ui.spotsView = 'lists'; ui.page = { group: gid }; }
+          toast(dd.emoji + ' ' + name + ' created', null); render();
+        }).catch(e => { dd.busy = false; render(); flash(e.status === 404 ? 'Group lists aren’t switched on yet.' : friendly(e)); });
+        return; }
+      if (dd.listId) { const l = listOf(dd.listId); if (l) { l.name = name; l.emoji = dd.emoji; l.share = dd.kind === 'shared'; touchList(l); } ui.dialog = null; }
+      else { const l = { id: 'l-' + uid(), name, emoji: dd.emoji, ids: dd.forPlace ? [dd.forPlace] : [], createdAt: Date.now() }; if (dd.kind === 'shared') l.share = true; myLists().push(l); touchList(l); ui.dialog = dd.forPlace ? { type: 'listpick', id: dd.forPlace } : null; toast(l.emoji + ' ' + l.name + ' created', null); }
       break; }
+    case 'listkind': { const dd = ui.dialog; dd.name = (uiEl.querySelector('[data-input="listName"]') || {}).value || dd.name; const v = t.dataset.v;
+      if (v === 'group' && !auth) { flash('Log in to make group lists with friends.'); return; }
+      dd.kind = v; if (v === 'group' && !ui.friends) loadFriends(); break; }
+    case 'gmember': { const dd = ui.dialog; if (!dd) return; const nm = uiEl.querySelector('[data-input="listName"]'); if (nm) dd.name = nm.value; dd.members = dd.members || [];
+      if (dd.members.includes(id)) dd.members = dd.members.filter(x => x !== id);
+      else { const g = dd.groupId && groupOf(dd.groupId), have = g ? (g.members || []).length : 1; if (have + dd.members.length >= 10) { flash('A group list can have up to 10 people.'); return; } dd.members = dd.members.concat(id); }
+      break; }
+    case 'opengroup': ui.page = { group: id }; loadGroups(); break;
+    case 'groupadd': ui.dialog = { type: 'groupadd', groupId: id, q: '' }; break;
+    case 'groupaddtoggle': { const g = groupOf(ui.dialog && ui.dialog.groupId), q = byId(id); if (g && q) groupToggle(g, q); return; }
+    case 'grouptoggle': { const g = groupOf(id), q = ui.dialog && byId(ui.dialog.id); if (g && q) groupToggle(g, q); return; }
+    case 'groupinvite': ui.dialog = { type: 'groupinvite', groupId: id, members: [] }; if (!ui.friends) loadFriends(); break;
+    case 'editgroup': { const g = groupOf(id); ui.dialog = g && g.owner === meId() ? { type: 'listedit', groupId: g.id, kind: 'group', name: g.name, emoji: g.emoji } : null; break; }
+    case 'ginvitego': { const dd = ui.dialog; if (!dd || !(dd.members || []).length || dd.busy) return; dd.busy = true; render();
+      groupCall('sitio_group_invite', { g: dd.groupId, members: dd.members }).then(n => { if (ui.dialog === dd) ui.dialog = null; toast(n ? 'Added ' + plural(n, 'person', 'people') : 'No one new to add', null); loadGroups(); render(); }).catch(e => { dd.busy = false; render(); flash(friendly(e)); }); return; }
+    case 'gkick': ui.dialog = { type: 'gkick', groupId: ui.dialog.groupId, who: id }; break;
+    case 'groupleave': case 'groupdel': ui.dialog = { type: act, groupId: id }; break;
+    case 'gkickok': case 'groupleaveok': case 'groupdelok': { const dd = ui.dialog, g = groupOf(dd.groupId); if (!g) return; ui.dialog = null;
+      const call = act === 'gkickok' ? groupCall('sitio_group_kick', { g: g.id, who: dd.who }) : groupCall(act === 'groupdelok' ? 'sitio_group_delete' : 'sitio_group_leave', { g: g.id });
+      if (act !== 'gkickok') { ui.groups = myGroups().filter(x => x !== g); if (ui.page && ui.page.group === g.id) ui.page = null; }
+      call.then(() => { toast(act === 'gkickok' ? 'Removed from ' + g.name : act === 'groupdelok' ? g.name + ' deleted' : 'You left ' + g.name, null); loadGroups(); }).catch(e => { flash(friendly(e)); loadGroups(); });
+      break; }
+    case 'groupspot': { const g = groupOf(id), it = g && (g.items || []).find(x => x.id === t.dataset.item); if (!it) return;
+      ui.fspot = { p: Object.assign({ status: 'spot' }, it.p), owner: it.by, ownerName: it.by === meId() ? 'You' : it.byName, city: it.p.cityName ? { id: 'c-' + uid(), name: it.p.cityName, currency: it.p.currency || '€' } : null, group: { id: g.id, name: g.emoji + ' ' + g.name, item: it.id, by: gWho(g, it.by), canRemove: it.by === meId() || g.owner === meId() } };
+      ui.sheet = 'friendspot'; break; }
+    case 'gitemdel': { const f = ui.fspot, g = f && f.group && groupOf(f.group.id); if (!g) return; g.items = (g.items || []).filter(x => x.id !== f.group.item); ui.sheet = null; ui.fspot = null;
+      groupCall('sitio_group_remove_item', { item: f.group.item }).then(() => { toast(f.p.name + ' taken out of ' + g.name, null); loadGroups(); }).catch(e => { flash(friendly(e)); loadGroups(); }); break; }
     case 'sharelist': { const l = listOf(id); if (isHidden(l)) return; if (ui.dialog) { ui.dialog = null; render(); } if (l) shareList(l); return; }
     case 'sharedlistsave': { const r = saveSharedList(ui.dialog.data); ui.dialog = null; ui.tab = 'spots'; ui.spotsView = 'lists'; ui.page = { list: r.l.id }; toast(r.l.emoji + ' ' + r.l.name + ' saved' + (r.added ? ' · ' + r.added + ' added to To try' : ''), null); lastMapKey = ''; break; }
     case 'openimport': if (ui.page === 'backup') ui.prevPage = 'backup'; ui.page = 'import'; ui.importMsg = ''; break;
@@ -2662,7 +2813,7 @@ uiEl.addEventListener('click', e => {
     case 'tourreplay': ui.page = null; startTour(); return;
     case 'more': {
       const r = t.getBoundingClientRect(), rr = root.getBoundingClientRect(), up = r.top - rr.top > rr.height * 0.55;
-      ui.dialog = { type: 'more', id: p ? p.id : null, list: t.dataset.list || null, x: Math.max(12, rr.right - r.right), y: up ? rr.bottom - r.top + 8 : r.bottom - rr.top + 8, up };
+      ui.dialog = { type: 'more', id: p ? p.id : null, list: t.dataset.list || null, group: t.dataset.group || null, x: Math.max(12, rr.right - r.right), y: up ? rr.bottom - r.top + 8 : r.bottom - rr.top + 8, up };
       break;
     }
     case 'levels': ui.page = 'levels'; break;
@@ -2717,6 +2868,8 @@ uiEl.addEventListener('click', e => {
     case 'giveunl': { const uid = ui.dialog.uid; ui.dialog = null; giveInvites(uid, 100000); break; }
     case 'givereset2': { const x = ((ui.adminInv || {})[id] || {}).extra || 0; if (x) giveInvites(id, -x); return; }
     case 'givereset': { const uid = ui.dialog.uid, x = ui.dialog.extra; ui.dialog = null; giveInvites(uid, -x); break; }
+    case 'friendsmap': if (!auth) return; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; ui.tab = 'home'; ui.friendsLayer = true; if (!ui.friendLayerData || Date.now() - (ui.friendLayerAt || 0) > 300000) loadFriendLayer(); else lastMapKey = ''; break;
+    case 'friendlayeroff': ui.friendsLayer = false; ui.sheet = null; ui.selected = null; lastMapKey = ''; break;
     case 'friendlayer': if (!auth) return; ui.friendsLayer = !ui.friendsLayer; if (ui.friendsLayer && (!ui.friendLayerData || Date.now() - (ui.friendLayerAt || 0) > 300000)) { loadFriendLayer(); } else { lastMapKey = ''; if (ui.friendsLayer) toast('Showing your friends’ spots. Tap again for yours', null); } break;
     case 'addfriend': ui.dialog = { type: 'addfriend', v: '' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="frName"]'); if (i) i.focus(); }, 60); return;
     case 'fradd': { const n = t.dataset.name; sbFetch('/rest/v1/rpc/sitio_friend_request', { method: 'POST', body: JSON.stringify({ name: n }) }, true).then(r => { toast(r === 'accepted' ? 'You’re now friends with ' + n : 'Added ' + n + '. You’ll be friends once they add you back', null); loadFriends(); if (ui.dialog && ui.dialog.type === 'addfriend') searchFriends(); }).catch(e => flash(friendly(e))); return; }
@@ -2769,6 +2922,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'userName') { db.user.name = v; save(); }
   if (k === 'unameDraft') ui.unameDraft = v;
   if (k === 'curQ' && ui.dialog && ui.dialog.type === 'currency') { ui.dialog.q = v; const box = $('#curres'); if (box) box.innerHTML = curResults(ui.dialog, db.cities.find(x => x.id === ui.dialog.cityId) || city()); }
+  if (k === 'groupAddQ' && ui.dialog && ui.dialog.type === 'groupadd') { ui.dialog.q = v; const box = $('#groupaddres'), g = groupOf(ui.dialog.groupId); if (box && g) box.innerHTML = groupAddRows(g, v.trim().toLowerCase()); }
   if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
   if (k === 'gateCode') ui.gateCode = v;
@@ -3195,7 +3349,7 @@ async function refreshCoords(tries = 0) {
   } catch (e) { } finally { coordsRunning = false; }
 }
 setTimeout(refreshCoords, 1500);
-if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => { if (/#friends/.test(e.data.url || '')) openFriendsTab(); else if (/#totry/.test(e.data.url || '')) { ui.tab = 'totry'; ui.page = null; ui.sheet = null; render(); takeShares(); } else if (!recapFromHash(e.data.url)) tryRecap(); }, 300); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => { if (/#friends/.test(e.data.url || '')) openFriendsTab(); else if (/#lists/.test(e.data.url || '')) openListsTab(); else if (/#totry/.test(e.data.url || '')) { ui.tab = 'totry'; ui.page = null; ui.sheet = null; render(); takeShares(); } else if (!recapFromHash(e.data.url)) tryRecap(); }, 300); });
 
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
