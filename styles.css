@@ -823,3 +823,4 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .via-line .rep-link { margin-left: auto; font-size: 12px; }
 
 .dir-one { width: 100%; }
+.mini-btns a.mini { color: inherit; text-decoration: none; }
