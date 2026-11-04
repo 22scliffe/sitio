@@ -705,7 +705,7 @@ function accountView() {
     ${cloudOn() && !auth ? `<button class="card acct-cta glow" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
-    <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
+    <div class="settings card city-muted" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
     ${auth ? `<div class="settings card" style="margin:-6px 0 18px">${row('Invite friends', ui.invData ? (ui.invData.allowance >= 1000 ? 'Unlimited' : Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left') : 'Invite-only', 'invites')}</div>` : ''}
     <div class="section-label" style="margin-bottom:8px">Memory recaps</div>
     <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.1.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.1.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -799,7 +799,7 @@ const LEVELS = [
   { min: 5, name: 'Local amateur', badge: '🗺️', perk: 'Unlocks 2 more invites for friends' },
   { min: 10, name: 'Local guide', badge: '📍' },
   { min: 20, name: 'Professional gatekeeper', badge: '🔑' },
-  { min: 50, name: 'Spot connoisseur', badge: '👑' }
+  { min: 50, name: 'Spot connoisseur', badge: '👑', perk: 'Unlocks 3 more invites for friends' }
 ];
 const spotCount = () => db.places.filter(p => p.status === 'spot').length;
 function levelOf(n) { let i = -1; LEVELS.forEach((l, k) => { if (n >= l.min) i = k; }); return i; }
@@ -1252,7 +1252,7 @@ function dialogView() {
     const conf = Array.from({ length: 18 }, (_, k) => { const ang = k / 18 * 360, dx = Math.round(Math.cos(ang * Math.PI / 180) * (90 + (k % 3) * 22)), dy = Math.round(Math.sin(ang * Math.PI / 180) * (90 + (k % 3) * 22)); return `<i style="--dx:${dx}px;--dy:${dy}px;--c:${['#FFD166', '#FF8A5C', '#F5B83D', '#8FD99A', '#FF5A4E', '#FFFFFF'][k % 6]};--r:${k * 37}deg"></i>`; }).join('');
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="levelup" role="dialog" aria-labelledby="lu-t" data-act="closedialog">
       <div class="lu-stage"><div class="lu-rays"></div><div class="lu-conf">${conf}</div><div class="lu-b lu-old">${old}</div><div class="lu-b lu-new">${l.badge}</div></div>
-      <div class="lu-text"><div class="lu-k">Level ${d.i + 1} unlocked</div><div class="lu-name" id="lu-t">${esc(l.name)}</div><div class="lu-sub">${d.i === 1 ? 'You’ve earned 2 more invites. ' : ''}Congratulations! You’ve saved ${d.demo ? l.min : spotCount()} spots.</div></div>
+      <div class="lu-text"><div class="lu-k">Level ${d.i + 1} unlocked</div><div class="lu-name" id="lu-t">${esc(l.name)}</div><div class="lu-sub">${d.i === 1 ? 'You’ve earned 2 more invites. ' : d.i === 4 ? 'You’ve earned 3 more invites. ' : ''}Congratulations! You’ve saved ${d.demo ? l.min : spotCount()} spots.</div></div>
     </div>`;
   }
   if (d.type === 'editcat') {
@@ -1539,7 +1539,7 @@ async function loadInvites() {
 const inviteUrl = c => location.origin + location.pathname + '#i=' + c;
 async function makeInvite() {
   try { const c = await sbFetch('/rest/v1/rpc/sitio_create_invite', { method: 'POST', body: '{}' }, true); await loadInvites(); if (c) shareInvite(c); }
-  catch (e) { flash(/No invites left/i.test(e.message) ? 'No invites left. Reach Local amateur (5 spots) for 2 more.' : 'Couldn’t create an invite: ' + friendly(e)); }
+  catch (e) { flash(/No invites left/i.test(e.message) ? 'No invites left. You earn more at Local amateur (5 spots) and Spot connoisseur (50 spots).' : 'Couldn’t create an invite: ' + friendly(e)); }
 }
 async function shareInvite(c) {
   const url = inviteUrl(c), text = (db.user.name || 'A friend') + ' invited you to Sitio, a map of the places we vouch for. This link works once:';
@@ -1551,8 +1551,8 @@ function invitesPage() {
   const head = `<div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Invite friends</span></div>`;
   if (ui.invErr) return `<div class="page" style="z-index:16">${head}<div class="card note">${esc(ui.invErr)}</div></div>`;
   if (!d) return `<div class="page" style="z-index:16">${head}<p class="page-sub">Loading…</p></div>`;
-  const demoBar = d.demo ? `<div class="card note" style="margin-bottom:12px;font-size:13px;line-height:1.45"><b>Demo</b> · how a regular member sees this. Create links, tap a waiting invite to pretend a friend joined, or <button class="link-btn" style="display:inline;padding:0;font-size:13px;text-decoration:underline" data-act="demolevel">${d.allowance === 3 ? 'reach Local amateur' : 'go back to 3 invites'}</button>. Nothing is saved.</div>` : '';
-  const nextBonus = d.allowance === 3 ? `<p class="page-sub" style="font-size:13px;margin-top:10px">Reach <b>Local amateur</b> (5 spots) to earn 2 more.</p>` : '';
+  const demoBar = d.demo ? `<div class="card note" style="margin-bottom:12px;font-size:13px;line-height:1.45"><b>Demo</b> · how a regular member sees this. Create links, tap a waiting invite to pretend a friend joined, or <button class="link-btn" style="display:inline;padding:0;font-size:13px;text-decoration:underline" data-act="demolevel">${d.allowance === 3 ? 'reach Local amateur' : d.allowance === 5 ? 'reach Spot connoisseur' : 'go back to 3 invites'}</button>. Nothing is saved.</div>` : '';
+  const nextBonus = d.allowance === 3 ? `<p class="page-sub" style="font-size:13px;margin-top:10px">Reach <b>Local amateur</b> (5 spots) to earn 2 more.</p>` : d.allowance === 5 ? `<p class="page-sub" style="font-size:13px;margin-top:10px">Reach <b>Spot connoisseur</b> (50 spots) to earn 3 more.</p>` : '';
   return `<div class="page" style="z-index:16">${head}${demoBar}
     <div class="card inv-hero"><div class="inv-n">${unlimited ? '∞' : left}</div><div><b>${unlimited ? 'Unlimited invites' : left === 1 ? 'invite left' : 'invites left'}</b><span>Sitio is invite-only. Each link works once, so send it to someone whose taste you trust.</span></div></div>
     ${nextBonus}
@@ -2220,7 +2220,7 @@ uiEl.addEventListener('click', e => {
     case 'invites': ui.prevPage = ui.page; ui.page = 'invites'; if (!DEMO_INV) loadInvites(); break;
     case 'newinvite': if (DEMO_INV) { const d = ui.invData; if (d.invites.length < d.allowance) d.invites.unshift({ code: 'demo' + d.invites.length, created_at: new Date().toISOString(), used_at: null }); toast('Demo: this would open your share sheet with the link', null); break; } makeInvite(); return;
     case 'shareinvite': if (DEMO_INV) { const i = ui.invData.invites.find(x => x.code === t.dataset.code); if (i) { i.used_at = new Date().toISOString(); i.name = ['Lola', 'Marta', 'Pablo', 'Ana', 'Leo'][ui.invData.invites.indexOf(i) % 5]; } toast('Demo: a friend used this invite', null); break; } shareInvite(t.dataset.code); return;
-    case 'demolevel': ui.invData.allowance = ui.invData.allowance === 3 ? 5 : 3; toast(ui.invData.allowance === 5 ? 'Demo: reached Local amateur, +2 invites' : 'Demo: back to 3 invites', null); break;
+    case 'demolevel': ui.invData.allowance = ui.invData.allowance === 3 ? 5 : ui.invData.allowance === 5 ? 8 : 3; toast(ui.invData.allowance === 5 ? 'Demo: reached Local amateur, +2 invites' : ui.invData.allowance === 8 ? 'Demo: reached Spot connoisseur, +3 invites' : 'Demo: back to 3 invites', null); break;
     case 'agreetoggle': if (!e.target.closest('[data-act="terms"],[data-act="privacy"]')) { ui.authF = ui.authF || {}; ui.authF.agree = !ui.authF.agree; } break;
     case 'chpass': ui.dialog = { type: 'chpass' }; break;
     case 'chpassgo': { const f = [...uiEl.querySelectorAll('[data-dlgfield]')].map(i => i.value); ui.dialog.v = f; changePasswordChecked(f[0], f[1]); return; }

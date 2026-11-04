@@ -746,3 +746,7 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .invited-by { display: flex; align-items: center; gap: 8px; margin: 8px 2px 0; font-size: 13px; font-weight: 600; color: var(--text-2); }
 .invited-by .icon { width: 14px; height: 14px; color: #FFD66B; }
 .invited-by b { color: var(--text); }
+
+.city-muted .set-row { color: var(--text-2); }
+.city-muted .set-row .dot { opacity: .45; }
+.city-muted .set-row .val { opacity: .7; }

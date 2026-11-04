@@ -1,6 +1,6 @@
 -- Sitio: invite-only accounts. Run once in Supabase → SQL Editor.
 -- Everyone who already has an account becomes a member. New people need an invite link from a member.
--- Each member can create 3 invites, plus 2 more once they have 5 spots (Local amateur). Admins have no limit.
+-- Each member can create 3 invites, plus 2 more at 5 spots (Local amateur) and 3 more at 50 spots (Spot connoisseur). Admins have no limit.
 
 create table if not exists public.sitio_members (
   user_id uuid primary key references auth.users(id) on delete cascade,
@@ -30,7 +30,9 @@ create or replace function public.sitio_invite_allowance() returns integer
 language sql stable security definer set search_path = public as $$
   select case when public.sitio_is_admin() then 100000 else 3 + case when (
     select count(*) from sitio_data d, jsonb_array_elements(case when jsonb_typeof(d.data->'places') = 'array' then d.data->'places' else '[]'::jsonb end) p
-    where d.user_id = auth.uid() and p->>'status' = 'spot') >= 5 then 2 else 0 end end;
+    where d.user_id = auth.uid() and p->>'status' = 'spot') >= 5 then 2 else 0 end + case when (
+    select count(*) from sitio_data d, jsonb_array_elements(case when jsonb_typeof(d.data->'places') = 'array' then d.data->'places' else '[]'::jsonb end) p
+    where d.user_id = auth.uid() and p->>'status' = 'spot') >= 50 then 3 else 0 end end;
 $$;
 
 create or replace function public.sitio_my_invites() returns json
