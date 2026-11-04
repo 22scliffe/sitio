@@ -468,7 +468,7 @@ function tabbar() {
     const ic = iconName === 'totry' ? icon('totry', on ? '#FF5A4E' : 'none', on ? '#FF5A4E' : 'currentColor') : icon(iconName, on ? 'currentColor' : 'none');
     return `<button class="${on ? 'on' : ''}" data-act="tab" data-tab="${id}" aria-label="${label}">${ic}${label}${extra}</button>`;
   };
-  return `<nav class="tabbar glass" aria-label="Main">${t('home', 'Home', 'home')}${t('spots', 'Spots', 'spots')}${t('totry', 'To try', 'totry', n && ui.tab !== 'totry' ? `<span class="badge">${n}</span>` : '')}${t('account', 'Account', 'account')}</nav>`;
+  return `<nav class="tabbar glass" aria-label="Main">${t('home', 'Home', 'home')}${t('spots', 'Spots', 'spots', ui.friends && (ui.friends.friends || []).some(f => f.incoming) && !(ui.tab === 'spots' && ui.spotsView === 'friends') ? '<span class="badge dot" aria-label="Something to do in Friends"></span>' : '')}${t('totry', 'To try', 'totry', n && ui.tab !== 'totry' ? `<span class="badge">${n}</span>` : '')}${t('account', 'Account', 'account')}</nav>`;
 }
 
 function homeView() {
@@ -739,7 +739,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.3.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.3.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">

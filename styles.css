@@ -803,3 +803,5 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 #frres .fr-who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #frres .fr-who > span:last-child { min-width: 0; }
 #frres .pill { flex: none; white-space: nowrap; }
+
+.badge.dot { min-width: 10px; width: 10px; height: 10px; padding: 0; top: 7px; right: 22px; }
