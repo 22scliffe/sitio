@@ -31,7 +31,13 @@ begin
     'allowance', public.sitio_invite_allowance_for(uid),
     'used', (select count(*) from sitio_invites where inviter = uid),
     'joined', (select count(*) from sitio_invites where inviter = uid and used_by is not null),
-    'extra', coalesce((select extra from sitio_invite_bonus where user_id = uid), 0));
+    'extra', coalesce((select extra from sitio_invite_bonus where user_id = uid), 0),
+    'pending', (select count(*) from sitio_invites where inviter = uid and used_by is null),
+    'people', coalesce((select json_agg(json_build_object('id', i.used_by, 'at', i.used_at,
+        'name', (select d.data->'user'->>'name' from sitio_data d where d.user_id = i.used_by)) order by i.used_at)
+      from sitio_invites i where i.inviter = uid and i.used_by is not null), '[]'::json),
+    'by_id', (select invited_by from sitio_members where user_id = uid),
+    'by', (select d.data->'user'->>'name' from sitio_members m join sitio_data d on d.user_id = m.invited_by where m.user_id = uid));
 end $$;
 
 -- Give (or with a negative number, take back) extra invites. 100000 or more counts as unlimited.

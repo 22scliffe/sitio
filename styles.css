@@ -750,3 +750,10 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .city-muted .set-row { color: var(--text-2); }
 .city-muted .set-row .dot { opacity: .45; }
 .city-muted .set-row .val { opacity: .7; }
+
+.inv-tree { padding: 10px 14px 6px; border-top: 1px solid rgba(var(--fg),0.08); }
+.inv-person { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 0; border: 0; background: transparent; color: var(--text); border-top: 1px solid rgba(var(--fg),0.06); }
+.inv-person:first-of-type { border-top: 0; }
+.inv-person b { display: block; font-size: 14px; }
+.inv-person span span, .inv-person > span:nth-child(2) > span { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); }
+.inv-person .icon { width: 16px; height: 16px; color: var(--text-2); }
