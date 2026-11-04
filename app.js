@@ -398,6 +398,8 @@ const mapApi = (() => {
     }
   }
   let pinClickAt = 0;
+  // Remember a pin tap as soon as the finger lands, so Google's map tap (which can fire first) doesn't close the open place
+  ['pointerdown', 'touchstart'].forEach(ev => pinsEl.addEventListener(ev, e => { if (e.target.closest('.ring')) pinClickAt = Date.now(); }, { capture: true, passive: true }));
   pinsEl.addEventListener('click', e => {
     const r = e.target.closest('.ring'); if (!r) return;
     e.stopPropagation(); pinClickAt = Date.now();
@@ -432,7 +434,7 @@ const mapApi = (() => {
       overlay.onAdd = function () { this.getPanes().overlayMouseTarget.appendChild(pinsEl); this.getPanes().overlayMouseTarget.appendChild(meEl); pinsEl.style.pointerEvents = 'none'; };
       overlay.draw = positionPins; overlay.onRemove = () => {};
       overlay.setMap(gmap);
-      gmap.addListener('click', () => { if (Date.now() - pinClickAt < 400) return; if (ui.selected || ui.menu) { ui.selected = null; ui.sheet = null; ui.menu = null; render(); } });
+      gmap.addListener('click', () => { if (Date.now() - pinClickAt < 700) return; if (ui.selected || ui.menu) { ui.selected = null; ui.sheet = null; ui.menu = null; render(); } });
       render();
     };
     const s = document.createElement('script');
@@ -742,7 +744,40 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.16 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.17 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+}
+// City photos from Wikipedia (free licence images from Wikimedia Commons), fetched by the phone and cached on it
+let cityPics = (() => { try { return JSON.parse(localStorage.getItem('sitio.cityPics') || '{}'); } catch (e) { return {}; } })();
+const cityPicBusy = {};
+const stripHtml = s => { const d = document.createElement('div'); d.innerHTML = s || ''; return (d.textContent || '').trim(); };
+function cityPic(c) {
+  const k = (c.name || '') + '|' + (c.cc || ''), v = cityPics[k];
+  if (v && (v.u || Date.now() - (v.at || 0) < 30 * 864e5)) return v.u ? v : null;
+  if (!cityPicBusy[k]) { cityPicBusy[k] = 1; loadCityPic(c, k); }
+  return null;
+}
+async function loadCityPic(c, k) {
+  const wiki = t => fetch('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1&prop=pageimages|pageprops&piprop=thumbnail|name&pithumbsize=200&ppprop=disambiguation&titles=' + encodeURIComponent(t)).then(r => r.json()).then(j => { const p = Object.values((j.query || {}).pages || {})[0]; return p && !p.missing && !(p.pageprops && 'disambiguation' in p.pageprops) && p.thumbnail ? p : null; });
+  let country = ''; try { country = c.cc ? new Intl.DisplayNames(['en'], { type: 'region' }).of(c.cc) : ''; } catch (e) { }
+  let out = { at: Date.now() };
+  try {
+    const p = await wiki(c.name).catch(() => null) || (country ? await wiki(c.name + ', ' + country).catch(() => null) : null);
+    if (p) {
+      out = { at: Date.now(), u: p.thumbnail.source, f: p.pageimage || '' };
+      if (p.pageimage) {
+        const j = await fetch('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&iiprop=extmetadata&titles=File:' + encodeURIComponent(p.pageimage)).then(r => r.json()).catch(() => null);
+        const ii = j && Object.values((j.query || {}).pages || {})[0], md = ii && ii.imageinfo && ii.imageinfo[0] && ii.imageinfo[0].extmetadata;
+        if (md) { out.a = stripHtml(md.Artist && md.Artist.value).slice(0, 80); out.l = stripHtml(md.LicenseShortName && md.LicenseShortName.value).slice(0, 40); }
+      }
+    }
+  } catch (e) { }
+  cityPics[k] = out; try { localStorage.setItem('sitio.cityPics', JSON.stringify(cityPics)); } catch (e) { }
+  if (ui.page === 'cities') render();
+}
+const cityAv = c => { const pic = cityPic(c); return `<span class="avatar city-av" style="width:48px;height:48px;border-radius:14px;font-size:18px">${pic ? `<img src="${esc(pic.u)}" alt="" loading="lazy">` : esc((c.name || '?')[0])}</span>`; };
+function cityCredits() {
+  const rows = db.cities.map(c => { const v = cityPics[(c.name || '') + '|' + (c.cc || '')]; return v && v.u ? `<div>${esc(c.name)}: ${v.f ? `<a href="https://commons.wikimedia.org/wiki/File:${encodeURIComponent(v.f)}" target="_blank" rel="noopener">${esc(v.a || 'Wikimedia Commons')}</a>` : 'Wikipedia'}${v.l ? ', ' + esc(v.l) : ''}</div>` : ''; }).join('');
+  return rows ? `<details class="city-credits"><summary>City photos from Wikipedia</summary>${rows}</details>` : '';
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -751,9 +786,10 @@ function citiesPage() {
     ${ui.cityQ ? '' : `<div class="settings card" style="margin-bottom:16px"><button class="set-row" data-act="pickworld" style="min-height:72px;${ui.globe ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar globe-av">${ICON.globe}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">Worldwide</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${plural(db.places.filter(p => p.status === 'spot').length, 'spot')} · ${db.places.filter(p => p.status === 'totry').length} to try · ${plural(db.cities.filter(c => db.places.some(p => p.cityId === c.id)).length, 'city', 'cities')}</span></span></span>${ui.globe ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button></div>`}
     <div class="section-label" style="margin-bottom:8px">Your cities</div>
     <div class="settings card">${(ui.cityQ ? cityFilter(db.cities, ui.cityQ) : db.cities.slice().sort((x, y) => (y.id === db.currentCityId ? 1 : 0) - (x.id === db.currentCityId ? 1 : 0) || (y.usedAt || 0) - (x.usedAt || 0))).map(c => { const n = db.places.filter(p => p.cityId === c.id); const curr = !ui.globe && c.id === db.currentCityId;
-      return `<button class="set-row" data-act="pickcity" data-id="${c.id}" style="min-height:72px;${curr ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;font-size:18px">${esc(c.name[0])}</span><span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">${esc(c.name)}</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${esc(c.country || '')} · ${plural(n.filter(p => p.status === 'spot').length, 'spot')} · ${n.filter(p => p.status === 'totry').length} to try · ${esc(c.currency)}</span></span></span>${curr ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button>`; }).join('')}
+      return `<button class="set-row" data-act="pickcity" data-id="${c.id}" style="min-height:72px;${curr ? 'background:rgba(var(--fg),0.05)' : ''}"><span style="display:flex;align-items:center;gap:14px">${cityAv(c)}<span style="display:flex;flex-direction:column;gap:3px"><span style="font-size:17px;font-weight:800">${esc(c.name)}</span><span style="font-size:13px;font-weight:600;color:var(--text-2)">${esc(c.country || '')} · ${plural(n.filter(p => p.status === 'spot').length, 'spot')} · ${n.filter(p => p.status === 'totry').length} to try · ${esc(c.currency)}</span></span></span>${curr ? `<span style="color:var(--green);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800">Current${ICON.check}</span>` : ''}</button>`; }).join('')}
       <button class="set-row" data-act="addcity" style="min-height:64px"><span style="display:flex;align-items:center;gap:14px"><span class="avatar" style="width:48px;height:48px;border-radius:14px;background:transparent;border:1.5px dashed rgba(var(--fg),0.28)">${ICON.plus}</span><span style="font-size:16px;font-weight:800">Add a city or town</span></span></button></div>
     <p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:10px">Each city keeps its own Spots and To try lists. Prices use that city's currency.</p>
+    ${cityCredits()}
   </div>`;
 }
 
@@ -1030,6 +1066,7 @@ function privacyPage() {
       '<b>Google</b> provides the map and place search (Google Maps Platform, Google’s privacy policy applies). Google may set its own cookies.',
       '<b>GitHub</b> hosts the app’s files (GitHub Pages).',
       '<b>OpenStreetMap</b> services (Nominatim, Overpass) help find your city and opening hours.',
+      '<b>Wikipedia</b> (Wikimedia Foundation) provides the city photos. Your phone asks Wikipedia for them directly, so Wikipedia sees your IP address and the city name, nothing else.',
       '<b>Apple, Google or Mozilla</b> deliver notifications to your phone if you turn them on.'
     ]],
     ['International transfers', 'Google and GitHub are based in the US. Transfers are covered by the EU–US Data Privacy Framework (and the UK extension) and by standard contractual clauses.'],

@@ -829,3 +829,6 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .thumb[data-act] { cursor: pointer; }
 .row-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .sheet-name .big-name { flex: 0 1 auto; min-width: 0; }
+
+.city-av { overflow: hidden; flex: none; } .city-av img { width: 100%; height: 100%; object-fit: cover; }
+.city-credits { margin-top: 14px; font-size: 11px; color: var(--text-2); line-height: 1.6; } .city-credits summary { cursor: pointer; font-weight: 700; } .city-credits a { color: inherit; }
