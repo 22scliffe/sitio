@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.1.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.1.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1086,7 +1086,10 @@ function adminUserPage(id, cityId) {
       <p class="page-sub" style="margin:0 0 2px">${esc(u.email || '')}</p>
       <p class="page-sub" style="font-size:12px;margin:0 0 10px">Joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}${(() => { const iv = (ui.adminInv || {})[u.user_id]; if (!iv || !('by_id' in iv)) return ''; return iv.by_id ? ` · invited by <button class="link-btn" style="display:inline;padding:0;font-size:12px;text-decoration:underline" data-act="adminuser" data-id="${esc(iv.by_id)}">${esc(iv.by || 'someone')}</button>` : ' · de los primeros'; })()}</p>
       ${(() => { const n = places.filter(p => p.status === 'spot').length, li = levelOf(n); return `<div class="lvl-chip ${li < 0 ? 'start' : ''}" style="margin:0 0 16px;cursor:default"><span class="lvl-ico">${li >= 0 ? LEVELS[li].badge : '🌱'}</span><span class="lvl-txt"><span class="lvl-lv">Level ${li + 1}</span><span class="lvl-nm">${li >= 0 ? LEVELS[li].name : 'Just getting started'} · ${plural(n, 'spot')}</span></span></div>`; })()}
-      ${(() => { const iv = (ui.adminInv || {})[u.user_id]; return `<div class="settings card" style="margin-bottom:16px"><div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>Invites</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${iv ? (iv.allowance >= 100000 ? 'Unlimited' : iv.used + ' of ' + iv.allowance + ' used') + ' · ' + plural(iv.joined, 'friend') + ' joined' + (iv.extra ? ' · ' + (iv.extra >= 100000 ? 'unlimited' : '+' + iv.extra) + ' from you' : '') : (ui.adminInvErr || 'Loading…')}</span></span><button class="pill primary-btn" style="height:36px;font-weight:800" data-act="giveinv" data-id="${esc(u.user_id)}">${ICON.plus}Give</button></div>${iv && iv.people ? `<div class="inv-tree"><div class="section-label" style="margin:2px 0 6px">${iv.people.length ? 'Joined through their links (' + iv.people.length + ')' : 'Nobody has joined through their links yet'}${iv.pending ? ' · ' + plural(iv.pending, 'link') + ' waiting' : ''}</div>${iv.people.map(p => { const known = (ui.adminData || []).some(x => x.user_id === p.id); return `<${known ? 'button' : 'div'} class="inv-person" ${known ? `data-act="adminuser" data-id="${esc(p.id)}"` : ''}><span class="avatar" style="width:30px;height:30px;font-size:13px">${esc(((p.name || '?')[0] || '?').toUpperCase())}</span><span style="flex:1;min-width:0;text-align:left"><b>${esc(p.name || 'No username yet')}</b><span>${p.at ? 'joined ' + fmtDate(Date.parse(p.at)) : ''}</span></span>${known ? ICON.chevRight : ''}</${known ? 'button' : 'div'}>`; }).join('')}</div>` : ''}${iv && iv.extra ? `<button class="set-row" data-act="givereset2" data-id="${esc(u.user_id)}" style="min-height:48px;color:var(--coral-soft)"><span>Take back the ${iv.extra >= 100000 ? 'unlimited invites' : plural(iv.extra, 'extra invite')} you gave</span></button>` : ''}</div>`; })()}
+      ${(() => { const iv = (ui.adminInv || {})[u.user_id]; return `<div class="settings card" style="margin-bottom:16px"><div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>Invites</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${iv ? (iv.allowance >= 100000 ? 'Unlimited' : iv.used + ' of ' + iv.allowance + ' used') + ' · ' + plural(iv.joined, 'friend') + ' joined' + (iv.extra ? ' · ' + (iv.extra >= 100000 ? 'unlimited' : (iv.extra > 0 ? '+' : '−') + Math.abs(iv.extra)) + ' from you' : '') : (ui.adminInvErr || 'Loading…')}</span></span><button class="pill primary-btn" style="height:36px;font-weight:800" data-act="giveinv" data-id="${esc(u.user_id)}">${ICON.plus}Change</button></div>${iv && iv.people ? `<div class="inv-tree"><div class="section-label" style="margin:2px 0 6px">${iv.people.length ? 'Joined through their links (' + iv.people.length + ')' : 'Nobody has joined through their links yet'}${iv.pending ? ' · ' + plural(iv.pending, 'link') + ' waiting' : ''}</div>${iv.people.map(p => { const known = (ui.adminData || []).some(x => x.user_id === p.id); return `<${known ? 'button' : 'div'} class="inv-person" ${known ? `data-act="adminuser" data-id="${esc(p.id)}"` : ''}><span class="avatar" style="width:30px;height:30px;font-size:13px">${esc(((p.name || '?')[0] || '?').toUpperCase())}</span><span style="flex:1;min-width:0;text-align:left"><b>${esc(p.name || 'No username yet')}</b><span>${p.at ? 'joined ' + fmtDate(Date.parse(p.at)) : ''}</span></span>${known ? ICON.chevRight : ''}</${known ? 'button' : 'div'}>`; }).join('')}</div>` : ''}${iv && iv.extra ? `<button class="set-row" data-act="givereset2" data-id="${esc(u.user_id)}" style="min-height:48px;color:var(--coral-soft)"><span>${iv.extra > 0 ? 'Take back the ' + (iv.extra >= 100000 ? 'unlimited invites' : plural(iv.extra, 'extra invite')) + ' you gave' : 'Give back the ' + plural(-iv.extra, 'invite') + ' you removed'}</span></button>` : ''}</div>`; })()}
+      ${(() => { const iv = (ui.adminInv || {})[u.user_id]; if (!iv || iv.is_admin || (auth && u.user_id === auth.user.id) || !('suspended' in iv)) return ''; return iv.suspended
+        ? `<div class="card note susp-note">${ICON.lock}<span><b>Suspended.</b> They’re logged out and can’t log back in or see their spots.</span></div><div class="settings card" style="margin-bottom:16px"><button class="set-row" data-act="suspend" data-id="${esc(u.user_id)}" data-on="0" style="color:var(--green)"><span>Reinstate account</span></button></div>`
+        : `<div class="settings card" style="margin-bottom:16px"><button class="set-row" data-act="suspendask" data-id="${esc(u.user_id)}" style="color:var(--coral-soft)"><span>Suspend account</span></button></div>`; })()}
       ${!u.data ? '<div class="card note">Nothing has synced to this account yet. It appears once they open Sitio while logged in and online.</div>'
       : `${cities.length > 3 || ui.adminCityQ ? `<label class="search card" style="margin-bottom:12px">${ICON.search}<input type="search" placeholder="Search a city or country" data-input="adminCityQ" value="${esc(ui.adminCityQ || '')}"></label>` : ''}<div class="section-label" style="margin-bottom:8px">Cities</div><div class="settings card">${cityFilter(cities, ui.adminCityQ).map(c => { const ps = places.filter(p => p.cityId === c.id);
           return `<button class="set-row" data-act="admincity" data-id="${esc(u.user_id)}" data-city="${esc(c.id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><span style="font-weight:800;font-size:16px">${esc(c.name)}${c.country ? `<span style="font-weight:600;color:var(--text-2)"> · ${esc(c.country)}</span>` : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${ps.filter(p => p.status === 'spot').length} ${ps.filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} · ${ps.filter(p => p.status === 'totry').length} to try</span></span><span class="val">${ICON.chevRight}</span></button>`; }).join('')}</div>`}
@@ -1225,11 +1228,17 @@ function dialogView() {
   }
   if (d.type === 'giveinv') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
-      <h3 id="dlg-t">Give invites</h3><p>How many extra invites should ${esc(d.name)} get? They’re added on top of what they already have.</p>
+      <h3 id="dlg-t">Change ${esc(d.name)}’s invites</h3><p>Type a number, then give them that many more or take that many away.</p>
       <input class="input card" type="number" inputmode="numeric" min="1" max="99999" data-input="giveN" placeholder="e.g. 5" value="${esc(d.n || '')}">
       <button class="link-btn" style="margin:12px 0 0" data-act="giveunl">♾️ Give unlimited invites</button>
-      <div class="btn-grid" style="margin-top:14px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="giveok">Give</button></div>
-      ${d.extra ? `<button class="link-btn" style="margin:12px auto 0;color:var(--coral-soft)" data-act="givereset">Take back the ${d.extra >= 100000 ? 'unlimited invites' : d.extra + ' extra invites'} you gave</button>` : ''}</div>`;
+      <div class="btn-grid" style="margin-top:14px"><button class="big-btn coral-btn" data-act="takeok">Remove</button><button class="big-btn primary-btn" data-act="giveok">Give</button></div>
+      ${d.extra ? `<button class="link-btn" style="margin:12px auto 0;color:var(--coral-soft)" data-act="givereset">${d.extra > 0 ? 'Undo the ' + (d.extra >= 100000 ? 'unlimited invites' : plural(d.extra, 'extra invite')) + ' you gave' : 'Give back the ' + plural(-d.extra, 'invite') + ' you removed'}</button>` : ''}
+      <button class="link-btn" style="margin:10px auto 0" data-act="closedialog">Cancel</button></div>`;
+  }
+  if (d.type === 'suspend') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
+      <h3 id="dlg-t">Suspend ${esc(d.name)}?</h3><p>They’ll be logged out on every phone and can’t log back in or see their spots until you reinstate them. Nothing is deleted.</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="suspend" data-id="${esc(d.uid)}" data-on="1">Suspend</button></div></div>`;
   }
   if (d.type === 'pushask') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
@@ -1512,6 +1521,8 @@ if (DEMO_INV) { ui.invData = { allowance: 3, invites: [], demo: true }; ui.page 
 async function checkMember() {
   if (!auth || !cloudOn()) return;
   try {
+    let st = null; try { st = await sbFetch('/rest/v1/rpc/sitio_my_status', { method: 'POST', body: '{}' }, true); } catch (e) { }
+    if (st === 'suspended') { ui.suspended = true; await logout(); ui.page = null; render(); return; }
     let ok = await sbFetch('/rest/v1/rpc/sitio_is_member', { method: 'POST', body: '{}' }, true);
     if (ok === false && pendingInvite()) { try { ok = await sbFetch('/rest/v1/rpc/sitio_redeem_invite', { method: 'POST', body: JSON.stringify({ c: pendingInvite() }) }, true); } catch (e) { ui.gateMsg = friendly(e); } }
     memberState = ok !== false;
@@ -1531,6 +1542,7 @@ function gateView() {
   return `<div class="gate"><div class="gate-in">
     <img class="gate-logo" src="icons/icon-192.png" alt=""><h1>Sitio</h1>
     <p class="gate-tag">Your map of the places you vouch for, shared with friends whose taste you trust.</p>
+    ${ui.suspended ? `<div class="card note" style="color:var(--coral-soft);margin:8px 0 6px">This account has been suspended. If you think this is a mistake, email ${CONTACT}.</div>` : ''}
     <div class="gate-badge">${ICON.lock}<span>Invite-only</span></div>
     ${ui.inviteFrom ? `<p class="gate-from"><b>${esc(ui.inviteFrom)}</b> invited you to Sitio.</p>` : code ? '<p class="gate-from">You’ve got an invite.</p>' : '<p class="gate-from">Every member is invited by a friend. Ask someone on Sitio for an invite link.</p>'}
     <button class="big-btn primary-btn" style="width:100%;margin-top:18px" data-act="gatesignup">${code ? 'Create your account' : 'I have an invite'}</button>
@@ -1549,7 +1561,7 @@ async function giveInvites(uid, n, isUndo) {
   try {
     const r = await sbFetch('/rest/v1/rpc/sitio_admin_give_invites', { method: 'POST', body: JSON.stringify({ uid, n }) }, true); ui.adminInv = Object.assign({}, ui.adminInv, { [uid]: r });
     const delta = (r && r.extra || 0) - before;
-    toast(isUndo ? 'Undone' : n >= 100000 ? 'Unlimited invites given' : n < 0 ? 'Invites taken back' : plural(n, 'invite') + ' given', isUndo || !delta ? null : () => giveInvites(uid, -delta, true));
+    toast(isUndo ? 'Undone' : n >= 100000 ? 'Unlimited invites given' : n < 0 ? plural(-n, 'invite') + ' removed' : plural(n, 'invite') + ' given', isUndo || !delta ? null : () => giveInvites(uid, -delta, true));
   }
   catch (e) { flash('Couldn’t give invites: ' + friendly(e)); }
   render();
@@ -2243,6 +2255,9 @@ uiEl.addEventListener('click', e => {
     case 'gatejoin': { const c = ((ui.gateCode != null ? ui.gateCode : pendingInvite()) || '').trim().replace(/^.*[#&]i=/, '').toLowerCase(); if (!c) { ui.gateMsg = 'Paste your invite link or code.'; break; } try { localStorage.setItem('sitio.pendingInvite', c); } catch (e2) { } ui.gateMsg = null; checkMember(); return; }
     case 'invites': ui.prevPage = ui.page; ui.page = 'invites'; if (!DEMO_INV) loadInvites(); break;
     case 'giveinv': { const u = (ui.adminData || []).find(x => x.user_id === id); const iv = (ui.adminInv || {})[id]; ui.dialog = { type: 'giveinv', uid: id, name: (u && u.data && u.data.user && u.data.user.name) || (u && u.email) || 'them', extra: iv ? iv.extra : 0 }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="giveN"]'); if (i) i.focus(); }, 60); return; }
+    case 'suspendask': { const u = (ui.adminData || []).find(x => x.user_id === id); ui.dialog = { type: 'suspend', uid: id, name: (u && u.data && u.data.user && u.data.user.name) || (u && u.email) || 'this account' }; break; }
+    case 'suspend': { const on = t.dataset.on === '1'; ui.dialog = null; render(); sbFetch('/rest/v1/rpc/sitio_admin_suspend', { method: 'POST', body: JSON.stringify({ uid: id, on_off: on }) }, true).then(r => { ui.adminInv = Object.assign({}, ui.adminInv, { [id]: r }); toast(on ? 'Account suspended' : 'Account reinstated', null); render(); }).catch(e => flash((e.status === 404 ? 'Run sitio-suspend.sql in Supabase first' : friendly(e)))); return; }
+    case 'takeok': { const n = parseInt(ui.dialog.n, 10); if (!(n > 0)) { flash('Type how many invites to remove.'); return; } const uid = ui.dialog.uid; ui.dialog = null; giveInvites(uid, -Math.min(n, 99999)); break; }
     case 'giveok': { const n = parseInt(ui.dialog.n, 10); if (!(n > 0)) { flash('Type how many invites to give.'); return; } const uid = ui.dialog.uid; ui.dialog = null; giveInvites(uid, Math.min(n, 99999)); break; }
     case 'giveunl': { const uid = ui.dialog.uid; ui.dialog = null; giveInvites(uid, 100000); break; }
     case 'givereset2': { const x = ((ui.adminInv || {})[id] || {}).extra || 0; if (x) giveInvites(id, -x); return; }
@@ -2432,7 +2447,7 @@ async function doAuth() {
       if (!s || !s.access_token) { save(); ui.authMode = 'login'; ui.authMsg = { ok: true, text: 'Almost there: check your email and tap the link to confirm, then log in here.' }; }
       else {
         if (!db.user.name && s.user && s.user.user_metadata && s.user.user_metadata.name) db.user.name = s.user.user_metadata.name;
-        setAuth(s); memberState = null; setTimeout(checkMember, 50); prepareHandoff(email, f.pass); try { if (!+localStorage.getItem('sitio.opens')) localStorage.setItem('sitio.opens', '1'); } catch (e2) { } if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
+        setAuth(s); memberState = null; ui.suspended = false; setTimeout(checkMember, 50); prepareHandoff(email, f.pass); try { if (!+localStorage.getItem('sitio.opens')) localStorage.setItem('sitio.opens', '1'); } catch (e2) { } if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
         toast(m === 'signup' ? 'Account created. Your spots are saved.' : 'Logged in', null);
         if (m === 'signup' && !db.tourDone) setTimeout(startTour, 900);
         sync();

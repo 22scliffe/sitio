@@ -757,3 +757,7 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .inv-person b { display: block; font-size: 14px; }
 .inv-person span span, .inv-person > span:nth-child(2) > span { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); }
 .inv-person .icon { width: 16px; height: 16px; color: var(--text-2); }
+
+.susp-note { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; color: var(--coral-soft); }
+.susp-note .icon { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.susp-note b { color: var(--coral-soft); }
