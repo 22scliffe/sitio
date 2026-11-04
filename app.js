@@ -338,9 +338,8 @@ const metaLine = (p, withDist = true) => [catNames(p), p.cuisine || '', p.area, 
 const gLink = (p) => p.googleId ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}&query_place_id=${encodeURIComponent(p.googleId)}` : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
 const aLink = (p) => hasCoords(p) ? `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}` : `https://maps.apple.com/?q=${encodeURIComponent(p.name)}`;
 const dirButtons = (p) => {
-  const g = `<a class="big-btn ${db.settings.dirApp === 'google' ? 'primary-btn' : 'sec-btn'}" href="${gLink(p)}" target="_blank" rel="noopener">${ICON.pin}Google Maps</a>`;
-  const a = `<a class="big-btn ${db.settings.dirApp === 'apple' ? 'primary-btn' : 'sec-btn'}" href="${aLink(p)}" target="_blank" rel="noopener">${ICON.nav}Apple Maps</a>`;
-  return `<div class="btn-grid">${a + g}</div>`;
+  // One button: opens your chosen maps app (Settings → Directions open in)
+  return `<a class="big-btn primary-btn dir-one" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener">${ICON.nav}Directions</a>`;
 };
 const hoursLine = (p) => {
   const s = status(p);
@@ -742,7 +741,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.3.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.3.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1265,8 +1264,10 @@ function dialogView() {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
       <h3 id="dlg-t">Send ${esc(p.name)}</h3><p>It goes to the top of their To try, with your name on it.</p>
       ${hid ? '<div class="card note" style="margin:0 0 10px;font-size:13px">This spot is in Hidden from friends. Sending it shows it to the people you pick.</div>' : ''}
-      <div class="send-faces">${mates.map(face).join('')}</div>
-      <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="sendgo" ${d.sel.length && !d.busy ? '' : 'disabled'}>${d.busy ? 'Sending…' : d.sel.length ? 'Send to ' + d.sel.length + (d.sel.length === 1 ? ' friend' : ' friends') : 'Pick friends'}</button>
+      ${mates.length ? `<div class="send-faces">${mates.map(face).join('')}</div>
+      <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="sendgo" ${d.sel.length && !d.busy ? '' : 'disabled'}>${d.busy ? 'Sending…' : d.sel.length ? 'Send to ' + d.sel.length + (d.sel.length === 1 ? ' friend' : ' friends') : 'Pick friends'}</button>`
+        : `<div class="card note" style="margin:0;font-size:13px">${ui.friends ? 'You don’t have any friends on Sitio yet. Once you and someone have added each other, they’ll show up here.' : 'Loading your friends…'}</div>
+      <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="addfriend">${ICON.plus}Add a friend</button>`}
       <button class="big-btn sec-btn" style="width:100%;margin-top:8px" data-act="shareother" data-id="${esc(p.id)}">${ICON.share}Other apps</button></div>`;
   }
   if (d.type === 'frphoto') return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,.92)"></div><img src="${esc(d.src)}" alt="" data-act="closedialog" style="position:fixed;inset:0;margin:auto;max-width:100%;max-height:100%;object-fit:contain;z-index:61">`;
@@ -2049,10 +2050,8 @@ function shareLink(p) {
 }
 async function share(p, other) {
   if (!other && auth && memberState === true && cloudOn()) {
-    if (!ui.friends) await loadFriends();
-    const mates = ((ui.friends && ui.friends.friends) || []).filter(f => f.status === 'accepted');
-    if (mates.length) {
-      ui.dialog = { type: 'sendspot', pid: p.id, sel: [], today: null }; render();
+    {
+      ui.dialog = { type: 'sendspot', pid: p.id, sel: [], today: null }; render(); if (!ui.friends) loadFriends();
       sbFetch('/rest/v1/rpc/sitio_share_today', { method: 'POST', body: '{}' }, true).then(r => { if (ui.dialog && ui.dialog.type === 'sendspot') { ui.dialog.today = r || {}; render(); } }).catch(() => { if (ui.dialog && ui.dialog.type === 'sendspot') { ui.dialog.today = {}; render(); } });
       return;
     }
@@ -2419,7 +2418,7 @@ uiEl.addEventListener('click', e => {
     case 'del': ui.dialog = { type: 'confirm', place: p }; break;
     case 'confirmdel': delPlace(ui.dialog.place); return;
     case 'closedialog': if (t.tagName === 'A') { setTimeout(() => { ui.dialog = null; render(); }, 50); return; } ui.dialog = null; break;
-    case 'dirs': ui.dialog = { type: 'dirs', place: p }; break;
+    case 'dirs': if (p) window.open(db.settings.dirApp === 'apple' ? aLink(p) : gLink(p), '_blank', 'noopener'); return;
     case 'share': if (ui.dialog && ui.dialog.type === 'more') { ui.dialog = null; render(); } share(p); return;
     case 'open': ui.selected = id; ui.sheet = 'spot'; break;
     case 'showtry': ui.selected = id; ui.sheet = 'spot'; { const q = db.places.find(x => x.id === id); if (q && q.sentNew) { delete q.sentNew; save(); } } break;
