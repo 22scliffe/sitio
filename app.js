@@ -90,7 +90,7 @@ if (db.v < 12) { db.places.forEach(p => { if (p.photos && p.photos.length) { p.m
 if (db.v < 11) { if (db.tourDone === undefined) db.tourDone = db.places.some(x => !x.sample) || !!localStorage.getItem('sitio.auth'); if (db.v >= 10) { db.v = 11; save(); } }
 if (db.v < 9) { db.places.forEach(p => { if (p.cuisine) p.cuisine = cuisList(p).map(q => q === 'Eastern' ? 'Middle Eastern' : q).join(', '); }); db.v = 9; save(); }
 // Notification types: recaps and friends on, events (promotional) off until switched on
-db.settings = db.settings || {}; if (db.settings.nRecaps === undefined) db.settings.nRecaps = true; if (db.settings.nFriends === undefined) db.settings.nFriends = true; if (db.settings.nEvents === undefined) db.settings.nEvents = false;
+db.settings = db.settings || {}; if (db.settings.nRecaps === undefined) db.settings.nRecaps = true; if (db.settings.nFriends === undefined) db.settings.nFriends = true; if (db.settings.nEvents === undefined) db.settings.nEvents = false; if (db.settings.shareMems === undefined) db.settings.shareMems = true;
 const hasSample = () => db.places.some(x => x.sample);
 function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
 const pj = p => { const { updatedAt, ...r } = p; return JSON.stringify(r); };
@@ -489,7 +489,7 @@ function homeView() {
   </div>
   ${hereMemoryChip()}
   <div class="map-bottom">
-    ${onlyTry ? `<div class="open-chip glass"><span class="dot" style="background:var(--coral)"></span>${list.length} to try</div>` : (spots.length ? `<div class="open-chip glass"><span class="dot"></span>${openN} of ${spots.length} open now</div>` : '<span></span>')}
+    ${ui.friendsLayer && !ui.world ? `<div class="open-chip glass"><span class="dot" style="background:#7FD8C6"></span>Friends’ spots</div>` : onlyTry ? `<div class="open-chip glass"><span class="dot" style="background:var(--coral)"></span>${list.length} to try</div>` : (spots.length ? `<div class="open-chip glass"><span class="dot"></span>${openN} of ${spots.length} open now</div>` : '<span></span>')}
     <button class="locate round glass" data-act="locate" aria-label="Centre on my location" style="color:var(--blue)">${ICON.nav}</button>
   </div>
   ${ui.menu === 'home' ? filterMenu() : ''}`;
@@ -718,6 +718,7 @@ function accountView() {
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
       ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
+      ${auth ? tog('Share memories with friends', 'Your photos at spots friends can see. Never ones in Hidden from friends', 'shareMems') : ''}
       ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
       ${row('Directions open in', db.settings.dirApp === 'apple' ? 'Apple Maps' : 'Google Maps', 'dirapp')}
       ${row('Currency', esc(city().currency) + ' (' + esc(city().name) + ')', 'currency')}
@@ -739,7 +740,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.3.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.3.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1009,8 +1010,8 @@ function privacyPage() {
     ['What we collect', [
       '<b>Account:</b> your email, username, display name and optional profile photo. Your password is stored encrypted and nobody can read it.',
       '<b>Your places and lists:</b> the places you save (names, locations, notes, prices, categories, cities), your lists and your settings.',
-      '<b>Memories:</b> the photos you add and the date you give them, stored privately in your account.',
-      '<b>Friends:</b> who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices and how many memories you have there), but never spots in Hidden from friends, notes you mark private, or your photos.',
+      '<b>Memories:</b> the photos you add and the date you give them, stored privately in your account and shown to your friends unless you turn off Share memories with friends in Settings.',
+      '<b>Friends:</b> who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices) and your memory photos there with their dates. They never see spots in Hidden from friends or notes you mark private, and you can stop sharing memories any time in Settings.',
       '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose (memory recaps; when a friend adds you or you become friends; events).',
       '<b>Your location:</b> used on your phone to show distances, centre the map and suggest your city. It is not stored on our servers. When you search or the app works out your city, your rough location is sent to Google or OpenStreetMap to answer that request.',
       '<b>Technical data:</b> like any website, our hosts see your IP address and device type when you open Sitio.'
@@ -1053,7 +1054,7 @@ function termsPage() {
     ['What Sitio is', 'A free app for keeping your own map of places you vouch for, your memories there, and sharing them with people you choose. We may change, pause or stop features, and will try to give notice of anything big.'],
     ['Your content', [
       'What you add (places, notes, lists, photos) stays yours. You give Sitio permission to store it and show it to you and to the people you share it with, only to run the app.',
-      'Only add photos and content you have the right to use, and be thoughtful about photos of other people.'
+      'Only add photos and content you have the right to use. Memory photos are shown to your friends, so only add photos of other people if they are happy for your friends to see them, and remove any photo if someone in it asks you to.'
     ]],
     ['Please don’t', 'Use Sitio for anything illegal; post someone else’s private information; add content that is hateful, harassing, sexual or violent; try to break, overload or access parts of Sitio that aren’t yours; or use it to send spam or advertising.'],
     ['Reporting content', `If you see something on Sitio that is illegal or breaks these terms, use Report a problem in Settings, the Report link on anything shared with you, or email ${mail}. We will look at every report, act quickly where needed, and let you know what we decided.`],
@@ -1251,6 +1252,12 @@ function dialogView() {
       <label class="search card" style="margin:4px 0 0">${ICON.search}<input type="search" name="sitio-friend-search" data-input="frName" placeholder="Search usernames" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" enterkeyhint="search" value="${esc(d.v || '')}"></label>
       <div id="frres">${frResults(d)}</div>
       <button class="big-btn sec-btn" style="width:100%;margin-top:12px" data-act="closedialog">Done</button></div>`;
+  }
+  if (d.type === 'frphoto') return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,.92)"></div><img src="${esc(d.src)}" alt="" data-act="closedialog" style="position:fixed;inset:0;margin:auto;max-width:100%;max-height:100%;object-fit:contain;z-index:61">`;
+  if (d.type === 'memsnotice') {
+    return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
+      <div style="font-size:38px;margin-bottom:6px">📸</div><h3 id="dlg-t">Your friends can now see your memories</h3><p>Friends will see the photos and dates of your memories at spots they can already see. Spots in Hidden from friends stay private. You can change this any time in Settings.</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="memshare" data-v="0">Keep them to me</button><button class="big-btn primary-btn" data-act="memshare" data-v="1">Share with friends</button></div></div>`;
   }
   if (d.type === 'friendinviter') {
     return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
@@ -1560,9 +1567,17 @@ async function loadFriendLayer() {
 function friendPins() {
   if (!ui.friendsLayer || !ui.friendLayerData) return [];
   const cats = ui.filter.filter(f => f !== 'totry' && !f.startsWith('list:'));
-  const mine = new Set(db.places.map(p => p.googleId).filter(Boolean));
-  return (ui.friendLayerData.places || []).filter(p => typeof p.lat === 'number' && typeof p.lng === 'number' && !(p.googleId && mine.has(p.googleId)) && catMatch(p, cats))
+  return (ui.friendLayerData.places || []).filter(p => typeof p.lat === 'number' && typeof p.lng === 'number' && catMatch(p, cats))
     .map(p => ({ id: 'f:' + p.owner + ':' + p.id, name: p.name, lat: p.lat, lng: p.lng, cat: p.cat, cats: p.cats, status: 'friend', _friend: { p, owner: p.owner, ownerName: p.ownerName, city: p.city } }));
+}
+// Friends' memory photos (private bucket; the server only lets friends read photos from places they can see)
+const fPhotos = {};
+function friendPhoto(owner, mid) {
+  const k = owner + '/' + mid; const v = fPhotos[k]; if (v) return v === 'x' || v === 'l' ? '' : v;
+  if (!auth) return ''; fPhotos[k] = 'l';
+  ensureFresh().then(() => fetch(SBURL + '/storage/v1/object/authenticated/memories/' + k + '.jpg', { headers: { apikey: SBKEY, Authorization: 'Bearer ' + auth.access_token } }))
+    .then(r => r.ok ? r.blob() : null).then(b => { fPhotos[k] = b && b.size ? URL.createObjectURL(b) : 'x'; render(); }).catch(() => { fPhotos[k] = 'x'; });
+  return '';
 }
 function saveFriendSpot(f) {
   const src = f.p, mine = db.places.find(x => (src.googleId && x.googleId === src.googleId) || (x.name === src.name && Math.abs((x.lat || 0) - src.lat) < 0.0005));
@@ -1603,7 +1618,7 @@ function friendsBody() {
   const list = F.friends || [], incoming = list.filter(f => f.incoming), sent = list.filter(f => f.status === 'pending' && !f.incoming), mates = list.filter(f => f.status === 'accepted');
   const av = f => `<span class="avatar fr-av">${f.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc((fname(f.name)[0] || '?').toUpperCase())}</span>`;
   const need = Math.max(0, 5 - spotCount());
-  return `<div class="fr-head card"><div><b>${F.count} of 25 friends</b><span>You’re friends once you’ve both added each other. Friends see your Spots and what you want to try, never your hidden spots or private notes.</span></div><button class="pill primary-btn" style="height:38px;font-weight:800;flex:none" data-act="addfriend">${ICON.plus}Add</button></div>
+  return `<div class="fr-head card"><div><b>${(F.cap || 25) >= 1000 ? plural(F.count, 'friend') + ' · no limit' : F.count + ' of ' + (F.cap || 25) + ' friends'}</b><span>You’re friends once you’ve both added each other. Friends see your Spots, what you want to try and your memories there, never your hidden spots or private notes.</span></div><button class="pill primary-btn" style="height:38px;font-weight:800;flex:none" data-act="addfriend">${ICON.plus}Add</button></div>
     ${!F.unlocked ? `<div class="card note fr-lock">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
     ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Added you · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>added you</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="fryes" data-id="${esc(f.id)}">${ICON.plus}Add back</button></div>`).join('')}</div>` : ''}
     <div class="section-label" style="margin:14px 0 8px">Friends${mates.length ? ' · ' + mates.length : ''}</div>
@@ -1617,15 +1632,17 @@ function friendPage(id) {
   if (!M) return `<div class="page" style="z-index:15">${head}<p class="page-sub">Loading…</p></div>`;
   if (M.error) return `<div class="page" style="z-index:15">${head}<div class="card note">${esc(M.error)}</div></div>`;
   const who = fname(M.name), cityOfF = p => (M.cities || []).find(c => c.id === p.cityId);
-  const row = p => `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}"><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0"><b>${esc(p.name)}</b><span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`;
+  const row = p => { const top = (p.mems || [])[0], u = top && friendPhoto(id, top.id);
+    return `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}">${top ? `<span class="fr-thumb">${u ? `<img src="${u}" alt="">` : '📸'}</span>` : ''}<span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>${esc(p.name)}</b><span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.lastMem ? ' · 📸 ' + esc(new Date(p.lastMem).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })) : p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`; };
+  const byRecent = ps => ps.slice().sort((x, y) => (y.lastMem || 0) - (x.lastMem || 0) || (y.addedAt || 0) - (x.addedAt || 0));
   const group = ps => { const by = {}; ps.forEach(p => { const c = cityOfF(p); const k = c ? c.name : 'Other'; (by[k] = by[k] || []).push(p); }); return Object.keys(by).map(k => `<div class="section-label" style="margin:14px 0 8px">${esc(k)} · ${by[k].length}</div><div class="settings card">${by[k].map(row).join('')}</div>`).join(''); };
   if (M.locked) return `<div class="page" style="z-index:15">${head}
     <div class="card fr-teaser"><div class="inv-n">${M.spots}</div><div><b>${esc(who)} vouches for ${plural(M.spots, 'spot')}</b><span>Save ${Math.max(0, 5 - spotCount())} more of your own to unlock their full map.</span></div></div>
     ${M.places.length ? `<div class="section-label" style="margin:14px 0 8px">A taste of ${esc(who)}’s map</div><div class="settings card">${M.places.map(row).join('')}</div>` : ''}
     <button class="link-btn" style="margin:22px auto 0;color:var(--coral-soft)" data-act="unfriendask" data-id="${esc(id)}">Remove ${esc(who)} as a friend</button></div>`;
-  const spots = M.places.filter(p => p.status === 'spot'), tries = M.places.filter(p => p.status === 'totry');
+  const spots = byRecent(M.places.filter(p => p.status === 'spot')), tries = byRecent(M.places.filter(p => p.status === 'totry'));
   return `<div class="page" style="z-index:15">${head}
-    <p class="page-sub" style="margin:-4px 0 6px">Vouches for ${plural(spots.length, 'spot')}${tries.length ? ' · wants to try ' + tries.length : ''}</p>
+    <p class="page-sub" style="margin:-4px 0 6px">Vouches for ${plural(spots.length, 'spot')}${tries.length ? ' · wants to try ' + tries.length : ''}${spots.some(p => p.lastMem) ? ' · latest memories first' : ''}</p>
     ${spots.length ? group(spots) : `<div class="empty card" style="border-radius:20px">${esc(who)} hasn’t saved any spots yet.</div>`}
     ${tries.length ? `<details class="fr-tries"><summary>${esc(who)} wants to try · ${tries.length}</summary>${group(tries)}</details>` : ''}
     <button class="link-btn" style="margin:22px auto 0;color:var(--coral-soft)" data-act="unfriendask" data-id="${esc(id)}">Remove ${esc(who)} as a friend</button></div>`;
@@ -1639,12 +1656,53 @@ function friendSheet(f) {
     <div class="meta">${esc([catNames(p), p.cuisine, p.area, f.city && f.city.name, typeof p.lat === 'number' ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · '))}</div>
     ${!isTry && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(cur.repeat(p.price))}</span><span class="off">${esc(cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
     ${p.note ? `<div class="note card"><b>${esc(who)}:</b> ${esc(p.note)}</div>` : ''}
-    ${p.mem ? `<div class="fr-mem">📸 ${esc(who)} has ${plural(p.mem, 'memory', 'memories')} here</div>` : ''}
+    ${(p.mems || []).length ? `<div class="mem"><div class="mem-head"><span>📸 ${esc(who)}’s memories · ${p.mems.length}</span></div><div class="mem-strip">${p.mems.map(m => { const u = friendPhoto(f.owner, m.id); return `<button class="mem-item" ${u ? `data-act="frphoto" data-src="${u}"` : ''}>${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">Loading…</span>'}<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span></button>`; }).join('')}</div></div>`
+      : p.mem ? `<div class="fr-mem">📸 ${esc(who)} has ${plural(p.mem, 'memory', 'memories')} here</div>` : ''}
     ${mine ? `<div class="card note" style="margin:12px 0">Already in your ${mine.status === 'spot' ? 'Spots' : 'To try'}.</div>` : `<button class="big-btn coral-btn" style="width:100%;margin:12px 0 8px" data-act="frsave">${ICON.plus}Save to To try</button>`}
     ${typeof p.lat === 'number' ? dirButtons(p) : ''}
     <p class="page-sub" style="font-size:12px;margin:10px 0 0">From ${esc(who)}’s map. It only becomes one of your Spots once you’ve been and save it yourself.</p>
   </div>`;
 }
+// Memories became visible to friends (v2.3.6): tell people who already have photos online, once per account
+function maybeMemsNotice(tries = 0) {
+  if (!auth || memberState !== true || db.settings.memsNotice || !memCount(true)) { if (tries < 60 && !db.settings.memsNotice) setTimeout(() => maybeMemsNotice(tries + 1), 1500); return; }
+  if (ui.install || ui.dialog || ui.page || ui.sheet || ui.tour != null || gated()) { if (tries < 200) setTimeout(() => maybeMemsNotice(tries + 1), 1000); return; }
+  ui.dialog = { type: 'memsnotice' }; render();
+}
+setTimeout(maybeMemsNotice, 4000);
+// One-off for the admin account: places Sam collected from TikTok / Instagram, added to To try once
+const ADMIN_TOTRY_1 = [
+  ['The Bassement Club', 'Calle de Galileo 26', 'club', ''], ['Club 33', 'Calle de la Cabeza 33', 'club', ''], ['Hangar 48', 'Calle de Bailén 24', 'club', ''],
+  ['Penta Bar', 'Calle de la Palma 4', 'bar', ''], ['Subcero Club', 'Calle de Ayala 27', 'club', ''], ['Azotea Cibeles', 'Plaza de Cibeles 1', 'chill', ''],
+  ['La Mesa de Jade', 'Calle de la Reina Mercedes 22', 'restaurant', 'Asian'], ['Rajkot Indian Cuisine', '', 'restaurant', 'Indian'], ['Masa Naomi', '', 'restaurant', 'Asian'],
+  ['Donzoko', '', 'restaurant', 'Asian'], ['Entre Santos Cocktail Bar & Food', '', 'bar', ''], ['GAMAN by Luis Arévalo', '', 'restaurant', 'Asian'],
+  ['Pez Tortilla', '', 'bar', 'Spanish'], ['Araia', 'Calle de Murillo 3', 'restaurant', ''], ['Café de la March', 'Calle de Castelló 77', 'cafe', ''],
+  ['Los 33', 'Plaza de las Salesas 9', 'bar', ''], ['Vinology', 'Calle de Zurbano 13', 'bar', ''], ['TKO Tacos', '', 'restaurant', 'Mexican'], ['Manchego Café Bar', '', 'bar', 'Spanish']
+];
+async function adminToTry(tries = 0) {
+  if (db.settings.adminToTry1) return;
+  if (!isAdmin || !mapApi.google) { if (tries < 120) setTimeout(() => adminToTry(tries + 1), 1000); return; }
+  db.settings.adminToTry1 = 1; save();
+  const madrid = db.cities.find(c => /madrid/i.test(c.name || '')) || city(), have = n => db.places.some(p => p.name.toLowerCase() === n.toLowerCase());
+  let added = 0; const missed = [];
+  try {
+    const { Place } = await google.maps.importLibrary('places');
+    for (const [name, addr, cat, cuisine] of ADMIN_TOTRY_1) {
+      if (have(name)) continue;
+      try {
+        const { places } = await Place.searchByText({ textQuery: [name, addr, 'Madrid'].filter(Boolean).join(', '), fields: ['id', 'displayName', 'location', 'addressComponents'], locationBias: { center: { lat: madrid.lat || 40.4168, lng: madrid.lng || -3.7038 }, radius: 20000 }, maxResultCount: 1 });
+        const pl = places && places[0]; if (!pl || !pl.location || db.places.some(p => p.googleId === pl.id)) { if (!pl) missed.push(name); continue; }
+        const comp = (pl.addressComponents || []).find(c => c.types.includes('neighborhood') || c.types.includes('sublocality'));
+        db.places.push({ id: uid(), cityId: madrid.id, name: pl.displayName || name, area: comp ? comp.longText : '', cat, cats: [cat], cuisine, status: 'totry', price: 0, note: '', photos: [], lat: pl.location.lat(), lng: pl.location.lng(), googleId: pl.id, hours: null, hoursSrc: null, addedAt: Date.now(), coordsAt: Date.now() });
+        added++;
+      } catch (e) { missed.push(name); }
+    }
+  } catch (e) { ADMIN_TOTRY_1.forEach(x => { if (!have(x[0])) missed.push(x[0]); }); }
+  if (missed.length) { const q = importQ(); missed.forEach(n => { if (!q.some(x => x.name === n)) q.push({ key: 'i-' + uid(), name: n, note: '', list: 'From TikTok & Instagram' }); }); setImportQ(q); }
+  save(); lastMapKey = ''; render();
+  if (added || missed.length) toast(`${plural(added, 'place')} added to To try${missed.length ? ` · ${missed.length} to check in Import` : ''}`, null);
+}
+setTimeout(adminToTry, 3000);
 // New members are asked once (per phone) to become friends with whoever invited them
 async function maybeAskInviter(tries = 0) {
   try { if (localStorage.getItem('sitio.askedFriend')) return; } catch (e) { return; }
@@ -1755,7 +1813,8 @@ let lastMapKey = '';
 function render() {
   document.body.classList.toggle('light', !db.settings.darkMap);
   // Map pins
-  const list = (ui.world ? worldList() : cityPlaces()).filter(p => hasCoords(p) && matches(p, ui.filter)).concat(ui.world || ui.tab !== 'home' ? [] : friendPins());
+  const onlyFriends = ui.friendsLayer && !ui.world && ui.tab === 'home';
+  const list = (onlyFriends ? [] : (ui.world ? worldList() : cityPlaces()).filter(p => hasCoords(p) && matches(p, ui.filter))).concat(onlyFriends ? friendPins() : []);
   const key = JSON.stringify([ui.world ? 'w' : 'c', ui.friendsLayer ? (ui.friendLayerAt || 1) : 0, list.map(p => p.id + p.status + p.price + coverOf(p) + (photoUrls[coverOf(p)] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
   if (key !== lastMapKey) { mapApi.update(list, ui.selected); lastMapKey = key; }
   mapApi.el.style.visibility = ui.tab === 'home' || ui.world ? 'visible' : 'hidden';
@@ -2423,13 +2482,15 @@ uiEl.addEventListener('click', e => {
     case 'giveunl': { const uid = ui.dialog.uid; ui.dialog = null; giveInvites(uid, 100000); break; }
     case 'givereset2': { const x = ((ui.adminInv || {})[id] || {}).extra || 0; if (x) giveInvites(id, -x); return; }
     case 'givereset': { const uid = ui.dialog.uid, x = ui.dialog.extra; ui.dialog = null; giveInvites(uid, -x); break; }
-    case 'friendlayer': if (!auth) return; ui.friendsLayer = !ui.friendsLayer; if (ui.friendsLayer && (!ui.friendLayerData || Date.now() - (ui.friendLayerAt || 0) > 300000)) { loadFriendLayer(); } else { lastMapKey = ''; if (ui.friendsLayer) toast('Showing friends’ spots', null); } break;
+    case 'friendlayer': if (!auth) return; ui.friendsLayer = !ui.friendsLayer; if (ui.friendsLayer && (!ui.friendLayerData || Date.now() - (ui.friendLayerAt || 0) > 300000)) { loadFriendLayer(); } else { lastMapKey = ''; if (ui.friendsLayer) toast('Showing your friends’ spots. Tap again for yours', null); } break;
     case 'addfriend': ui.dialog = { type: 'addfriend', v: '' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="frName"]'); if (i) i.focus(); }, 60); return;
     case 'fradd': { const n = t.dataset.name; sbFetch('/rest/v1/rpc/sitio_friend_request', { method: 'POST', body: JSON.stringify({ name: n }) }, true).then(r => { toast(r === 'accepted' ? 'You’re now friends with ' + n : 'Added ' + n + '. You’ll be friends once they add you back', null); loadFriends(); if (ui.dialog && ui.dialog.type === 'addfriend') searchFriends(); }).catch(e => flash(friendly(e))); return; }
     case 'frsend': { const n = (ui.dialog.v || '').trim().replace(/^@/, ''); if (!n) { flash('Type their username.'); return; } ui.dialog = null; render();
       sbFetch('/rest/v1/rpc/sitio_friend_request', { method: 'POST', body: JSON.stringify({ name: n }) }, true).then(r => { toast(r === 'accepted' ? 'You’re now friends with ' + n : r === 'already' ? 'You’re already friends' : r === 'pending' ? 'You’ve already added ' + n : 'Added ' + n + '. You’ll be friends once they add you back', null); loadFriends(); }).catch(e => flash(friendly(e))); return; }
     case 'fryes': case 'frno': sbFetch('/rest/v1/rpc/sitio_friend_respond', { method: 'POST', body: JSON.stringify({ other: id, accept: act === 'fryes' }) }, true).then(() => { if (act === 'fryes') toast('You’re now friends', null); ui.friendLayerData = null; loadFriends(); if (ui.dialog && ui.dialog.type === 'addfriend') searchFriends(); }).catch(e => flash(friendly(e))); return;
     case 'frinviter': ui.dialog = null; render(); sbFetch('/rest/v1/rpc/sitio_friend_inviter', { method: 'POST', body: '{}' }, true).then(() => { toast('Friend added', null); loadFriends(); }).catch(e => flash(friendly(e))); return;
+    case 'frphoto': ui.dialog = { type: 'frphoto', src: t.dataset.src }; break;
+    case 'memshare': db.settings.shareMems = t.dataset.v === '1'; db.settings.memsNotice = 1; save(); ui.dialog = null; toast(db.settings.shareMems ? 'Friends can see your memories' : 'Your memories stay just yours', null); break;
     case 'openfriend': ui.prevPage = ui.page; ui.page = { friend: id }; loadFriendMap(id); break;
     case 'friendspot': { const M = (ui.friendMaps || {})[t.dataset.owner]; const p = M && (M.places || []).find(x => x.id === t.dataset.pid); if (!p) return; const F = (ui.friends.friends || []).find(x => x.id === t.dataset.owner); ui.fspot = { p, owner: t.dataset.owner, ownerName: (M && M.name) || (F && F.name), city: (M.cities || []).find(c => c.id === p.cityId) || null }; ui.sheet = 'friendspot'; break; }
     case 'frsave': if (ui.fspot) { saveFriendSpot(ui.fspot); } break;

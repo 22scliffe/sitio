@@ -1,6 +1,6 @@
 -- Sitio: friends. Run once in Supabase → SQL Editor (after the invite scripts).
--- Mutual friendships, max 25 each. Friends see each other's Spots and To try, never anything in
--- "Hidden from friends" and never notes marked private. Memories show only as a count.
+-- Mutual friendships, max 25 each (no limit for admins, see friends-memories.sql). Friends see Spots, To try and memories, never anything in
+-- "Hidden from friends" and never notes marked private.
 -- Friends' full maps unlock once you have 5 spots of your own; before that you get a teaser.
 
 create table if not exists public.sitio_friends (

@@ -807,3 +807,6 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .badge.dot { min-width: 10px; width: 10px; height: 10px; padding: 0; top: 7px; right: 22px; }
 
 .new-pill, .set-row .fr-who .new-pill { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 8px; font-size: 10px; font-weight: 800; color: #0E2A25 !important; background: #7FD8C6; vertical-align: middle; }
+
+.fr-thumb { width: 44px; height: 44px; flex: none; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,.08); display: grid; place-items: center; font-size: 18px; margin-right: 10px; }
+.fr-thumb img { width: 100%; height: 100%; object-fit: cover; }
