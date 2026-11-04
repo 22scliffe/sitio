@@ -5,6 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
+const APP_VERSION = '0.6.20'; // also in version.txt: bump both
 const LOC = () => window.SITIO_LANG === 'es' ? 'es-ES' : 'en-GB';
 const DEFAULT_ME = { lat: 40.4168, lng: -3.7038 }; // Puerta del Sol, used until location is allowed
 
@@ -92,6 +93,8 @@ if (db.v < 11) { if (db.tourDone === undefined) db.tourDone = db.places.some(x =
 if (db.v < 9) { db.places.forEach(p => { if (p.cuisine) p.cuisine = cuisList(p).map(q => q === 'Eastern' ? 'Middle Eastern' : q).join(', '); }); db.v = 9; save(); }
 // Notification types: recaps and friends on, events (promotional) off until switched on
 db.settings = db.settings || {}; if (db.settings.nRecaps === undefined) db.settings.nRecaps = true; if (db.settings.nFriends === undefined) db.settings.nFriends = true; if (db.settings.nEvents === undefined) db.settings.nEvents = false; if (db.settings.shareMems === undefined) db.settings.shareMems = true;
+// Language: English unless the phone is set to Spanish (until the person picks one in Settings)
+if (db.settings.lang === undefined) { try { const L = (navigator.languages && navigator.languages[0]) || navigator.language || ''; if (/^es\b/i.test(L)) db.settings.lang = 'es'; } catch (e) { } }
 const hasSample = () => db.places.some(x => x.sample);
 function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
 const pj = p => { const { updatedAt, ...r } = p; return JSON.stringify(r); };
@@ -771,7 +774,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.19 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v${APP_VERSION} \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 // City photos from Wikipedia (free licence images from Wikimedia Commons), fetched by the phone and cached on it
 let cityPics = (() => { try { return JSON.parse(localStorage.getItem('sitio.cityPics') || '{}'); } catch (e) { return {}; } })();
@@ -3149,9 +3152,17 @@ render();
 sync();
 setTimeout(() => { if (tourForced && !ui.install) startTour(); else maybeFirstTour(); }, 1500);
 var hiddenAt = 0;
+// New version check: when Sitio comes back to the front, reload if a newer version has been published
+let verCheckAt = 0;
+function checkVersion() {
+  if (Date.now() - verCheckAt < 60000) return; verCheckAt = Date.now();
+  fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(v => { v = (v || '').trim();
+    if (v && v !== APP_VERSION && !ui.sheet && !ui.dialog && !ui.page) location.reload(); }).catch(() => {});
+}
+setTimeout(checkVersion, 4000);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { hiddenAt = Date.now(); return; }
-  sync(); setTimeout(takeShares, 1500);
+  sync(); setTimeout(takeShares, 1500); checkVersion();
   if (hiddenAt && Date.now() - hiddenAt > 10 * 60000) setTimeout(() => maybeNudge('open'), 800);
 });
 locate(false);
