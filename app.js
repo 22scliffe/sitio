@@ -604,20 +604,21 @@ function roSheet(p, ro) {
 function spotSheet(p) {
   const isTry = p.status === 'totry';
   const more = `<button class="act-more" data-act="more" data-id="${p.id}" aria-label="More">${ICON.dots}</button>`;
-  const first = isTry
+  const tryBtns = isTry && (ui.tab !== 'home' || ui.page);
+  const first = tryBtns ? '<span></span>' : isTry
     ? `<button class="act act-save" data-act="savetry" data-id="${p.id}">${ICON.check}<span>Save to Spots</span></button>`
     : `<button class="act ${p.fav ? 'fav-on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}">${ICON.star}<span>Favourite</span></button>`;
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
     ${isTry ? tryCover(p) : memoryStrip(p)}
-    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}</div>
-    <div class="act-row">${first}${more}</div>
+    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}${tryBtns ? `<span style="margin-left:auto;flex:none">${more}</span>` : ''}</div>
+    ${tryBtns ? '' : `<div class="act-row">${first}${more}</div>`}
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${p.via ? `<div class="via-line">${ICON.friends}<span>via <b>${esc(p.via.name)}</b></span>${reportLink('Spot from ' + p.via.name + ': ' + p.name)}</div>` : ''}
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price, p)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button><button class="note-priv" data-act="notepriv" data-id="${p.id}">${p.notePrivate ? ICON.lock + 'Only you can see this note · share with friends' : ICON.friends + 'Friends can see this note · make it private'}</button>` : '<div style="height:12px"></div>'}
-    ${isTry && hasCoords(p) && (ui.tab !== 'home' || ui.page) ? mapDirButtons(p, 'trymapone', `data-id="${p.id}"`) : dirButtons(p)}
+    ${tryBtns ? `<div class="btn-grid"><button class="big-btn primary-btn" data-act="savetry" data-id="${p.id}">${ICON.check}Save to Spots</button>${hasCoords(p) ? `<button class="big-btn sec-btn" data-act="trymapone" data-id="${p.id}">${ICON.map}View on map</button>` : ''}</div>` : dirButtons(p)}
   </div>`;
 }
 // To try places: same layout as Spots, with the place's picture where memories would be
@@ -741,7 +742,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.11 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.12 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
