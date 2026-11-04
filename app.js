@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.7.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.7.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1611,13 +1611,16 @@ async function sendRecap(d, demoId) {
   } catch (e) { flash('Couldn’t create the link: ' + friendly(e)); }
 }
 // One-off demo: the admin's recap pops up once for everyone else the next time they open Sitio
-const DEMO_RECAP = 'demoND2026';
+const DEMO_RECAP = 'demoND2026', DEMO_CUTOFF = Date.parse('2026-11-04T00:15:00Z');
 function checkDemoRecap(tries = 0) {
-  if (!cloudOn()) return;
+  if (!cloudOn() || Date.now() > DEMO_CUTOFF + 14 * 864e5) return;
+  if (!auth) { if (tries < 40) setTimeout(() => checkDemoRecap(tries + 1), 500); return; }
   try { if (localStorage.getItem('sitio.seen.' + DEMO_RECAP)) return; } catch (e) { }
   if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => checkDemoRecap(tries + 1), 500); return; }
   sbFetch('/rest/v1/rpc/sitio_get_share', { method: 'POST', body: JSON.stringify({ sid: DEMO_RECAP }) }).then(d => {
-    if (!d || d.t !== 'recap' || isAdmin || (auth && d.o === auth.user.id)) return;
+    // only accounts that existed before the demo was made (Lola and Marta), never new sign-ups or logged-out phones
+    const made = auth && auth.user && Date.parse(auth.user.created_at || '');
+    if (!d || d.t !== 'recap' || isAdmin || !auth || d.o === auth.user.id || !made || made > DEMO_CUTOFF) return;
     if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { setTimeout(() => checkDemoRecap(tries + 1), 1000); return; }
     if (openSharedRecap(d)) { try { localStorage.setItem('sitio.seen.' + DEMO_RECAP, '1'); } catch (e) { } ui.tab = 'home'; render(); }
   }).catch(() => { });
