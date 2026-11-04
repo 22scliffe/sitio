@@ -710,8 +710,8 @@ function accountView() {
     <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
+      ${auth ? row('Invite friends', ui.invData ? (ui.invData.allowance >= 1000 ? 'Unlimited' : Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left') : 'Invite-only', 'invites') : ''}
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
-      ${auth ? row('Invite friends', ui.invData ? Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left' : 'Invite-only', 'invites') : ''}
       ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
       ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.0.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.0.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1462,7 +1462,9 @@ let memberState = null; // null = not checked yet, true / false once known
 const inviteFromUrl = (location.hash.match(/(?:^#|&)i=([a-z0-9]{6,16})/i) || [])[1];
 if (inviteFromUrl) { try { localStorage.setItem('sitio.pendingInvite', inviteFromUrl.toLowerCase()); } catch (e) { } history.replaceState(null, '', location.pathname); }
 const pendingInvite = () => { try { return localStorage.getItem('sitio.pendingInvite') || ''; } catch (e) { return ''; } };
-const gated = () => cloudOn() && (!auth || memberState === false);
+const DEMO_INV = /[?&]demo=invites/.test(location.search);
+const gated = () => !DEMO_INV && cloudOn() && (!auth || memberState === false);
+if (DEMO_INV) { ui.invData = { allowance: 3, invites: [], demo: true }; ui.page = 'invites'; ui.install = false; }
 async function checkMember() {
   if (!auth || !cloudOn()) return;
   try {
@@ -1513,8 +1515,9 @@ function invitesPage() {
   const head = `<div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Invite friends</span></div>`;
   if (ui.invErr) return `<div class="page" style="z-index:16">${head}<div class="card note">${esc(ui.invErr)}</div></div>`;
   if (!d) return `<div class="page" style="z-index:16">${head}<p class="page-sub">Loading…</p></div>`;
+  const demoBar = d.demo ? `<div class="card note" style="margin-bottom:12px;font-size:13px;line-height:1.45"><b>Demo</b> · how a regular member sees this. Create links, tap a waiting invite to pretend a friend joined, or <button class="link-btn" style="display:inline;padding:0;font-size:13px;text-decoration:underline" data-act="demolevel">${d.allowance === 3 ? 'reach Local amateur' : 'go back to 3 invites'}</button>. Nothing is saved.</div>` : '';
   const nextBonus = d.allowance === 3 ? `<p class="page-sub" style="font-size:13px;margin-top:10px">Reach <b>Local amateur</b> (5 spots) to earn 2 more.</p>` : '';
-  return `<div class="page" style="z-index:16">${head}
+  return `<div class="page" style="z-index:16">${head}${demoBar}
     <div class="card inv-hero"><div class="inv-n">${unlimited ? '∞' : left}</div><div><b>${unlimited ? 'Unlimited invites' : left === 1 ? 'invite left' : 'invites left'}</b><span>Sitio is invite-only. Each link works once, so send it to someone whose taste you trust.</span></div></div>
     ${nextBonus}
     ${left ? `<button class="big-btn primary-btn" style="width:100%;margin:14px 0 18px" data-act="newinvite">${ICON.share}Create an invite link</button>` : `<button class="big-btn sec-btn" style="width:100%;margin:14px 0 18px;opacity:.55" disabled>No invites left</button>`}
@@ -1651,7 +1654,7 @@ function placeTour() {
   tip.style.transform = 'none';
   if (below) { tip.style.top = (r.bottom - rootR.top + 18) + 'px'; tip.style.bottom = 'auto'; } else { tip.style.bottom = (rootR.bottom - r.top + 18) + 'px'; tip.style.top = 'auto'; }
 }
-function maybeNudge(reason) {
+function maybeNudge(reason) { if (DEMO_INV) return;
   if (ui.tour != null) return;
   if (!cloudOn() || auth || ui.install || ui.dialog || ui.sheet === 'add' || ui.page === 'auth') return;
   let last = 0; try { last = +localStorage.getItem('sitio.nudgeAt') || 0; } catch (e) { }
@@ -1978,7 +1981,7 @@ function whereAmI() {
     }).catch(osm);
 }
 function tryHerePrompt() {
-  if (!herePrompt) return;
+  if (!herePrompt || DEMO_INV) return;
   if (ui.dialog || ui.install || ui.sheet || ui.page === 'auth' || ui.tour != null || ui.globe) { setTimeout(tryHerePrompt, 1500); return; }
   ui.dialog = { type: 'here', h: herePrompt }; herePrompt = null; render();
 }
@@ -2178,9 +2181,10 @@ uiEl.addEventListener('click', e => {
     case 'gatesignup': ui.authMode = 'signup'; ui.authF = Object.assign(ui.authF || {}, { code: (ui.authF && ui.authF.code) || pendingInvite() }); ui.page = 'auth'; break;
     case 'gatelogin': ui.authMode = 'login'; ui.page = 'auth'; break;
     case 'gatejoin': { const c = ((ui.gateCode != null ? ui.gateCode : pendingInvite()) || '').trim().replace(/^.*[#&]i=/, '').toLowerCase(); if (!c) { ui.gateMsg = 'Paste your invite link or code.'; break; } try { localStorage.setItem('sitio.pendingInvite', c); } catch (e2) { } ui.gateMsg = null; checkMember(); return; }
-    case 'invites': ui.prevPage = ui.page; ui.page = 'invites'; loadInvites(); break;
-    case 'newinvite': makeInvite(); return;
-    case 'shareinvite': shareInvite(t.dataset.code); return;
+    case 'invites': ui.prevPage = ui.page; ui.page = 'invites'; if (!DEMO_INV) loadInvites(); break;
+    case 'newinvite': if (DEMO_INV) { const d = ui.invData; if (d.invites.length < d.allowance) d.invites.unshift({ code: 'demo' + d.invites.length, created_at: new Date().toISOString(), used_at: null }); toast('Demo: this would open your share sheet with the link', null); break; } makeInvite(); return;
+    case 'shareinvite': if (DEMO_INV) { const i = ui.invData.invites.find(x => x.code === t.dataset.code); if (i) { i.used_at = new Date().toISOString(); i.name = ['Lola', 'Marta', 'Pablo', 'Ana', 'Leo'][ui.invData.invites.indexOf(i) % 5]; } toast('Demo: a friend used this invite', null); break; } shareInvite(t.dataset.code); return;
+    case 'demolevel': ui.invData.allowance = ui.invData.allowance === 3 ? 5 : 3; toast(ui.invData.allowance === 5 ? 'Demo: reached Local amateur, +2 invites' : 'Demo: back to 3 invites', null); break;
     case 'agreetoggle': if (!e.target.closest('[data-act="terms"],[data-act="privacy"]')) { ui.authF = ui.authF || {}; ui.authF.agree = !ui.authF.agree; } break;
     case 'chpass': ui.dialog = { type: 'chpass' }; break;
     case 'chpassgo': { const f = [...uiEl.querySelectorAll('[data-dlgfield]')].map(i => i.value); ui.dialog.v = f; changePasswordChecked(f[0], f[1]); return; }

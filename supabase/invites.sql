@@ -28,7 +28,7 @@ $$;
 
 create or replace function public.sitio_invite_allowance() returns integer
 language sql stable security definer set search_path = public as $$
-  select case when public.sitio_is_admin() then 1000 else 3 + case when (
+  select case when public.sitio_is_admin() then 100000 else 3 + case when (
     select count(*) from sitio_data d, jsonb_array_elements(case when jsonb_typeof(d.data->'places') = 'array' then d.data->'places' else '[]'::jsonb end) p
     where d.user_id = auth.uid() and p->>'status' = 'spot') >= 5 then 2 else 0 end end;
 $$;
