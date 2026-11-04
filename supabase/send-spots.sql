@@ -6,7 +6,7 @@
 
 create extension if not exists pg_net;
 
-create table if not exists public.sitio_shares (
+create table if not exists public.sitio_sent_spots (
   id bigserial primary key,
   sender uuid not null references auth.users(id) on delete cascade,
   receiver uuid not null references auth.users(id) on delete cascade,
@@ -14,9 +14,9 @@ create table if not exists public.sitio_shares (
   created_at timestamptz not null default now(),
   taken_at timestamptz
 );
-alter table public.sitio_shares enable row level security;  -- only reachable through the functions below
-create index if not exists sitio_shares_inbox on public.sitio_shares (receiver) where taken_at is null;
-create index if not exists sitio_shares_daily on public.sitio_shares (sender, receiver, created_at);
+alter table public.sitio_sent_spots enable row level security;  -- only reachable through the functions below
+create index if not exists sitio_sent_spots_inbox on public.sitio_sent_spots (receiver) where taken_at is null;
+create index if not exists sitio_sent_spots_daily on public.sitio_sent_spots (sender, receiver, created_at);
 
 create or replace function public.sitio_share_day_start() returns timestamptz
 language sql stable as $$ select (date_trunc('day', now() at time zone 'Europe/Madrid')) at time zone 'Europe/Madrid'; $$;
@@ -26,7 +26,7 @@ create or replace function public.sitio_share_today() returns json
 language sql stable security definer set search_path = public as $$
   select json_build_object(
     'cap', case when public.sitio_user_is_admin(auth.uid()) then null else 3 end,
-    'counts', coalesce((select json_object_agg(receiver, n) from (select receiver, count(*) n from sitio_shares
+    'counts', coalesce((select json_object_agg(receiver, n) from (select receiver, count(*) n from sitio_sent_spots
        where sender = auth.uid() and created_at >= public.sitio_share_day_start() group by receiver) s), '{}'::json));
 $$;
 
@@ -45,10 +45,10 @@ begin
       'lat', place->'city'->'lat', 'lng', place->'city'->'lng', 'cc', left(place->'city'->>'cc', 4), 'currency', left(place->'city'->>'currency', 4)) end));
   foreach t in array to_ids loop
     if t = me or not public.sitio_are_friends(me, t) then res := res || jsonb_build_object(t::text, 'notfriends');
-    elsif not unlimited and (select count(*) from sitio_shares where sender = me and receiver = t and created_at >= public.sitio_share_day_start()) >= 3 then
+    elsif not unlimited and (select count(*) from sitio_sent_spots where sender = me and receiver = t and created_at >= public.sitio_share_day_start()) >= 3 then
       res := res || jsonb_build_object(t::text, 'limit');
     else
-      insert into sitio_shares (sender, receiver, place) values (me, t, clean);
+      insert into sitio_sent_spots (sender, receiver, place) values (me, t, clean);
       res := res || jsonb_build_object(t::text, 'sent');
     end if;
   end loop;
@@ -61,9 +61,9 @@ language plpgsql security definer set search_path = public as $$
 declare me uuid := auth.uid(); out_ json;
 begin
   if me is null then raise exception 'Log in first'; end if;
-  delete from sitio_shares where (taken_at is not null and taken_at < now() - interval '2 days') or created_at < now() - interval '30 days';
+  delete from sitio_sent_spots where (taken_at is not null and taken_at < now() - interval '2 days') or created_at < now() - interval '30 days';
   with taken as (
-    update sitio_shares s set taken_at = now() where s.receiver = me and s.taken_at is null
+    update sitio_sent_spots s set taken_at = now() where s.receiver = me and s.taken_at is null
       and public.sitio_are_friends(s.sender, me)
     returning s.id, s.sender, s.place, s.created_at)
   select coalesce(json_agg(json_build_object('id', id, 'from', sender, 'fromName', public.sitio_name_of(sender),
@@ -82,8 +82,8 @@ begin
       'body', coalesce(public.sitio_name_of(new.sender), 'A friend') || ' sent you ' || (new.place->>'name') || '. It’s at the top of your To try.')));
   return new;
 end $$;
-drop trigger if exists sitio_share_notify on public.sitio_shares;
-create trigger sitio_share_notify after insert on public.sitio_shares for each row execute function public.sitio_share_notify();
+drop trigger if exists sitio_share_notify on public.sitio_sent_spots;
+create trigger sitio_share_notify after insert on public.sitio_sent_spots for each row execute function public.sitio_share_notify();
 
 revoke all on function public.sitio_share_today(), public.sitio_send_spot(uuid[], jsonb), public.sitio_take_shares() from public, anon;
 grant execute on function public.sitio_share_today(), public.sitio_send_spot(uuid[], jsonb), public.sitio_take_shares() to authenticated;
