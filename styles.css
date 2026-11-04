@@ -155,7 +155,7 @@ a { color: inherit; }
 .price-line { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-2); margin-top: 4px; }
 .pen { width: 32px; height: 32px; margin: -8px 0; border: 0; background: none; }
 .note { font-size: 14px; font-weight: 500; color: var(--text-soft); line-height: 1.45; padding: 12px 14px; border-radius: 14px; margin: 14px 0; white-space: pre-wrap; }
-.tag { font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--coral-soft); border: 1.5px solid var(--coral); border-radius: 7px; padding: 3px 7px; }
+.tag { white-space: nowrap; flex: none; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--coral-soft); border: 1.5px solid var(--coral); border-radius: 7px; padding: 3px 7px; }
 .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .big-btn { height: 52px; border-radius: 18px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 800; text-decoration: none; }
 .stack { display: flex; flex-direction: column; gap: 8px; }
@@ -824,3 +824,8 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 
 .dir-one { width: 100%; }
 .mini-btns a.mini { color: inherit; text-decoration: none; }
+
+.sheet-name { align-items: flex-start; } .sheet-name .tag { margin-top: 8px; } .sheet-name .act-more { margin-top: 0; }
+.thumb[data-act] { cursor: pointer; }
+.row-name { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.sheet-name .big-name { flex: 0 1 auto; min-width: 0; }

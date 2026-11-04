@@ -205,7 +205,7 @@ function dist(p) {
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(me.lat * toR) * Math.cos(p.lat * toR) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
 }
-const fmtDist = (m) => m >= 1e11 ? '' : m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1) + ' km';
+const fmtDist = (m) => m >= 1e11 ? '' : m < 1000 ? Math.round(m / 10) * 10 + '\u00a0m' : (m / 1000).toFixed(1) + '\u00a0km';
 const AT = (() => { const m = (location.search.match(/[?&]at=(-?[\d.]+),(-?[\d.]+)/) || []); return m[1] ? { lat: +m[1], lng: +m[2] } : null; })();
 function locate(center) {
   if (AT) { const first = !haveLocation; me = Object.assign({}, AT); haveLocation = true; if (center || (first && nearCity())) mapApi.center(me); if (first) whereAmI(); render(); return; }
@@ -606,7 +606,7 @@ function spotSheet(p) {
   const more = `<button class="act-more" data-act="more" data-id="${p.id}" aria-label="More">${ICON.dots}</button>`;
   const tryBtns = isTry && (ui.tab !== 'home' || ui.page);
   const first = tryBtns ? '<span></span>' : isTry
-    ? `<button class="act act-save" data-act="savetry" data-id="${p.id}">${ICON.check}<span>Save to Spots</span></button>`
+    ? `<button class="act act-save" data-act="savetry" data-id="${p.id}">${ICON.plus}<span>Save to Spots</span></button>`
     : `<button class="act ${p.fav ? 'fav-on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}">${ICON.star}<span>Favourite</span></button>`;
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
@@ -618,7 +618,7 @@ function spotSheet(p) {
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price, p)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button><button class="note-priv" data-act="notepriv" data-id="${p.id}">${p.notePrivate ? ICON.lock + 'Only you can see this note · share with friends' : ICON.friends + 'Friends can see this note · make it private'}</button>` : '<div style="height:12px"></div>'}
-    ${tryBtns ? `<div class="btn-grid"><button class="big-btn primary-btn" data-act="savetry" data-id="${p.id}">${ICON.check}Save to Spots</button>${hasCoords(p) ? `<button class="big-btn sec-btn" data-act="trymapone" data-id="${p.id}">${ICON.map}View on map</button>` : ''}</div>` : dirButtons(p)}
+    ${tryBtns ? `<div class="btn-grid"><button class="big-btn primary-btn" data-act="savetry" data-id="${p.id}">${ICON.plus}Save to Spots</button>${hasCoords(p) ? `<button class="big-btn sec-btn" data-act="trymapone" data-id="${p.id}">${ICON.map}View on map</button>` : ''}</div>` : dirButtons(p)}
   </div>`;
 }
 // To try places: same layout as Spots, with the place's picture where memories would be
@@ -679,7 +679,7 @@ function listPage(l) {
 function rowSpot(p) {
   const s = status(p);
   return `<div class="swipe" data-swipe="${p.id}"><div class="acts"><div class="save"></div><div class="del">Delete${ICON.bin}</div></div>
-    <div class="fg"><div class="thumb">${art(p)}</div>
+    <div class="fg"><div class="thumb" data-act="open" data-id="${p.id}">${art(p)}</div>
       <div class="row-main" data-act="open" data-id="${p.id}"><span class="row-name">${esc(p.name)}${p.status === 'totry' ? ' <span class="tag" style="font-size:9px;padding:2px 6px;vertical-align:middle">TO TRY</span>' : ''}</span><span class="row-meta">${esc([p.cat === 'restaurant' ? p.cuisine : '', p.area, ui.globe && cityOf(p) ? cityOf(p).name : '', fmtDist(dist(p))].filter(Boolean).join(' · '))}</span>
         <span class="row-line ${s && !s.open ? 'closed' : ''}">${s ? `<span class="dot"></span>${esc(s.text.replace('Open · until', 'Until').replace('Closed · opens', 'Opens'))}<span style="color:#6A6A72">·</span>` : ''}${priceHtml(p.price, p)}</span></div>
       <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a></div></div></div>`;
@@ -692,7 +692,7 @@ function tryView() {
   list.sort(ui.tryNewest ? (a, b) => b.addedAt - a.addedAt : (a, b) => dist(a) - dist(b));
   list.sort((a, b) => (isNew(b) ? b.sentNew : 0) - (isNew(a) ? a.sentNew : 0));
   const rows = list.map(p => `<div class="swipe" data-swipe="${p.id}" data-try="1"><div class="acts"><div class="save">${ICON.check}Save</div><div class="del">Delete${ICON.bin}</div></div>
-    <div class="fg"><div class="thumb" style="width:58px;height:58px">${p.photos && p.photos.length ? art(p) : ART.totry}</div>
+    <div class="fg"><div class="thumb" data-act="showtry" data-id="${p.id}" style="width:58px;height:58px">${p.photos && p.photos.length ? art(p) : ART.totry}</div>
       <div class="row-main" data-act="showtry" data-id="${p.id}"><span class="row-name">${esc(p.name)}${isNew(p) && p.via ? ` <span class="new-pill">From ${esc(p.via.name)}</span>` : ''}</span><span class="row-meta">${esc(metaLine(p))}</span>${p.note ? `<span class="row-note">${esc(p.note)}</span>` : ''}</div>
       <div class="mini-btns"><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
   return `<div class="page">
@@ -742,7 +742,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.15 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.16 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1192,7 +1192,7 @@ function dialogView() {
       items = it('editlist', l.id, ICON.pen, 'Edit list') + it('sharelist', l.id, ICON.share, 'Share list');
     } else {
       const p = byId(d.id); if (!p) return ''; const isTry = p.status === 'totry';
-      items = (isTry ? it('savetry', p.id, ICON.check, 'Save to Spots') : it('listpick', p.id, ICON.list, 'Add to a list')) + it('share', p.id, ICON.share, 'Share') + (isTry && ui.tab !== 'home' ? it('trymapone', p.id, ICON.map, 'Show on map') : '') + '<div class="pm-sep"></div>' + it('del', p.id, ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'pm-danger');
+      items = (isTry ? it('savetry', p.id, ICON.plus, 'Save to Spots') : it('listpick', p.id, ICON.list, 'Add to a list')) + it('share', p.id, ICON.share, 'Share') + (isTry && ui.tab !== 'home' ? it('trymapone', p.id, ICON.map, 'Show on map') : '') + '<div class="pm-sep"></div>' + it('del', p.id, ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'pm-danger');
     }
     const pos = d.up ? `bottom:${d.y}px` : `top:${d.y}px`;
     return `<div class="dialog-scrim pm-scrim" data-act="closedialog"></div><div class="popmenu ${d.up ? 'up' : ''}" role="menu" style="right:${d.x}px;${pos}">${items}</div>`;
@@ -1271,7 +1271,7 @@ function dialogView() {
       <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="addfriend">${ICON.plus}Add a friend</button>`}
       <button class="big-btn sec-btn" style="width:100%;margin-top:8px" data-act="shareother" data-id="${esc(p.id)}">${ICON.share}Other apps</button></div>`;
   }
-  if (d.type === 'frphoto') return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,.92)"></div><img src="${esc(d.src)}" alt="" data-act="closedialog" style="position:fixed;inset:0;margin:auto;max-width:100%;max-height:100%;object-fit:contain;z-index:61">`;
+  if (d.type === 'frphoto') return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,.92)"></div><img src="${esc(d.src)}" alt="" data-act="closedialog" style="position:fixed;inset:0;margin:auto;z-index:61;${d.round ? 'width:min(78vw,340px);height:min(78vw,340px);border-radius:50%;object-fit:cover' : 'max-width:100%;max-height:100%;object-fit:contain'}">`;
   if (d.type === 'memsnotice') {
     return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
       <div style="font-size:38px;margin-bottom:6px">📸</div><h3 id="dlg-t">Your friends can now see your memories</h3><p>Friends will see the photos and dates of your memories at spots they can already see. Spots in Hidden from friends stay private. You can change this any time in Settings.</p>
@@ -1640,13 +1640,13 @@ function friendsBody() {
     ${!F.unlocked ? `<div class="card note fr-lock">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
     ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Added you · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>added you</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="fryes" data-id="${esc(f.id)}">${ICON.plus}Add back</button></div>`).join('')}</div>` : ''}
     <div class="section-label" style="margin:14px 0 8px">Friends${mates.length ? ' · ' + mates.length : ''}</div>
-    ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}</b><span>vouches for ${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
+    ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}</b><span>${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
       : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Tap Add and type a friend’s username, or invite someone from Account.</div>`}
     ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">You added</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>friends once they add you back</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Undo</button></div>`).join('')}</div>` : ''}`;
 }
 function friendPage(id) {
   const F = (ui.friends && ui.friends.friends || []).find(x => x.id === id), M = (ui.friendMaps || {})[id];
-  const head = `<div class="page-head" style="justify-content:flex-start;gap:10px"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span class="avatar fr-av" style="width:40px;height:40px">${F && F.avatar ? `<img src="${esc(F.avatar)}" alt="">` : esc((fname(F && F.name)[0] || '?').toUpperCase())}</span><span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(fname((M && M.name) || (F && F.name)))}</span></div>`;
+  const head = `<div class="page-head" style="justify-content:flex-start;gap:10px"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span class="avatar fr-av" style="width:40px;height:40px;${F && F.avatar ? 'cursor:zoom-in' : ''}" ${F && F.avatar ? `data-act="frphoto" data-src="${esc(F.avatar)}" data-round="1"` : ''}>${F && F.avatar ? `<img src="${esc(F.avatar)}" alt="">` : esc((fname(F && F.name)[0] || '?').toUpperCase())}</span><span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(fname((M && M.name) || (F && F.name)))}</span></div>`;
   if (!M) return `<div class="page" style="z-index:15">${head}<p class="page-sub">Loading…</p></div>`;
   if (M.error) return `<div class="page" style="z-index:15">${head}<div class="card note">${esc(M.error)}</div></div>`;
   const who = fname(M.name), cityOfF = p => (M.cities || []).find(c => c.id === p.cityId);
@@ -1655,12 +1655,12 @@ function friendPage(id) {
   const byRecent = ps => ps.slice().sort((x, y) => (y.lastMem || 0) - (x.lastMem || 0) || (y.addedAt || 0) - (x.addedAt || 0));
   const group = ps => { const by = {}; ps.forEach(p => { const c = cityOfF(p); const k = c ? c.name : 'Other'; (by[k] = by[k] || []).push(p); }); return Object.keys(by).map(k => `<div class="section-label" style="margin:14px 0 8px">${esc(k)} · ${by[k].length}</div><div class="settings card">${by[k].map(row).join('')}</div>`).join(''); };
   if (M.locked) return `<div class="page" style="z-index:15">${head}
-    <div class="card fr-teaser"><div class="inv-n">${M.spots}</div><div><b>${esc(who)} vouches for ${plural(M.spots, 'spot')}</b><span>Save ${Math.max(0, 5 - spotCount())} more of your own to unlock their full map.</span></div></div>
+    <div class="card fr-teaser"><div class="inv-n">${M.spots}</div><div><b>${esc(who)} has ${plural(M.spots, 'spot')}</b><span>Save ${Math.max(0, 5 - spotCount())} more of your own to unlock their full map.</span></div></div>
     ${M.places.length ? `<div class="section-label" style="margin:14px 0 8px">A taste of ${esc(who)}’s map</div><div class="settings card">${M.places.map(row).join('')}</div>` : ''}
     <button class="link-btn" style="margin:22px auto 0;color:var(--coral-soft)" data-act="unfriendask" data-id="${esc(id)}">Remove ${esc(who)} as a friend</button></div>`;
   const spots = byRecent(M.places.filter(p => p.status === 'spot')), tries = byRecent(M.places.filter(p => p.status === 'totry'));
   return `<div class="page" style="z-index:15">${head}
-    <p class="page-sub" style="margin:-4px 0 6px">Vouches for ${plural(spots.length, 'spot')}${tries.length ? ' · wants to try ' + tries.length : ''}${spots.some(p => p.lastMem) ? ' · latest memories first' : ''}</p>
+    <p class="page-sub" style="margin:-4px 0 6px">${plural(spots.length, 'spot')}${tries.length ? ' · wants to try ' + tries.length : ''}${spots.some(p => p.lastMem) ? ' · latest memories first' : ''}</p>
     ${spots.length ? group(spots) : `<div class="empty card" style="border-radius:20px">${esc(who)} hasn’t saved any spots yet.</div>`}
     ${tries.length ? `<details class="fr-tries"><summary>${esc(who)} wants to try · ${tries.length}</summary>${group(tries)}</details>` : ''}
     <button class="link-btn" style="margin:22px auto 0;color:var(--coral-soft)" data-act="unfriendask" data-id="${esc(id)}">Remove ${esc(who)} as a friend</button></div>`;
@@ -2582,7 +2582,7 @@ uiEl.addEventListener('click', e => {
     case 'sendpick': { const d = ui.dialog; if (!d || d.type !== 'sendspot') return; d.sel = d.sel.includes(id) ? d.sel.filter(x => x !== id) : d.sel.concat(id); break; }
     case 'sendgo': sendSpot(); return;
     case 'shareother': { const q = db.places.find(x => x.id === id); ui.dialog = null; render(); if (q) share(q, true); return; }
-    case 'frphoto': ui.dialog = { type: 'frphoto', src: t.dataset.src }; break;
+    case 'frphoto': ui.dialog = { type: 'frphoto', src: t.dataset.src, round: !!t.dataset.round }; break;
     case 'memshare': db.settings.shareMems = t.dataset.v === '1'; db.settings.memsNotice = 1; save(); ui.dialog = null; toast(db.settings.shareMems ? 'Friends can see your memories' : 'Your memories stay just yours', null); break;
     case 'openfriend': ui.prevPage = ui.page; ui.page = { friend: id }; loadFriendMap(id); break;
     case 'friendspot': { const M = (ui.friendMaps || {})[t.dataset.owner]; const p = M && (M.places || []).find(x => x.id === t.dataset.pid); if (!p) return; const F = (ui.friends.friends || []).find(x => x.id === t.dataset.owner); ui.fspot = { p, owner: t.dataset.owner, ownerName: (M && M.name) || (F && F.name), city: (M.cities || []).find(c => c.id === p.cityId) || null }; ui.sheet = 'friendspot'; break; }
