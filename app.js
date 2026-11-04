@@ -739,7 +739,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.3.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.3.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -982,7 +982,7 @@ function notifsPage() {
     <div class="section-label" style="margin-bottom:8px">What you get</div>
     <div class="settings card">
       ${sw('Memory recaps', 'Every two months, and your year in December', 'nRecaps', !pushOn)}
-      ${sw('Spots and friends', 'When a friend shares something with you', 'nFriends', !pushOn)}
+      ${sw('Spots and friends', 'When someone adds you, or you become friends', 'nFriends', !pushOn)}
       ${sw('Events in my city', 'Off unless you turn it on', 'nEvents', !pushOn)}
     </div>
     ${s('How we use notifications', 'We only send the types you switch on above. Events are promotional, so they stay off unless you choose them. We never sell or share your details, and there are no ads from other companies.')}
@@ -1011,7 +1011,7 @@ function privacyPage() {
       '<b>Your places and lists:</b> the places you save (names, locations, notes, prices, categories, cities), your lists and your settings.',
       '<b>Memories:</b> the photos you add and the date you give them, stored privately in your account.',
       '<b>Friends:</b> who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices and how many memories you have there), but never spots in Hidden from friends, notes you mark private, or your photos.',
-      '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose.',
+      '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose (memory recaps; when a friend adds you or you become friends; events).',
       '<b>Your location:</b> used on your phone to show distances, centre the map and suggest your city. It is not stored on our servers. When you search or the app works out your city, your rough location is sent to Google or OpenStreetMap to answer that request.',
       '<b>Technical data:</b> like any website, our hosts see your IP address and device type when you open Sitio.'
     ]],
@@ -1569,6 +1569,7 @@ function saveFriendSpot(f) {
   const np = copyPlace(src, f.city || null, 'totry', 0); np.via = { id: f.owner, name: fname(f.ownerName) }; np.coordsAt = 0; save(); lastMapKey = '';
   toast(np.name + ' saved to To try · via ' + fname(f.ownerName), () => { db.places = db.places.filter(x => x.id !== np.id); save(); lastMapKey = ''; render(); });
 }
+function openFriendsTab() { ui.tab = 'spots'; ui.spotsView = 'friends'; ui.page = null; ui.sheet = null; ui.dialog = null; render(); setTimeout(loadFriends, 300); }
 function friendsBody() {
   const F = ui.friends;
   if (ui.friendsErr) return `<div class="card note">${esc(ui.friendsErr)}</div>`;
@@ -2046,6 +2047,7 @@ function recapFromHash(hash, tries = 0) {
 }
 function readSharedList() {
   if (recapFromHash(location.hash)) return true;
+  if (/(?:^#|&)friends\b/.test(location.hash)) { history.replaceState(null, '', location.pathname); openFriendsTab(); return true; }
   const rm = location.hash.match(/(?:^#|&)r=([A-Za-z0-9]{6,16})/);
   if (rm) { history.replaceState(null, '', location.pathname);
     sbFetch('/rest/v1/rpc/sitio_get_share', { method: 'POST', body: JSON.stringify({ sid: rm[1] }) }).then(d => { if (openSharedRecap(d)) render(); else flash('That recap isn’t available any more.'); }).catch(() => flash('Couldn’t open that recap. Check your connection.'));
@@ -2838,7 +2840,7 @@ async function refreshCoords(tries = 0) {
   } catch (e) { } finally { coordsRunning = false; }
 }
 setTimeout(refreshCoords, 1500);
-if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => { if (!recapFromHash(e.data.url)) tryRecap(); }, 300); });
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => { if (/#friends/.test(e.data.url || '')) openFriendsTab(); else if (!recapFromHash(e.data.url)) tryRecap(); }, 300); });
 
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {

@@ -48,8 +48,20 @@ Deno.serve(async (req) => {
     return json({ sent });
   }
 
-  // The daily job
+  // Everything below needs the shared secret (the daily job and database triggers)
   if (req.headers.get("x-cron-secret") !== Deno.env.get("CRON_SECRET")) return json({ error: "no" }, 401);
+
+  // Friends: "lola added you" and "you and lola are now friends", only if they kept Spots and friends on
+  if (body.friend && body.friend.to) {
+    const { data: rows } = await db.from("sitio_push").select("endpoint,user_id,sub").eq("user_id", body.friend.to);
+    if (!rows || !rows.length) return json({ sent: 0 });
+    const { data: d } = await db.from("sitio_data").select("data").eq("user_id", body.friend.to).maybeSingle();
+    if (d?.data?.settings?.nFriends === false) return json({ sent: 0, off: true });
+    const sent = await send(rows as Sub[], { title: "Sitio", body: String(body.friend.body || "").slice(0, 160), url: "./#friends" });
+    return json({ sent });
+  }
+
+  // The daily job
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
   const [y, m, d] = today.split("-").map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
