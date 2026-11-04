@@ -267,10 +267,12 @@ const byId = (id) => db.places.find(p => p.id === id);
 function matches(p, filter) {
   const lt = filter.filter(f => f.startsWith('list:'));
   if (lt.length) return lt.some(t => { const l = listOf(t.slice(5)); return l && l.ids.includes(p.id); });
-  if (!filter.length) return p.status === 'spot';
-  if (p.status === 'totry') return filter.includes('totry');
-  const cats = filter.filter(f => !f.startsWith('cuisine:') && f !== 'totry');
+  // My spots / To try choose which places; categories and cuisines then narrow them down
+  const wantSpots = filter.includes('spots'), wantTry = filter.includes('totry');
+  if (p.status === 'totry' ? !wantTry : (wantTry && !wantSpots)) return false;
+  const cats = filter.filter(f => !f.startsWith('cuisine:') && f !== 'totry' && f !== 'spots');
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
+  if (!cats.length && !cuis.length) return true;
   if (cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
   return catsOf(p).some(c => cats.includes(c));
 }
@@ -289,11 +291,30 @@ function touchList(l) { l.updatedAt = Date.now(); save(); }
 // A place can be several categories at once (e.g. a restaurant and a cocktail bar); p.cat stays the main one
 function catsOf(p) { return p.cats && p.cats.length ? p.cats : (p.cat ? [p.cat] : []); }
 const catNames = p => catsOf(p).map(c => catOf(c).name).join(' & ');
+// The second choice after category depends on it: cuisine for restaurants, ambience for bars, cafés and clubs, sport, or vibe
+const DETAIL = {
+  restaurant: { label: 'Cuisine', opts: CUISINES },
+  bar: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music'] },
+  cafe: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music'] },
+  club: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music'] },
+  padel: { label: 'Sport', opts: ['Football', 'Padel', 'Tennis', 'Running', 'Gym', 'Basketball', 'Climbing', 'Swimming', 'Yoga', 'Cycling'] },
+  chill: { label: 'Vibe', opts: ['Scenic', 'Private', 'Public', 'Quiet', 'Nature'] }
+};
+const detailOpts = cats => [...new Set(cats.flatMap(c => (DETAIL[c] || { opts: [] }).opts))];
+function detailChips(cats, picked, act) {
+  const seen = new Set(); let h = '';
+  cats.forEach(c => { const d = DETAIL[c]; if (!d || seen.has(d.label)) return; seen.add(d.label);
+    h += `<label class="field-label">${d.label} <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· optional, pick any</span></label><div class="chips">${d.opts.map(o => `<button class="chip ${picked.includes(o) ? 'on' : ''}" data-act="${act}" data-v="${esc(o)}">${esc(o)}</button>`).join('')}</div>`; });
+  return h;
+}
+// One category by default; "Select more than one" lets a place be several (e.g. a restaurant that's also a bar)
+function pickCat(cur, v, multi) { const n = !multi ? [v] : cur.includes(v) ? (cur.length > 1 ? cur.filter(x => x !== v) : cur) : cur.concat(v); return n; }
+const keepDetail = (cats, list) => list.filter(x => detailOpts(cats).includes(x) || !Object.values(DETAIL).some(d => d.opts.includes(x)));
 function cuisList(p) { return (p.cuisine || '').split(',').map(s => s.trim()).filter(Boolean); }
 function catMatch(p, cats) {
   const lt = cats.filter(f => f.startsWith('list:'));
   if (lt.length && !lt.some(t => { const l = listOf(t.slice(5)); return l && l.ids.includes(p.id); })) return false;
-  cats = cats.filter(f => f !== 'totry' && !f.startsWith('list:')); if (!cats.length) return true;
+  cats = cats.filter(f => f !== 'totry' && f !== 'spots' && !f.startsWith('list:')); if (!cats.length) return true;
   const cuis = cats.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   if (cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
   return catsOf(p).some(c => cats.includes(c));
@@ -302,11 +323,12 @@ function filterLabel(filter) {
   if (!filter.length) return 'All';
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   const parts = [];
+  if (filter.includes('spots')) parts.push('My spots');
+  if (filter.includes('totry')) parts.push('To try');
   CATS.forEach(c => {
     if (c.id === 'restaurant' && cuis.length) parts.push(cuis.length === 1 ? 'Restaurants · ' + cuis[0] : 'Restaurants · ' + cuis.length + ' cuisines');
     else if (filter.includes(c.id)) parts.push(c.plural);
   });
-  if (filter.includes('totry')) parts.push('To try');
   filter.filter(f => f.startsWith('list:')).forEach(t => { const l = listOf(t.slice(5)); if (l) parts.push(l.emoji + ' ' + l.name); });
   return parts.join(', ');
 }
@@ -479,7 +501,7 @@ function homeView() {
   const list = cityPlaces().filter(p => matches(p, ui.filter));
   const spots = list.filter(p => p.status === 'spot');
   const openN = spots.filter(p => { const s = status(p); return !s || s.open; }).length;
-  const onlyTry = ui.filter.length === 1 && ui.filter[0] === 'totry';
+  const onlyTry = ui.filter.includes('totry') && !ui.filter.includes('spots');
   const pillCls = onlyTry ? 'totry' : (ui.menu === 'home' ? 'active' : '');
   return `
   <div class="top">
@@ -501,9 +523,13 @@ function homeView() {
 
 function filterMenu() {
   const f = ui.filter; const cuis = f.filter(x => x.startsWith('cuisine:')).map(x => x.slice(8));
-  const used = [...new Set((ui.world ? worldList() : cityPlaces()).flatMap(cuisList))].sort();
+  const used = [...new Set(CUISINES.concat((ui.world ? worldList() : cityPlaces()).filter(p => catsOf(p).includes('restaurant')).flatMap(cuisList).filter(x => !detailOpts(['bar', 'padel', 'chill']).includes(x))))];
   let h = `<div class="menu" role="menu" aria-label="Show on map">`;
   h += `<button class="${!f.length ? 'on' : ''}" data-act="filt" data-f="all">All${!f.length ? ICON.check : ''}</button>`;
+  if (ui.menu === 'home' || ui.menu === 'world') {
+    h += `<button class="${f.includes('spots') ? 'on' : ''}" data-act="filt" data-f="spots" style="font-weight:800;color:var(--text)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--text)"></span>My spots</span>${f.includes('spots') ? ICON.check : ''}</button>`;
+    h += `<button class="${f.includes('totry') ? 'on' : ''}" data-act="filt" data-f="totry" style="color:var(--coral-soft)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--coral)"></span>To try</span>${f.includes('totry') ? ICON.check : ''}</button><div class="sep"></div>`;
+  }
   CATS.forEach(c => {
     const on = f.includes(c.id) || (c.id === 'restaurant' && cuis.length);
     if (c.id === 'restaurant') {
@@ -513,7 +539,6 @@ function filterMenu() {
     } else h += `<button class="${on ? 'on' : ''}" data-act="filt" data-f="${c.id}">${c.plural}${on ? ICON.check : ''}</button>`;
   });
   if (myLists().length && !ui.world) { h += `<div class="sep"></div><div class="menu-head">My lists</div>`; myLists().forEach(l => { const on = f.includes('list:' + l.id); h += `<button class="${on ? 'on' : ''}" data-act="filt" data-f="list:${l.id}"><span style="display:flex;align-items:center;gap:8px"><span>${l.emoji}</span>${esc(l.name)}</span>${on ? ICON.check : ''}</button>`; }); }
-  if (ui.menu === 'home' || ui.menu === 'world') h += `<div class="sep"></div><button class="${f.includes('totry') ? 'on' : ''}" data-act="filt" data-f="totry" style="color:var(--coral-soft)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--coral)"></span>To try</span>${f.includes('totry') ? ICON.check : ''}</button>`;
   return h + `</div>`;
 }
 
@@ -683,7 +708,7 @@ function rowSpot(p) {
   const s = status(p);
   return `<div class="swipe" data-swipe="${p.id}"><div class="acts"><div class="save"></div><div class="del">Delete${ICON.bin}</div></div>
     <div class="fg"><div class="thumb" data-act="open" data-id="${p.id}">${art(p)}</div>
-      <div class="row-main" data-act="open" data-id="${p.id}"><span class="row-name">${esc(p.name)}${p.status === 'totry' ? ' <span class="tag" style="font-size:9px;padding:2px 6px;vertical-align:middle">TO TRY</span>' : ''}</span><span class="row-meta">${esc([p.cat === 'restaurant' ? p.cuisine : '', p.area, ui.globe && cityOf(p) ? cityOf(p).name : '', fmtDist(dist(p))].filter(Boolean).join(' · '))}</span>
+      <div class="row-main" data-act="open" data-id="${p.id}"><span class="row-name">${esc(p.name)}${p.status === 'totry' ? ' <span class="tag" style="font-size:9px;padding:2px 6px;vertical-align:middle">TO TRY</span>' : ''}</span><span class="row-meta">${esc([p.cuisine || '', p.area, ui.globe && cityOf(p) ? cityOf(p).name : '', fmtDist(dist(p))].filter(Boolean).join(' · '))}</span>
         <span class="row-line ${s && !s.open ? 'closed' : ''}">${s ? `<span class="dot"></span>${esc(s.text.replace('Open · until', 'Until').replace('Closed · opens', 'Opens'))}<span style="color:#6A6A72">·</span>` : ''}${priceHtml(p.price, p)}</span></div>
       <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a></div></div></div>`;
 }
@@ -746,7 +771,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.18 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.19 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 // City photos from Wikipedia (free licence images from Wikimedia Commons), fetched by the phone and cached on it
 let cityPics = (() => { try { return JSON.parse(localStorage.getItem('sitio.cityPics') || '{}'); } catch (e) { return {}; } })();
@@ -1186,7 +1211,7 @@ function spotPage(p, ro) {
 
 function addSheet() {
   const a = ui.add;
-  const cuisineChips = true ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· optional, pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(a).includes(c) ? 'on' : ''}" data-act="addcuisine" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : '';
+  const cuisineChips = detailChips(catsOf(a), cuisList(a), 'addcuisine');
   const pics = a.photos.map((id, i) => `<div style="height:76px;border-radius:14px;overflow:hidden;position:relative"><img src="${photoUrl(id)}" alt="" style="width:100%;height:100%;object-fit:cover"><button class="round" data-act="addrmphoto" data-i="${i}" aria-label="Remove photo" style="position:absolute;top:4px;right:4px;width:28px;height:28px;background:rgba(0,0,0,.6);border:0">${ICON.close}</button></div>`).join('');
   return `<div class="sheet" role="dialog" aria-label="Add a spot" style="max-height:94%">
     <div class="grab"></div>
@@ -1195,8 +1220,9 @@ function addSheet() {
     <div style="position:relative;${a.custom ? 'display:flex;gap:8px;align-items:center' : ''}"><input id="a-name" class="input card" ${a.custom ? 'style="flex:1;min-width:0"' : ''} placeholder="${a.custom ? 'Give the spot a name' : (mapApi.google ? 'Search for a place' : 'Name of the place')}" value="${esc(a.name)}" data-input="addName" autocomplete="off" maxlength="80">${a.custom ? `<button class="round sec-btn unpin-x" data-act="unpin" aria-label="Remove the pin and search for a place instead">${ICON.close}</button>` : ''}
       <div id="suggest"></div></div>
     <div class="loc-line">${a.googleId ? `<span class="muted">✓ Location from Google</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button>` : a.custom ? `<span style="color:var(--green)">✓ Pin dropped</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button></div><div class="muted" style="font-size:12px;font-weight:600;margin-top:2px">Tap × to remove the pin and search Google instead` : `<span class="muted">Not on Google Maps?</span><button class="link-btn" data-act="droppin">${ICON.pin}Drop a pin</button>`}</div>
-    <label class="field-label">Category <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· pick one or more</span></label>
+    <label class="field-label">Category</label>
     <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${catsOf(a).includes(c.id) ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${catsOf(a).includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
+    <button class="link-btn cat-multi" data-act="addmulti">${a.multi || catsOf(a).length > 1 ? 'Just one category' : 'Select more than one'}</button>
     ${cuisineChips}
     <label class="field-label">Photos</label>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${pics}<label class="add-photo" style="height:76px;border-radius:14px;cursor:pointer">${ICON.plus}Add yours<input type="file" accept="image/*" hidden data-addphoto="1"></label></div>
@@ -1310,7 +1336,7 @@ function dialogView() {
       <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="addfriend">${ICON.plus}Add a friend</button>`}
       <button class="big-btn sec-btn" style="width:100%;margin-top:8px" data-act="shareother" data-id="${esc(p.id)}">${ICON.share}Other apps</button></div>`;
   }
-  if (d.type === 'frphoto') return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,.92)"></div><img src="${esc(d.src)}" alt="" data-act="closedialog" style="position:fixed;inset:0;margin:auto;z-index:61;${d.round ? 'width:min(78vw,340px);height:min(78vw,340px);border-radius:50%;object-fit:cover' : 'max-width:100%;max-height:100%;object-fit:contain'}">`;
+  if (d.type === 'frphoto') return `<div class="dialog-scrim zoom-scrim" data-act="closedialog" style="background:rgba(0,0,0,.92)"></div><img class="zoom-img" src="${esc(d.src)}" alt="" data-act="closedialog" style="position:fixed;inset:0;margin:auto;z-index:61;${d.round ? 'width:min(78vw,340px);height:min(78vw,340px);border-radius:50%;object-fit:cover' : 'max-width:100%;max-height:100%;object-fit:contain'}">`;
   if (d.type === 'memsnotice') {
     return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
       <div style="font-size:38px;margin-bottom:6px">📸</div><h3 id="dlg-t">Your friends can now see your memories</h3><p>Friends will see the photos and dates of your memories at spots they can already see. Spots in Hidden from friends stay private. You can change this any time in Settings.</p>
@@ -1363,8 +1389,9 @@ function dialogView() {
     const p = byId(d.id); if (!p) return '';
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
       <h3 id="dlg-t">Categories for ${esc(p.name)}</h3>
-      <p style="margin:6px 0 0">Pick one or more.</p><div class="cat-grid" style="margin-top:10px">${CATS.map(c => `<button class="sec-btn ${d.cats.includes(c.id) ? 'on' : ''}" data-act="ecat" data-v="${c.id}" aria-pressed="${d.cats.includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
-      ${true ? `<label class="field-label">Cuisine <span style="text-transform:none;letter-spacing:0;font-weight:600;opacity:.7">· optional, pick any</span></label><div class="chips">${CUISINES.map(c => `<button class="chip ${cuisList(d).includes(c) ? 'on' : ''}" data-act="ecuis" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>` : ''}
+      <div class="cat-grid" style="margin-top:10px">${CATS.map(c => `<button class="sec-btn ${d.cats.includes(c.id) ? 'on' : ''}" data-act="ecat" data-v="${c.id}" aria-pressed="${d.cats.includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
+      <button class="link-btn cat-multi" data-act="emulti">${d.multi || d.cats.length > 1 ? 'Just one category' : 'Select more than one'}</button>
+      ${detailChips(d.cats, cuisList(d), 'ecuis')}
       <div class="btn-grid" style="margin-top:16px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="ecatsave">Save</button></div></div>`;
   }
   if (d.type === 'here') {
@@ -1635,6 +1662,24 @@ function friendPhoto(owner, mid) {
   ensureFresh().then(() => fetch(SBURL + '/storage/v1/object/authenticated/memories/' + k + '.jpg', { headers: { apikey: SBKEY, Authorization: 'Bearer ' + auth.access_token } }))
     .then(r => r.ok ? r.blob() : null).then(b => { fPhotos[k] = b && b.size ? URL.createObjectURL(b) : 'x'; render(); }).catch(() => { fPhotos[k] = 'x'; });
   return '';
+}
+// Instagram-style zoom: the photo grows out of the small one you tapped, and shrinks back into it
+function zoomPhoto(open) {
+  const img = uiEl.querySelector('.zoom-img'), scrim = uiEl.querySelector('.zoom-scrim'), d = ui.dialog;
+  const done = () => { if (!open) { ui.dialog = null; render(); } };
+  if (!img || !d || !d.from || matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
+  const to = img.getBoundingClientRect(), f = d.from;
+  const tf = `translate(${f.x + f.w / 2 - (to.left + to.width / 2)}px, ${f.y + f.h / 2 - (to.top + to.height / 2)}px) scale(${f.w / to.width})`;
+  const ease = 'cubic-bezier(.2,.8,.2,1)';
+  if (open) {
+    img.style.transform = tf; scrim.style.opacity = '0'; img.getBoundingClientRect();
+    img.style.transition = `transform .32s ${ease}`; scrim.style.transition = 'opacity .32s ease';
+    requestAnimationFrame(() => { img.style.transform = ''; scrim.style.opacity = '1'; });
+  } else {
+    img.style.transition = `transform .26s ${ease}`; scrim.style.transition = 'opacity .26s ease';
+    img.style.transform = tf; scrim.style.opacity = '0'; img.style.pointerEvents = scrim.style.pointerEvents = 'none';
+    setTimeout(done, 260);
+  }
 }
 function saveFriendSpot(f) {
   const src = f.p, mine = db.places.find(x => (src.googleId && x.googleId === src.googleId) || (x.name === src.name && Math.abs((x.lat || 0) - src.lat) < 0.0005));
@@ -2485,7 +2530,8 @@ uiEl.addEventListener('click', e => {
     case 'pincancel': ui.pinMode = false; break;
     case 'unpin': Object.assign(ui.add, { custom: false, lat: null, lng: null, name: '' }); break;
     case 'pinok': { const c = mapApi.getCenter(); const wasGoogle = !!ui.add.googleId; Object.assign(ui.add, { lat: c.lat, lng: c.lng, googleId: null, custom: true }); if (!wasGoogle) ui.add.name = ui.add.name || ''; ui.pinMode = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="addName"]'); if (i && !ui.add.name) i.focus(); }, 60); return; }
-    case 'addcat': { const l = catsOf(ui.add), v = t.dataset.v; const n = l.includes(v) ? (l.length > 1 ? l.filter(x => x !== v) : l) : l.concat(v); ui.add.cats = n; ui.add.cat = n[0]; break; }
+    case 'addcat': { const n = pickCat(catsOf(ui.add), t.dataset.v, ui.add.multi || catsOf(ui.add).length > 1); ui.add.cats = n; ui.add.cat = n[0]; ui.add.cuisine = keepDetail(n, cuisList(ui.add)).join(', '); break; }
+    case 'addmulti': { const on = !(ui.add.multi || catsOf(ui.add).length > 1); ui.add.multi = on; if (!on) { const n = [catsOf(ui.add)[0]]; ui.add.cats = n; ui.add.cat = n[0]; ui.add.cuisine = keepDetail(n, cuisList(ui.add)).join(', '); } break; }
     case 'addcuisine': { const l = cuisList(ui.add), v = t.dataset.v; ui.add.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
     case 'addrmphoto': ui.add.photos.splice(+t.dataset.i, 1); break;
     case 'addsave': if (!ui.add.name.trim()) { flash('Add the place name first.'); return; } openPrice({ name: ui.add.name.trim() }, { mode: 'new' }); return;
@@ -2498,7 +2544,7 @@ uiEl.addEventListener('click', e => {
     case 'savetry': openPrice(p, { mode: 'totry' }); return;
     case 'del': ui.dialog = { type: 'confirm', place: p }; break;
     case 'confirmdel': delPlace(ui.dialog.place); return;
-    case 'closedialog': if (t.tagName === 'A') { setTimeout(() => { ui.dialog = null; render(); }, 50); return; } ui.dialog = null; break;
+    case 'closedialog': if (ui.dialog && ui.dialog.type === 'frphoto') { zoomPhoto(false); return; } if (t.tagName === 'A') { setTimeout(() => { ui.dialog = null; render(); }, 50); return; } ui.dialog = null; break;
     case 'dirs': if (p) window.open(db.settings.dirApp === 'apple' ? aLink(p) : gLink(p), '_blank', 'noopener'); return;
     case 'share': if (ui.dialog && ui.dialog.type === 'more') { ui.dialog = null; render(); } share(p); return;
     case 'open': ui.selected = id; ui.sheet = 'spot'; break;
@@ -2577,7 +2623,8 @@ uiEl.addEventListener('click', e => {
     case 'levels': ui.page = 'levels'; break;
     case 'seelevels': ui.dialog = null; ui.tab = 'account'; ui.page = 'levels'; ui.sheet = null; ui.selected = null; break;
     case 'editcat': if (p) ui.dialog = { type: 'editcat', id: p.id, cats: catsOf(p).slice(), cuisine: p.cuisine || '' }; break;
-    case 'ecat': { const l = ui.dialog.cats, v = t.dataset.v; ui.dialog.cats = l.includes(v) ? (l.length > 1 ? l.filter(x => x !== v) : l) : l.concat(v); break; }
+    case 'ecat': { const d = ui.dialog; d.cats = pickCat(d.cats, t.dataset.v, d.multi || d.cats.length > 1); d.cuisine = keepDetail(d.cats, cuisList(d)).join(', '); break; }
+    case 'emulti': { const d = ui.dialog, on = !(d.multi || d.cats.length > 1); d.multi = on; if (!on) { d.cats = [d.cats[0]]; d.cuisine = keepDetail(d.cats, cuisList(d)).join(', '); } break; }
     case 'ecuis': { const l = cuisList(ui.dialog), v = t.dataset.v; ui.dialog.cuisine = (l.includes(v) ? l.filter(x => x !== v) : l.concat(v)).join(', '); break; }
     case 'ecatsave': { const q = byId(ui.dialog.id); if (q) { q.cats = ui.dialog.cats.slice(); q.cat = q.cats[0]; q.cuisine = ui.dialog.cuisine || ''; save(); lastMapKey = ''; toast('Updated', null); } ui.dialog = null; break; }
     case 'hereyes': { const h = ui.dialog.h; let c = h.city || db.cities.find(x => x.name.toLowerCase() === h.name.toLowerCase());
@@ -2635,7 +2682,7 @@ uiEl.addEventListener('click', e => {
     case 'sendpick': { const d = ui.dialog; if (!d || d.type !== 'sendspot') return; d.sel = d.sel.includes(id) ? d.sel.filter(x => x !== id) : d.sel.concat(id); break; }
     case 'sendgo': sendSpot(); return;
     case 'shareother': { const q = db.places.find(x => x.id === id); ui.dialog = null; render(); if (q) share(q, true); return; }
-    case 'frphoto': ui.dialog = { type: 'frphoto', src: t.dataset.src, round: !!t.dataset.round }; break;
+    case 'frphoto': { const r = t.getBoundingClientRect(); ui.dialog = { type: 'frphoto', src: t.dataset.src, round: !!t.dataset.round, from: { x: r.left, y: r.top, w: r.width, h: r.height } }; render(); zoomPhoto(true); return; }
     case 'memshare': db.settings.shareMems = t.dataset.v === '1'; db.settings.memsNotice = 1; save(); ui.dialog = null; toast(db.settings.shareMems ? 'Friends can see your memories' : 'Your memories stay just yours', null); break;
     case 'openfriend': ui.prevPage = ui.page; ui.page = { friend: id }; loadFriendMap(id); break;
     case 'friendspot': { const M = (ui.friendMaps || {})[t.dataset.owner]; const p = M && (M.places || []).find(x => x.id === t.dataset.pid); if (!p) return; const F = (ui.friends.friends || []).find(x => x.id === t.dataset.owner); ui.fspot = { p, owner: t.dataset.owner, ownerName: (M && M.name) || (F && F.name), city: (M.cities || []).find(c => c.id === p.cityId) || null }; ui.sheet = 'friendspot'; break; }

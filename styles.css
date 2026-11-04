@@ -836,3 +836,5 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .gate-lang { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 22px; font-size: 13px; color: var(--text-2); } .gate-lang .link-btn { font-size: 13px; color: var(--text-2); } .gate-lang .link-btn.on { color: var(--text); font-weight: 800; }
 .page-title { white-space: nowrap; }
 html[lang=es] .page-title { font-size: 27px; letter-spacing: -0.6px; }
+
+.cat-multi { display: block; margin: 8px 0 0 auto; font-size: 13px; color: var(--text-2); }
