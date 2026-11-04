@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
   const yStart = Date.UTC(y, 0, 1) - 2 * 3600e3, yEnd = Date.UTC(y + 1, 0, 1);
   let sent = 0;
   for (const r of rows || []) {
+    if (r.data?.settings?.nRecaps === false) continue; // switched off in Settings → Notifications
     const ats: number[] = ((r.data?.places || []) as { memories?: { at?: number }[] }[]).flatMap((p) => (p.memories || []).map((x) => x.at || 0));
     const inYear = ats.filter((t) => t >= yStart && t < yEnd).length, inPer = ats.filter((t) => t >= pStart && t < pEnd).length;
     let msg = "";

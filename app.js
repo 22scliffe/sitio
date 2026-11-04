@@ -89,6 +89,8 @@ if (db.v < 10) { db.cities.forEach(c => { if (/^(City of Westminster|City of Lon
 if (db.v < 12) { db.places.forEach(p => { if (p.photos && p.photos.length) { p.memories = (p.memories || []).concat(p.photos.map(id => ({ id, at: p.addedAt || Date.now() }))); p.photos = []; } }); if (db.v >= 11) { db.v = 12; save(); } }
 if (db.v < 11) { if (db.tourDone === undefined) db.tourDone = db.places.some(x => !x.sample) || !!localStorage.getItem('sitio.auth'); if (db.v >= 10) { db.v = 11; save(); } }
 if (db.v < 9) { db.places.forEach(p => { if (p.cuisine) p.cuisine = cuisList(p).map(q => q === 'Eastern' ? 'Middle Eastern' : q).join(', '); }); db.v = 9; save(); }
+// Notification types: recaps and friends on, events (promotional) off until switched on
+db.settings = db.settings || {}; if (db.settings.nRecaps === undefined) db.settings.nRecaps = true; if (db.settings.nFriends === undefined) db.settings.nFriends = true; if (db.settings.nEvents === undefined) db.settings.nEvents = false;
 const hasSample = () => db.places.some(x => x.sample);
 function save() { if (snap) stamp(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { flash('Couldn’t save on this device. Storage may be full.'); } if (snap) queuePush(); }
 const pj = p => { const { updatedAt, ...r } = p; return JSON.stringify(r); };
@@ -694,7 +696,7 @@ function accountView() {
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
     <div class="section-label" style="margin-bottom:8px">Memory recaps</div>
-    <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}${pushSupported() && auth ? `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>Recap notifications</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">A heads-up on release days</span></span><button class="toggle ${pushOn ? 'on' : ''}" data-act="pushtoggle" aria-pressed="${pushOn}" aria-label="Recap notifications"></button></div>` : ''}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
+    <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
@@ -709,6 +711,7 @@ function accountView() {
       <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
       ${row('Import from Google Maps', importQ().length ? importQ().length + ' to add' : '', 'openimport')}
       ${row('Privacy', '', 'privacy')}
+      ${row('Notifications', pushOn ? 'On' : 'Off', 'notifs')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
     <p class="page-sub" style="font-size:11px;margin-top:16px;opacity:.6" id="diag">${diag()}</p>
@@ -719,7 +722,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.9.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.9.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -947,6 +950,27 @@ function curSearch(q) {
 }
 const currencyFor = cc => cc ? (EURO.includes(cc) ? '€' : (CUR_BY_CC[cc] || '€')) : '€';
 const CURRENCIES = [['€', 'Euro'], ['£', 'Pound'], ['$', 'Dollar'], ['A$', 'Aus dollar'], ['DH', 'Dirham (MA)'], ['lei', 'Leu'], ['₪', 'Shekel'], ['Rp', 'Rupiah'], ['CHF', 'Swiss franc'], ['kr', 'Krona / krone'], ['zł', 'Złoty'], ['Kč', 'Koruna'], ['Ft', 'Forint'], ['¥', 'Yen / yuan'], ['₩', 'Won'], ['฿', 'Baht'], ['₹', 'Rupee'], ['R$', 'Real'], ['₺', 'Lira'], ['د.إ', 'Dirham'], ['R', 'Rand']];
+function notifsPage() {
+  const sw = (label, sub, key, dis) => `<div class="set-row" ${dis ? 'style="opacity:.45"' : ''}><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span></span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}" ${dis ? 'disabled' : ''}></button></div>`;
+  const blocked = 'Notification' in window && Notification.permission === 'denied';
+  const status = !pushSupported() ? (IS_IOS && !STANDALONE ? 'Add Sitio to your Home Screen to get notifications. iPhone only allows them there.' : 'This phone or browser doesn’t support notifications.')
+    : !auth ? 'Log in to turn on notifications.' : blocked ? 'Notifications are blocked for Sitio. Turn them on in your phone’s Settings → Notifications → Sitio.' : '';
+  const s = (h, t) => `<div class="section-label" style="margin:18px 0 6px">${h}</div><p class="page-sub" style="line-height:1.55;font-size:14px">${t}</p>`;
+  return `<div class="page" style="z-index:16">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Notifications</span></div>
+    ${status ? `<div class="card note" style="margin-bottom:14px">${esc(status)}</div>` : ''}
+    <div class="settings card" style="margin-bottom:18px"><div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>Notifications on this phone</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${pushOn ? 'On' : 'Off'}</span></span><button class="toggle ${pushOn ? 'on' : ''}" data-act="pushtoggle" aria-pressed="${pushOn}" aria-label="Notifications on this phone" ${status ? 'disabled' : ''}></button></div></div>
+    <div class="section-label" style="margin-bottom:8px">What you get</div>
+    <div class="settings card">
+      ${sw('Memory recaps', 'Every two months, and your year in December', 'nRecaps', !pushOn)}
+      ${sw('Spots and friends', 'When a friend shares something with you', 'nFriends', !pushOn)}
+      ${sw('Events in ' + esc(city().name), 'Events happening in your city · off unless you turn it on', 'nEvents', !pushOn)}
+    </div>
+    ${s('How we use notifications', 'We only send the types you switch on above. Events are promotional, so they stay off unless you choose them. We never sell or share your details, and there are no ads from other companies.')}
+    ${s('What we keep', 'When you turn notifications on, your phone gives Sitio a private notification address. We keep it with your account only to send the notifications you chose, and delete it when you turn them off, block them on your phone, or delete your account.')}
+    ${s('Changing your mind', 'Switch any type off here, or turn notifications off completely here or in your phone’s Settings. It takes effect straight away. Questions: ' + CONTACT + '.')}
+  </div>`;
+}
 function privacyPage() {
   const s = (h, t) => `<div class="section-label" style="margin:18px 0 6px">${h}</div><p class="page-sub" style="line-height:1.55;font-size:14px">${t}</p>`;
   return `<div class="page" style="z-index:16">
@@ -956,6 +980,7 @@ function privacyPage() {
     ${s('Why', 'Only to keep your lists safe and let you use them on any phone you log in on. Nothing is sold, shared or used for advertising.')}
     ${s('Who can see it', 'You. We at Sitio can also see account emails and saved lists, only to keep the app working, fix problems and help if you ask. Places you share with a link are seen by whoever you send it to.')}
     ${s('Where', 'Accounts and lists are stored with Supabase on servers in the EU. Maps and place search are provided by Google, under Google’s privacy policy.')}
+    ${s('Notifications', 'Only if you turn them on: we keep a private notification address from your phone to send the types you chose (memory recaps, spots and friends, events). Events are off unless you switch them on. Turn any of them off under Notifications in Settings.')}
     ${s('Without an account', 'Everything stays on your phone only. Nothing is sent to Sitio.')}
     ${s('Your choices', 'You can see and change your data in the app, download it under Back up my spots, and delete your account at any time under Account details, which removes your email and lists for good. For anything else, email ' + CONTACT + '.')}
     <p class="page-sub" style="font-size:12px;margin-top:18px;opacity:.7">Last updated November 2026</p>
@@ -1123,7 +1148,7 @@ function dialogView() {
   }
   if (d.type === 'pushask') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
-      <div class="push-bell">🔔</div><h3 id="dlg-t">Know when your memories are ready to relive</h3><p>Get notified when your memory recaps are ready.</p>
+      <div class="push-bell">🔔</div><h3 id="dlg-t">Know when your memories are ready to relive</h3><p>Get notified about your memory recaps, spots and friends, and events in your city. You can change what you get in Settings.</p>
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Not now</button><button class="big-btn primary-btn" data-act="pushon">Turn on</button></div></div>`;
   }
   if (d.type === 'recap') {
@@ -1380,6 +1405,7 @@ function render() {
   else if (ui.page === 'profile') h += profilePage();
   else if (ui.page === 'auth') h += authPage();
   else if (ui.page === 'privacy') h += privacyPage();
+  else if (ui.page === 'notifs') h += notifsPage();
   else if (ui.page === 'levels') h += levelsPage();
   else if (ui.page === 'import') h += importPage();
   else if (ui.page && ui.page.list) { const l = listOf(ui.page.list); if (l) h += listPage(l); else ui.page = null; }
@@ -1938,7 +1964,7 @@ uiEl.addEventListener('click', e => {
     case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; break;
     case 'recapsend': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog); return;
     case 'recapdemo': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog, DEMO_RECAP); return;
-    case 'pushon': ui.dialog = null; enablePush(); break;
+    case 'pushon': ui.dialog = null; db.settings.nRecaps = true; save(); enablePush(); break;
     case 'pushtoggle': if (pushOn) disablePush(); else enablePush(); return;
     case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') { ui.dialog.open = true; ui.dialog.intro = false; } break;
     case 'memcover': { const q = byId(ui.dialog.id); if (q && coverOf(q) !== ui.dialog.m) { q.thumb = { id: ui.dialog.m, set: Date.now() }; save(); lastMapKey = ''; toast('Thumbnail updated', null); } break; }
@@ -1965,6 +1991,7 @@ uiEl.addEventListener('click', e => {
       toast('Switched to ' + c.name + ' · prices in ' + c.currency, null); break; }
     case 'hereno': { const h = ui.dialog.h; if (h.key) try { localStorage.setItem(h.key, String(Date.now() + 7 * 864e5)); } catch (e) { } ui.dialog = null; break; }
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
+    case 'notifs': ui.prevPage = ui.page; ui.page = 'notifs'; refreshPushState(); break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': ui.page = { adminUser: id }; ui.adminCityQ = ''; break;
     case 'closeadmin': ui.adminSheet = null; ui.wSel = null; break;
@@ -2354,7 +2381,7 @@ function openPushAsk() {
   const decide = (tries = 0) => {
     if (!auth) return;
     if (!adminKnown && tries < 30) return setTimeout(() => decide(tries + 1), 500);
-    if (isAdmin) return askPush('sitio.pushAsk.adminOpen3', true);
+    if (isAdmin) return askPush('sitio.pushAsk.adminOpen4', true);
     if (!auth.user.created_at && tries < 30) {
       if (tries === 0) sbFetch('/auth/v1/user', {}, true).then(u => { if (u && u.created_at && auth) { auth.user.created_at = u.created_at; try { localStorage.setItem('sitio.auth', JSON.stringify(auth)); } catch (e) { } } }).catch(() => { });
       return setTimeout(() => decide(tries + 1), 500);
