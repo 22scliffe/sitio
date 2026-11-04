@@ -715,6 +715,7 @@ function accountView() {
       ${row('Privacy policy', '', 'privacy')}
       ${row('Terms of use', '', 'terms')}
       ${row('Notifications', pushOn ? 'On' : 'Off', 'notifs')}
+      ${row('Report a problem', 'Content or a person', 'report')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
     <p class="page-sub" style="font-size:11px;margin-top:16px;opacity:.6" id="diag">${diag()}</p>
@@ -725,7 +726,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.9.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.9.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -986,10 +987,11 @@ function legalPage(title, intro, parts) {
     <p class="page-sub" style="font-size:12px;margin-top:18px;opacity:.7">Last updated ${LEGAL_UPDATED}</p>
   </div>`;
 }
+const reportLink = what => `<button class="link-btn rep-link" data-act="report" data-what="${esc(what)}">Report</button>`;
 const mail = `<a href="mailto:${CONTACT}" style="color:inherit">${CONTACT}</a>`;
 function privacyPage() {
   return legalPage('Privacy policy', 'Sitio is a small, independent app run from Spain. This explains what we keep about you, why, who helps us run it, and your rights under the UK and EU GDPR.', [
-    ['Who we are', `Sitio is the data controller for your account. Contact us any time at ${mail}.`],
+    ['Who we are', `Sitio is run by Sam Cliffe as an individual, who is responsible for your data (the data controller). Contact: ${mail}.`],
     ['What we collect', [
       '<b>Account:</b> your email, username, display name and optional profile photo. Your password is stored encrypted and nobody can read it.',
       '<b>Your places and lists:</b> the places you save (names, locations, notes, prices, categories, cities), your lists and your settings.',
@@ -1039,7 +1041,8 @@ function termsPage() {
       'Only add photos and content you have the right to use, and be thoughtful about photos of other people.'
     ]],
     ['Please don’t', 'Use Sitio for anything illegal; post someone else’s private information; add content that is hateful, harassing, sexual or violent; try to break, overload or access parts of Sitio that aren’t yours; or use it to send spam or advertising.'],
-    ['If something goes wrong', 'We can remove content or suspend accounts that break these terms. If we do, we will tell you why unless the law or safety stops us.'],
+    ['Reporting content', `If you see something on Sitio that is illegal or breaks these terms, use Report a problem in Settings, the Report link on anything shared with you, or email ${mail}. We will look at every report, act quickly where needed, and let you know what we decided.`],
+    ['If something goes wrong', 'We can remove content or suspend accounts that break these terms. If we do, we will tell you why unless the law or safety stops us, and you can reply to ask us to look again.'],
     ['Places and information', 'Place details, opening hours and maps come from you, your friends, Google and OpenStreetMap. They may be out of date, so check before you go. Recommendations are personal opinions.'],
     ['Our responsibility', 'Sitio is provided free and as it is. We do our best to keep it running and your data safe, but we can’t promise it will always be available or error-free. Nothing in these terms limits liability that can’t be limited by law, or takes away your rights as a consumer where you live.'],
     ['Ending', 'You can stop using Sitio and delete your account at any time in Account details. We may close accounts that seriously or repeatedly break these terms.'],
@@ -1230,7 +1233,7 @@ function dialogView() {
     return `<div class="dialog-scrim rc-scrim" data-act="closedialog" style="--el:${d.introAt ? Date.now() - d.introAt : 0}ms"></div>${recapBg(d.per, d.introAt ? Date.now() - d.introAt : 0)}<div class="recap open" role="dialog" aria-labelledby="rc-t">${head}
       <div class="rc-strip">${items.map(x => `<div class="rc-slide"><div class="rc-photo"><img src="${x.src}" alt=""></div>${cap(x)}</div>`).join('')}</div>
       ${items.length > 1 ? `<div class="mv-count rc-dots">${items.map((x, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      ${!d.shared ? `<button class="link-btn" style="margin:-4px auto 0;color:rgba(255,255,255,.75)" data-act="recapsend">${ICON.share} Share this recap</button>` : ''}${!d.shared && isAdmin && auth ? `<button class="link-btn" style="margin:-8px auto 0;color:#FFD66B" data-act="recapdemo">Show this to everyone once (demo)</button>` : ''}
+      ${d.shared ? `<div style="text-align:center;margin-top:-6px">${reportLink('Shared recap from ' + (d.shared.f || 'someone'))}</div>` : ''}${!d.shared ? `<button class="link-btn" style="margin:-4px auto 0;color:rgba(255,255,255,.75)" data-act="recapsend">${ICON.share} Share this recap</button>` : ''}${!d.shared && isAdmin && auth ? `<button class="link-btn" style="margin:-8px auto 0;color:#FFD66B" data-act="recapdemo">Show this to everyone once (demo)</button>` : ''}
       <button class="big-btn primary-btn" style="width:100%" data-act="closedialog">Done</button></div>`;
   }
   if (d.type === 'levelup') {
@@ -1331,7 +1334,7 @@ function dialogView() {
       <div style="font-size:40px;line-height:1;margin-bottom:8px">${s.e}</div>
       <h3 id="dlg-t">${esc(s.f || 'A friend')} shared “${esc(s.n)}”</h3><p>${s.p.length} ${s.p.length === 1 ? 'place' : 'places'}. Saving adds the list, and puts any places you don’t have yet into To try.</p>
       <div class="settings card" style="text-align:left;margin-bottom:14px">${shown.map(x => `<div class="set-row" style="min-height:46px"><span style="display:flex;flex-direction:column;gap:1px"><span style="font-weight:800">${esc(x.n)}</span><span style="font-size:11px;font-weight:600;color:var(--text-2)">${esc([catOf(x.c).name, x.ci.n].filter(Boolean).join(' · '))}</span></span></div>`).join('')}${s.p.length > 6 ? `<div class="set-row" style="min-height:40px;color:var(--text-2);font-size:13px">+ ${s.p.length - 6} more</div>` : ''}</div>
-      <div class="stack"><button class="big-btn primary-btn" data-act="sharedlistsave">Save list</button><button class="big-btn" style="background:none;border:0;height:44px;color:var(--text-soft)" data-act="closedialog">Not now</button></div></div>`;
+      <div class="stack"><button class="big-btn primary-btn" data-act="sharedlistsave">Save list</button><button class="big-btn" style="background:none;border:0;height:44px;color:var(--text-soft)" data-act="closedialog">Not now</button></div>${reportLink('Shared list "' + s.n + '" from ' + (s.f || 'someone'))}</div>`;
   }
   if (d.type === 'logout') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
@@ -1351,7 +1354,7 @@ function dialogView() {
       <div class="meta" style="margin:0">${esc([catOf(s.c).name, s.q, s.a].filter(Boolean).join(' · '))}</div>
       ${s.p ? `<div class="price-line">${priceHtml(s.p)}${PRICE_WORDS[s.p]}, says ${esc(s.f || 'your friend')}</div>` : ''}
       ${s.o ? `<div class="note card" style="margin:10px 0"><b>${esc(s.f || 'Note')}:</b> ${esc(s.o)}</div>` : ''}
-      <div class="stack" style="margin-top:10px"><button class="big-btn primary-btn" data-act="sharedspot">Add to Spots</button><button class="big-btn coral-btn" data-act="sharedtry">Add to To try</button><button class="big-btn" style="background:none;border:0;height:40px;color:var(--text-soft)" data-act="closedialog">Not now</button></div></div></div>`;
+      <div class="stack" style="margin-top:10px"><button class="big-btn primary-btn" data-act="sharedspot">Add to Spots</button><button class="big-btn coral-btn" data-act="sharedtry">Add to To try</button><button class="big-btn" style="background:none;border:0;height:40px;color:var(--text-soft)" data-act="closedialog">Not now</button></div>${reportLink('Shared spot "' + s.n + '" from ' + (s.f || 'someone'))}</div></div>`;
   }
   return '';
 }
@@ -2055,6 +2058,11 @@ uiEl.addEventListener('click', e => {
     case 'hereno': { const h = ui.dialog.h; if (h.key) try { localStorage.setItem(h.key, String(Date.now() + 7 * 864e5)); } catch (e) { } ui.dialog = null; break; }
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
     case 'terms': ui.prevPage = ui.page; ui.page = 'terms'; break;
+    case 'report': {
+      const what = t.dataset.what || '';
+      const body = 'What are you reporting? (a place, note, photo, list, recap or a person)\n\n' + (what ? 'About: ' + what + '\n\n' : '') + 'What’s wrong with it?\n\n' + 'Anything else we should know?\n\n' + (auth ? '— Sent from the Sitio account ' + auth.user.email : '');
+      location.href = 'mailto:' + CONTACT + '?subject=' + encodeURIComponent('Report on Sitio') + '&body=' + encodeURIComponent(body); return;
+    }
     case 'notifs': ui.prevPage = ui.page; ui.page = 'notifs'; refreshPushState(); break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': ui.page = { adminUser: id }; ui.adminCityQ = ''; break;
