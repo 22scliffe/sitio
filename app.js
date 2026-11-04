@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.1.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.1.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1086,6 +1086,7 @@ function adminUserPage(id, cityId) {
       <p class="page-sub" style="margin:0 0 2px">${esc(u.email || '')}</p>
       <p class="page-sub" style="font-size:12px;margin:0 0 10px">Joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}</p>
       ${(() => { const n = places.filter(p => p.status === 'spot').length, li = levelOf(n); return `<div class="lvl-chip ${li < 0 ? 'start' : ''}" style="margin:0 0 16px;cursor:default"><span class="lvl-ico">${li >= 0 ? LEVELS[li].badge : '🌱'}</span><span class="lvl-txt"><span class="lvl-lv">Level ${li + 1}</span><span class="lvl-nm">${li >= 0 ? LEVELS[li].name : 'Just getting started'} · ${plural(n, 'spot')}</span></span></div>`; })()}
+      ${(() => { const iv = (ui.adminInv || {})[u.user_id]; return `<div class="settings card" style="margin-bottom:16px"><div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>Invites</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${iv ? (iv.allowance >= 100000 ? 'Unlimited' : iv.used + ' of ' + iv.allowance + ' used') + ' · ' + plural(iv.joined, 'friend') + ' joined' + (iv.extra ? ' · ' + (iv.extra >= 100000 ? 'unlimited' : '+' + iv.extra) + ' from you' : '') : (ui.adminInvErr || 'Loading…')}</span></span><button class="pill primary-btn" style="height:36px;font-weight:800" data-act="giveinv" data-id="${esc(u.user_id)}">${ICON.plus}Give</button></div></div>`; })()}
       ${!u.data ? '<div class="card note">Nothing has synced to this account yet. It appears once they open Sitio while logged in and online.</div>'
       : `${cities.length > 3 || ui.adminCityQ ? `<label class="search card" style="margin-bottom:12px">${ICON.search}<input type="search" placeholder="Search a city or country" data-input="adminCityQ" value="${esc(ui.adminCityQ || '')}"></label>` : ''}<div class="section-label" style="margin-bottom:8px">Cities</div><div class="settings card">${cityFilter(cities, ui.adminCityQ).map(c => { const ps = places.filter(p => p.cityId === c.id);
           return `<button class="set-row" data-act="admincity" data-id="${esc(u.user_id)}" data-city="${esc(c.id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><span style="font-weight:800;font-size:16px">${esc(c.name)}${c.country ? `<span style="font-weight:600;color:var(--text-2)"> · ${esc(c.country)}</span>` : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${ps.filter(p => p.status === 'spot').length} ${ps.filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} · ${ps.filter(p => p.status === 'totry').length} to try</span></span><span class="val">${ICON.chevRight}</span></button>`; }).join('')}</div>`}
@@ -1221,6 +1222,14 @@ function dialogView() {
       <input class="input card" placeholder="${mapApi.google ? 'Search, e.g. London or Sitges' : 'Name, e.g. London'}" data-input="cityQ" autocomplete="off" autocapitalize="words">
       <div id="citysug" style="margin-top:8px"></div>
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
+  }
+  if (d.type === 'giveinv') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
+      <h3 id="dlg-t">Give invites</h3><p>How many extra invites should ${esc(d.name)} get? They’re added on top of what they already have.</p>
+      <input class="input card" type="number" inputmode="numeric" min="1" max="99999" data-input="giveN" placeholder="e.g. 5" value="${esc(d.n || '')}">
+      <button class="link-btn" style="margin:12px 0 0" data-act="giveunl">♾️ Give unlimited invites</button>
+      <div class="btn-grid" style="margin-top:14px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="giveok">Give</button></div>
+      ${d.extra ? `<button class="link-btn" style="margin:12px auto 0;color:var(--coral-soft)" data-act="givereset">Take back the ${d.extra >= 100000 ? 'unlimited invites' : d.extra + ' extra invites'} you gave</button>` : ''}</div>`;
   }
   if (d.type === 'pushask') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
@@ -1530,6 +1539,16 @@ function gateView() {
 // Who sent the invite, shown on the welcome screen
 setTimeout(() => { if (pendingInvite() && cloudOn()) sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: pendingInvite() }) }).then(r => { if (r && r.from) { ui.inviteFrom = r.from; render(); } }).catch(() => { }); }, 0);
 
+async function loadAdminInv(uid) {
+  try { const r = await sbFetch('/rest/v1/rpc/sitio_admin_invites', { method: 'POST', body: JSON.stringify({ uid }) }, true); ui.adminInv = Object.assign({}, ui.adminInv, { [uid]: r }); ui.adminInvErr = null; }
+  catch (e) { ui.adminInvErr = e.status === 404 ? 'Run sitio-invite-gifts.sql in Supabase first' : friendly(e); }
+  render();
+}
+async function giveInvites(uid, n) {
+  try { const r = await sbFetch('/rest/v1/rpc/sitio_admin_give_invites', { method: 'POST', body: JSON.stringify({ uid, n }) }, true); ui.adminInv = Object.assign({}, ui.adminInv, { [uid]: r }); toast(n >= 100000 ? 'Unlimited invites given' : n < 0 ? 'Invites taken back' : plural(n, 'invite') + ' given', null); }
+  catch (e) { flash('Couldn’t give invites: ' + friendly(e)); }
+  render();
+}
 async function loadInviter() { if (!auth || ui.inviter) return; try { ui.inviter = await sbFetch('/rest/v1/rpc/sitio_my_inviter', { method: 'POST', body: '{}' }, true); render(); } catch (e) { } }
 async function loadInvites() {
   try { ui.invData = await sbFetch('/rest/v1/rpc/sitio_my_invites', { method: 'POST', body: '{}' }, true); ui.invErr = null; }
@@ -2197,7 +2216,7 @@ uiEl.addEventListener('click', e => {
     }
     case 'notifs': ui.prevPage = ui.page; ui.page = 'notifs'; refreshPushState(); break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
-    case 'adminuser': ui.page = { adminUser: id }; ui.adminCityQ = ''; break;
+    case 'adminuser': loadAdminInv(id); ui.page = { adminUser: id }; ui.adminCityQ = ''; break;
     case 'closeadmin': ui.adminSheet = null; ui.wSel = null; break;
     case 'worldmap': ui.world = true; ui.savedFilter = ui.filter; ui.filter = []; ui.menu = null; ui.wSel = null; lastMapKey = ''; render(); setTimeout(() => mapApi.fit(worldList().filter(p => matches(p, ui.filter))), 80); return;
     case 'worldfit': mapApi.fit(worldList().filter(p => matches(p, ui.filter))); return;
@@ -2218,6 +2237,10 @@ uiEl.addEventListener('click', e => {
     case 'gatelogin': ui.authMode = 'login'; ui.page = 'auth'; break;
     case 'gatejoin': { const c = ((ui.gateCode != null ? ui.gateCode : pendingInvite()) || '').trim().replace(/^.*[#&]i=/, '').toLowerCase(); if (!c) { ui.gateMsg = 'Paste your invite link or code.'; break; } try { localStorage.setItem('sitio.pendingInvite', c); } catch (e2) { } ui.gateMsg = null; checkMember(); return; }
     case 'invites': ui.prevPage = ui.page; ui.page = 'invites'; if (!DEMO_INV) loadInvites(); break;
+    case 'giveinv': { const u = (ui.adminData || []).find(x => x.user_id === id); const iv = (ui.adminInv || {})[id]; ui.dialog = { type: 'giveinv', uid: id, name: (u && u.data && u.data.user && u.data.user.name) || (u && u.email) || 'them', extra: iv ? iv.extra : 0 }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="giveN"]'); if (i) i.focus(); }, 60); return; }
+    case 'giveok': { const n = parseInt(ui.dialog.n, 10); if (!(n > 0)) { flash('Type how many invites to give.'); return; } const uid = ui.dialog.uid; ui.dialog = null; giveInvites(uid, Math.min(n, 99999)); break; }
+    case 'giveunl': { const uid = ui.dialog.uid; ui.dialog = null; giveInvites(uid, 100000); break; }
+    case 'givereset': { const uid = ui.dialog.uid, x = ui.dialog.extra; ui.dialog = null; giveInvites(uid, -x); break; }
     case 'newinvite': if (DEMO_INV) { const d = ui.invData; if (d.invites.length < d.allowance) d.invites.unshift({ code: 'demo' + d.invites.length, created_at: new Date().toISOString(), used_at: null }); toast('Demo: this would open your share sheet with the link', null); break; } makeInvite(); return;
     case 'shareinvite': if (DEMO_INV) { const i = ui.invData.invites.find(x => x.code === t.dataset.code); if (i) { i.used_at = new Date().toISOString(); i.name = ['Lola', 'Marta', 'Pablo', 'Ana', 'Leo'][ui.invData.invites.indexOf(i) % 5]; } toast('Demo: a friend used this invite', null); break; } shareInvite(t.dataset.code); return;
     case 'demolevel': ui.invData.allowance = ui.invData.allowance === 3 ? 5 : ui.invData.allowance === 5 ? 8 : 3; toast(ui.invData.allowance === 5 ? 'Demo: reached Local amateur, +2 invites' : ui.invData.allowance === 8 ? 'Demo: reached Spot connoisseur, +3 invites' : 'Demo: back to 3 invites', null); break;
@@ -2251,6 +2274,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
   if (k === 'gateCode') ui.gateCode = v;
+  if (k === 'giveN' && ui.dialog && ui.dialog.type === 'giveinv') ui.dialog.n = v;
   if (k === 'authCode') { ui.authF = ui.authF || {}; ui.authF.code = v; }
   if (k === 'recapY' || k === 'recapLoc') { ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[k === 'recapY' ? 'y' : 'loc'] = v; render(); }
   if (k === 'adminCityQ') { ui.adminCityQ = v; render(); }
