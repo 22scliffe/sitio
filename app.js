@@ -5,6 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
+const LOC = () => window.SITIO_LANG === 'es' ? 'es-ES' : 'en-GB';
 const DEFAULT_ME = { lat: 40.4168, lng: -3.7038 }; // Puerta del Sol, used until location is allowed
 
 /* ---------- helpers ---------- */
@@ -540,7 +541,7 @@ function worldView() {
 // Memories: photos of you at the place, kept with the date they were taken
 const toLocalInput = t => { const d = new Date(t || Date.now()); const z = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + 'T' + z(d.getHours()) + ':' + z(d.getMinutes()); };
 const fromLocalInput = v => { const m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(v || ''); return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5]).getTime() : null; };
-const fmtWhen = t => { const d = new Date(t); return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); };
+const fmtWhen = t => { const d = new Date(t); return d.toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' }) + ' · ' + d.toLocaleTimeString(LOC(), { hour: '2-digit', minute: '2-digit' }); };
 // Top of a place: your memories first, with a big "add" tile; the place's illustration only until you add one
 function memoryStrip(p) {
   const ms = (p.memories || []).slice().sort((a, b) => b.at - a.at);
@@ -548,16 +549,16 @@ function memoryStrip(p) {
   const input = `<input type="file" accept="image/*" multiple hidden data-memory="${p.id}">`;
   const add = `<label class="ms-add ${ms.length ? '' : 'first'}"><span class="ms-cam">📸</span><b>${ms.length ? 'Add another' : (p.status === 'totry' ? 'Went? Add a memory' : 'Add a memory')}</b><span>${ms.length ? 'Photo of you here' : 'A photo of you here, saved with the date'}</span>${input}</label>`;
   const cov = coverOf(p);
-  const tiles = ms.concat(old).map(m => { const u = photoUrl(m.id); return `<button class="ms-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${m.id === cov && ms.length > 1 ? '<span class="ms-cov">Thumbnail</span>' : ''}${u ? `<img src="${u}" alt="">` : (m.cloud ? '<span class="mem-gone">Loading…</span>' : '<span class="mem-gone">On another phone</span>')}${m.at ? `<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span>` : ''}</button>`; }).join('');
+  const tiles = ms.concat(old).map(m => { const u = photoUrl(m.id); return `<button class="ms-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${m.id === cov && ms.length > 1 ? '<span class="ms-cov">Thumbnail</span>' : ''}${u ? `<img src="${u}" alt="">` : (m.cloud ? '<span class="mem-gone">Loading…</span>' : '<span class="mem-gone">On another phone</span>')}${m.at ? `<span class="mem-date">${esc(new Date(m.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: '2-digit' }))}</span>` : ''}</button>`; }).join('');
   const blank = ms.length || old.length ? '' : `<div class="ms-item ms-art">${ART[p.cat] || ART.restaurant}<span class="ms-hint">Your memories here will show who you came with and when</span></div>`;
-  return `<div class="ms-wrap"><div class="ms-head"><span>📸 Memories${ms.length ? ' · ' + ms.length : ''}</span>${ms.length ? `<span class="ms-last">Last: ${esc(new Date(ms[0].at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</div><div class="ms-strip">${add}${tiles}${blank}</div></div>`;
+  return `<div class="ms-wrap"><div class="ms-head"><span>📸 Memories${ms.length ? ' · ' + ms.length : ''}</span>${ms.length ? `<span class="ms-last">Last: ${esc(new Date(ms[0].at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</div><div class="ms-strip">${add}${tiles}${blank}</div></div>`;
 }
 function memoriesHtml(p) {
   const ms = (p.memories || []).slice().sort((a, b) => b.at - a.at);
   const input = `<input type="file" accept="image/*" multiple hidden data-memory="${p.id}">`;
   if (!ms.length) return `<label class="mem-cta card"><span class="mem-ic">📸</span><span style="display:flex;flex-direction:column;gap:2px"><b>${p.status === 'totry' ? 'Went here? Add a memory' : 'Been here? Add a memory'}</b><span>A photo of you there, saved with the date and time it was taken.</span></span>${input}</label>`;
   return `<div class="mem"><div class="mem-head"><span>📸 Memories · ${ms.length}</span><label class="link-btn" style="color:var(--blue);cursor:pointer">${ICON.plus}Add${input}</label></div>
-    <div class="mem-strip">${ms.map(m => { const u = photoUrl(m.id); return `<button class="mem-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">Photo on another phone</span>'}<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span></button>`; }).join('')}</div></div>`;
+    <div class="mem-strip">${ms.map(m => { const u = photoUrl(m.id); return `<button class="mem-item" data-act="memview" data-id="${p.id}" data-m="${m.id}">${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">Photo on another phone</span>'}<span class="mem-date">${esc(new Date(m.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: '2-digit' }))}</span></button>`; }).join('')}</div></div>`;
 }
 // Read when a photo was actually taken (EXIF), so old photos get the right date
 async function photoDate(file) {
@@ -625,7 +626,7 @@ function spotSheet(p) {
 }
 // To try places: same layout as Spots, with the place's picture where memories would be
 function tryCover(p) {
-  return `<div class="ms-wrap"><div class="ms-head"><span>📍 On your To try list</span>${p.addedAt ? `<span class="ms-last">Added ${esc(new Date(p.addedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</div>
+  return `<div class="ms-wrap"><div class="ms-head"><span>📍 On your To try list</span>${p.addedAt ? `<span class="ms-last">Added ${esc(new Date(p.addedAt).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' }))}</span>` : ''}</div>
     <div class="try-cover">${ART[p.cat] || ART.restaurant}<span class="ms-hint">Been? Tap Save to Spots, then add a memory</span></div></div>`;
 }
 function spotsView() {
@@ -734,6 +735,7 @@ function accountView() {
       ${row('Terms of use', '', 'terms')}
       ${row('Notifications', pushOn ? 'On' : 'Off', 'notifs')}
       ${row('Report a problem', 'Content or a person', 'report')}
+      ${row('Language / Idioma', db.settings.lang === 'es' ? 'Español' : 'English', 'langpage')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
     <p class="page-sub" style="font-size:11px;margin-top:16px;opacity:.6" id="diag">${diag()}</p>
@@ -744,7 +746,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.17 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.18 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 // City photos from Wikipedia (free licence images from Wikimedia Commons), fetched by the phone and cached on it
 let cityPics = (() => { try { return JSON.parse(localStorage.getItem('sitio.cityPics') || '{}'); } catch (e) { return {}; } })();
@@ -1107,7 +1109,7 @@ function termsPage() {
     ['Contact', mail]
   ]);
 }
-const fmtDate = t => t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
+const fmtDate = t => t ? new Date(t).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
 function adminPage() {
   const users = ui.adminData;
   const head = `<div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">All users</span></div>`;
@@ -1688,7 +1690,7 @@ function friendPage(id) {
   if (M.error) return `<div class="page" style="z-index:15">${head}<div class="card note">${esc(M.error)}</div></div>`;
   const who = fname(M.name), cityOfF = p => (M.cities || []).find(c => c.id === p.cityId);
   const row = p => { const top = (p.mems || [])[0], u = top && friendPhoto(id, top.id);
-    return `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}">${top ? `<span class="fr-thumb">${u ? `<img src="${u}" alt="">` : '📸'}</span>` : ''}<span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>${esc(p.name)}</b><span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.lastMem ? ' · 📸 ' + esc(new Date(p.lastMem).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })) : p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`; };
+    return `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}">${top ? `<span class="fr-thumb">${u ? `<img src="${u}" alt="">` : '📸'}</span>` : ''}<span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>${esc(p.name)}</b><span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.lastMem ? ' · 📸 ' + esc(new Date(p.lastMem).toLocaleDateString(LOC(), { month: 'short', year: 'numeric' })) : p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`; };
   const byRecent = ps => ps.slice().sort((x, y) => (y.lastMem || 0) - (x.lastMem || 0) || (y.addedAt || 0) - (x.addedAt || 0));
   const group = ps => { const by = {}; ps.forEach(p => { const c = cityOfF(p); const k = c ? c.name : 'Other'; (by[k] = by[k] || []).push(p); }); return Object.keys(by).map(k => `<div class="section-label" style="margin:14px 0 8px">${esc(k)} · ${by[k].length}</div><div class="settings card">${by[k].map(row).join('')}</div>`).join(''); };
   if (M.locked) return `<div class="page" style="z-index:15">${head}
@@ -1711,7 +1713,7 @@ function friendSheet(f) {
     <div class="meta">${esc([catNames(p), p.cuisine, p.area, f.city && f.city.name, typeof p.lat === 'number' ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · '))}</div>
     ${!isTry && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(cur.repeat(p.price))}</span><span class="off">${esc(cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
     ${p.note ? `<div class="note card"><b>${esc(who)}:</b> ${esc(p.note)}</div>` : ''}
-    ${(p.mems || []).length ? `<div class="mem"><div class="mem-head"><span>📸 ${esc(who)}’s memories · ${p.mems.length}</span></div><div class="mem-strip">${p.mems.map(m => { const u = friendPhoto(f.owner, m.id); return `<button class="mem-item" ${u ? `data-act="frphoto" data-src="${u}"` : ''}>${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">Loading…</span>'}<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span></button>`; }).join('')}</div></div>`
+    ${(p.mems || []).length ? `<div class="mem"><div class="mem-head"><span>📸 ${esc(who)}’s memories · ${p.mems.length}</span></div><div class="mem-strip">${p.mems.map(m => { const u = friendPhoto(f.owner, m.id); return `<button class="mem-item" ${u ? `data-act="frphoto" data-src="${u}"` : ''}>${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">Loading…</span>'}<span class="mem-date">${esc(new Date(m.at).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: '2-digit' }))}</span></button>`; }).join('')}</div></div>`
       : p.mem ? `<div class="fr-mem">📸 ${esc(who)} has ${plural(p.mem, 'memory', 'memories')} here</div>` : ''}
     ${mine ? `<div class="card note" style="margin:12px 0">Already in your ${mine.status === 'spot' ? 'Spots' : 'To try'}.</div>` : `<button class="big-btn coral-btn" style="width:100%;margin:12px 0 8px" data-act="frsave">${ICON.plus}Save to To try</button>`}
     ${typeof p.lat !== 'number' ? '' : ui.tab !== 'home' || ui.page ? mapDirButtons(p, 'frmapone') : dirButtons(p)}
@@ -1800,7 +1802,7 @@ function gateView() {
     <input class="input card" data-input="gateCode" placeholder="Invite code" value="${esc(ui.gateCode != null ? ui.gateCode : code)}" autocapitalize="off" spellcheck="false">
     ${ui.gateMsg ? `<div class="card note" style="color:var(--coral-soft);margin-top:10px">${esc(ui.gateMsg)}</div>` : ''}
     <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="gatejoin">Join Sitio</button>
-    <button class="link-btn" style="margin:14px auto 0" data-act="logout">Log out</button></div></div>`;
+    <button class="link-btn" style="margin:14px auto 0" data-act="logout">Log out</button><div class="gate-lang" data-noi18n><button class="link-btn ${db.settings.lang === 'es' ? '' : 'on'}" data-act="setlang" data-v="en">English</button><span>·</span><button class="link-btn ${db.settings.lang === 'es' ? 'on' : ''}" data-act="setlang" data-v="es">Español</button></div></div></div>`;
   return `<div class="gate"><div class="gate-in">
     <img class="gate-logo" src="icons/icon-192.png" alt=""><h1>Sitio</h1>
     <p class="gate-tag">Your map of the places you vouch for, shared with friends whose taste you trust.</p>
@@ -1808,7 +1810,7 @@ function gateView() {
     <div class="gate-badge">${ICON.lock}<span>Invite-only</span></div>
     ${ui.invitePaused ? '<p class="gate-from">This invite is paused at the moment. Try again later or ask a friend for another one.</p>' : ui.inviteFrom ? `<p class="gate-from"><b>${esc(ui.inviteFrom)}</b> invited you to Sitio.</p>` : code ? '<p class="gate-from">You’ve got an invite.</p>' : '<p class="gate-from">Every member is invited by a friend. Ask someone on Sitio for an invite link.</p>'}
     <button class="big-btn primary-btn" style="width:100%;margin-top:18px" data-act="gatesignup">${code ? 'Create your account' : 'I have an invite'}</button>
-    <button class="big-btn sec-btn" style="width:100%;margin-top:10px" data-act="gatelogin">Log in</button></div></div>`;
+    <button class="big-btn sec-btn" style="width:100%;margin-top:10px" data-act="gatelogin">Log in</button><div class="gate-lang" data-noi18n><button class="link-btn ${db.settings.lang === 'es' ? '' : 'on'}" data-act="setlang" data-v="en">English</button><span>·</span><button class="link-btn ${db.settings.lang === 'es' ? 'on' : ''}" data-act="setlang" data-v="es">Español</button></div></div></div>`;
 }
 // Who sent the invite, shown on the welcome screen
 setTimeout(() => { if (pendingInvite() && cloudOn()) sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: pendingInvite() }) }).then(r => { if (r && r.from) { ui.inviteFrom = r.from; render(); } else if (r && r.paused) { ui.invitePaused = true; render(); } }).catch(() => { }); }, 0);
@@ -1864,8 +1866,12 @@ function invitesPage() {
 /* ---------- render ---------- */
 const root = document.getElementById('app');
 const uiEl = document.createElement('div');
+// Language: English by default; Spanish translates each screen as it's drawn (i18n.js)
+window.SITIO_LANG = db.settings.lang === 'es' ? 'es' : 'en'; document.documentElement.lang = window.SITIO_LANG;
+if (window.MutationObserver && window.SITIO_I18N) new MutationObserver(() => { if (window.SITIO_LANG === 'es') window.SITIO_I18N.apply(uiEl); }).observe(uiEl, { childList: true, subtree: true });
 let lastMapKey = ''; const scrollMem = {};
 function render() {
+  window.SITIO_LANG = db.settings.lang === 'es' ? 'es' : 'en';
   document.body.classList.toggle('light', !db.settings.darkMap);
   // Map pins
   const onlyFriends = ui.friendsLayer && !ui.world && ui.tab === 'home';
@@ -1908,6 +1914,7 @@ function render() {
   else if (ui.page === 'levels') h += levelsPage();
   else if (ui.page === 'import') h += importPage();
   else if (ui.page === 'backup') h += backupPage();
+  else if (ui.page === 'lang') h += langPage();
   else if (ui.page && ui.page.list) { const l = listOf(ui.page.list); if (l) h += listPage(l); else ui.page = null; }
   else if (ui.page === 'admin') h += adminPage();
   else if (false) {
@@ -2142,6 +2149,13 @@ async function importFiles(files) {
   items.forEach(it => { if (have(it.name) || q.some(x => x.name.toLowerCase() === it.name.toLowerCase())) { skipped++; return; } q.push(Object.assign({ key: 'i-' + uid() }, it)); added++; });
   setImportQ(q); ui.importMsg = added ? `Found ${added} ${added === 1 ? 'place' : 'places'} to add${skipped ? ` · ${skipped} already in Sitio, skipped` : ''}.` : (items.length ? 'Everything in those files is already in Sitio.' : 'No places found in that file. Pick the CSV files from the Saved folder.');
   render();
+}
+function langPage() {
+  const opt = (v, label) => `<button class="set-row" data-act="setlang" data-v="${v}" style="min-height:58px"><span style="font-weight:700">${label}</span>${(db.settings.lang === 'es' ? 'es' : 'en') === v ? `<span class="val" style="color:var(--green)">${ICON.check}</span>` : ''}</button>`;
+  return `<div class="page" style="z-index:15">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800" data-noi18n>Language / Idioma</span></div>
+    <div class="settings card" data-noi18n>${opt('en', 'English')}${opt('es', 'Español')}</div>
+  </div>`;
 }
 function backupPage() {
   const row = (label, sub, act) => `<button class="set-row" data-act="${act}"><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span>${label}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span></span><span class="val">${ICON.chevRight}</span></button>`;
@@ -2521,6 +2535,8 @@ uiEl.addEventListener('click', e => {
     case 'sharelist': { const l = listOf(id); if (isHidden(l)) return; if (ui.dialog) { ui.dialog = null; render(); } if (l) shareList(l); return; }
     case 'sharedlistsave': { const r = saveSharedList(ui.dialog.data); ui.dialog = null; ui.tab = 'spots'; ui.spotsView = 'lists'; ui.page = { list: r.l.id }; toast(r.l.emoji + ' ' + r.l.name + ' saved' + (r.added ? ' · ' + r.added + ' added to To try' : ''), null); lastMapKey = ''; break; }
     case 'openimport': if (ui.page === 'backup') ui.prevPage = 'backup'; ui.page = 'import'; ui.importMsg = ''; break;
+    case 'langpage': ui.prevPage = null; ui.page = 'lang'; break;
+    case 'setlang': db.settings.lang = t.dataset.v === 'es' ? 'es' : 'en'; window.SITIO_LANG = db.settings.lang; document.documentElement.lang = db.settings.lang; save(); lastMapKey = ''; break;
     case 'backuppage': ui.prevPage = null; ui.page = 'backup'; break;
     case 'importskip': setImportQ(importQ().filter(x => x.key !== id)); break;
     case 'importclear': setImportQ([]); ui.importMsg = ''; break;

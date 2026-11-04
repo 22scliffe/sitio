@@ -832,3 +832,7 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 
 .city-av { overflow: hidden; flex: none; } .city-av img { width: 100%; height: 100%; object-fit: cover; }
 .city-credits { margin-top: 14px; font-size: 11px; color: var(--text-2); line-height: 1.6; } .city-credits summary { cursor: pointer; font-weight: 700; } .city-credits a { color: inherit; }
+
+.gate-lang { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 22px; font-size: 13px; color: var(--text-2); } .gate-lang .link-btn { font-size: 13px; color: var(--text-2); } .gate-lang .link-btn.on { color: var(--text); font-weight: 800; }
+.page-title { white-space: nowrap; }
+html[lang=es] .page-title { font-size: 27px; letter-spacing: -0.6px; }
