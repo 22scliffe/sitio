@@ -876,3 +876,5 @@ html[lang=es] .page-title { font-size: 27px; letter-spacing: -0.6px; }
 .big-btn:active, .pill:active, .round:active, .chip:active, .sec-btn:active { transform: scale(.97); }
 .set-row { transition: background-color .15s ease; } .set-row:active { background: rgba(var(--fg),0.06); }
 @media (prefers-reduced-motion: reduce) { .sheet, .dialog, .menu, .page.page-in { animation: none !important; } }
+
+.tabbar [data-act="tab"].scrub { background: rgba(var(--fg),0.12); border-radius: 999px; transform: scale(1.05); transition: transform .12s ease, background-color .12s ease; }
