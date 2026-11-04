@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.0.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.0.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -796,7 +796,7 @@ const USER_HINT = '3–20 letters, numbers, dots or underscores. No spaces.';
 const delWord = () => (db.user.name || '').trim() || 'delete';
 const LEVELS = [
   { min: 2, name: 'Exploring spots', badge: '🧭' },
-  { min: 5, name: 'Local amateur', badge: '🗺️' },
+  { min: 5, name: 'Local amateur', badge: '🗺️', perk: 'Unlocks 2 more invites for friends' },
   { min: 10, name: 'Local guide', badge: '📍' },
   { min: 20, name: 'Professional gatekeeper', badge: '🔑' },
   { min: 50, name: 'Spot connoisseur', badge: '👑' }
@@ -926,7 +926,7 @@ function levelsPage() {
     </div>
     <div class="section-label" style="margin:20px 0 8px">All levels</div>
     <div class="settings card lvl-list">${LEVELS.map((l, k) => { const done = k <= i; const to = LEVELS[k + 1] ? LEVELS[k + 1].min - 1 : null;
-      return `<div class="set-row" style="min-height:66px;${k === i ? 'background:rgba(var(--fg),0.06)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="lvl-badge ${done ? '' : 'locked'}">${l.badge}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${l.name}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${to ? l.min + '–' + to : l.min + '+'} spots</span></span></span><span class="tl ${k === 0 ? 'first' : ''} ${k === LEVELS.length - 1 ? 'last' : ''} ${k < i ? 'past' : ''} ${k === i ? 'here' : ''} ${k > i ? 'future' : ''} ${k <= i ? 'up-gold' : ''}" aria-label="${k === i ? 'You are here' : done ? 'Reached' : 'Not reached yet'}"><i class="tl-up"></i><i class="tl-dot"></i><i class="tl-down"></i></span></div>`; }).join('')}</div>
+      return `<div class="set-row" style="min-height:66px;${k === i ? 'background:rgba(var(--fg),0.06)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="lvl-badge ${done ? '' : 'locked'}">${l.badge}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${l.name}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${to ? l.min + '–' + to : l.min + '+'} spots</span>${l.perk ? `<span class="lvl-perk">🎟️ ${l.perk}</span>` : ''}</span></span><span class="tl ${k === 0 ? 'first' : ''} ${k === LEVELS.length - 1 ? 'last' : ''} ${k < i ? 'past' : ''} ${k === i ? 'here' : ''} ${k > i ? 'future' : ''} ${k <= i ? 'up-gold' : ''}" aria-label="${k === i ? 'You are here' : done ? 'Reached' : 'Not reached yet'}"><i class="tl-up"></i><i class="tl-dot"></i><i class="tl-down"></i></span></div>`; }).join('')}</div>
     <p class="page-sub" style="font-size:12px;margin-top:10px">Every place in Spots counts, in every city.</p>
   </div>`;
 }
@@ -1084,7 +1084,8 @@ function adminUserPage(id, cityId) {
     return `<div class="page" style="z-index:16">
       <div class="page-head" style="justify-content:flex-start">${back}<span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis">${esc(name)}</span></div>
       <p class="page-sub" style="margin:0 0 2px">${esc(u.email || '')}</p>
-      <p class="page-sub" style="font-size:12px;margin:0 0 16px">Joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}</p>
+      <p class="page-sub" style="font-size:12px;margin:0 0 10px">Joined ${fmtDate(u.created_at)} · last login ${fmtDate(u.last_sign_in_at)}</p>
+      ${(() => { const n = places.filter(p => p.status === 'spot').length, li = levelOf(n); return `<div class="lvl-chip ${li < 0 ? 'start' : ''}" style="margin:0 0 16px;cursor:default"><span class="lvl-ico">${li >= 0 ? LEVELS[li].badge : '🌱'}</span><span class="lvl-txt"><span class="lvl-lv">Level ${li + 1}</span><span class="lvl-nm">${li >= 0 ? LEVELS[li].name : 'Just getting started'} · ${plural(n, 'spot')}</span></span></div>`; })()}
       ${!u.data ? '<div class="card note">Nothing has synced to this account yet. It appears once they open Sitio while logged in and online.</div>'
       : `${cities.length > 3 || ui.adminCityQ ? `<label class="search card" style="margin-bottom:12px">${ICON.search}<input type="search" placeholder="Search a city or country" data-input="adminCityQ" value="${esc(ui.adminCityQ || '')}"></label>` : ''}<div class="section-label" style="margin-bottom:8px">Cities</div><div class="settings card">${cityFilter(cities, ui.adminCityQ).map(c => { const ps = places.filter(p => p.cityId === c.id);
           return `<button class="set-row" data-act="admincity" data-id="${esc(u.user_id)}" data-city="${esc(c.id)}" style="min-height:64px"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><span style="font-weight:800;font-size:16px">${esc(c.name)}${c.country ? `<span style="font-weight:600;color:var(--text-2)"> · ${esc(c.country)}</span>` : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${ps.filter(p => p.status === 'spot').length} ${ps.filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} · ${ps.filter(p => p.status === 'totry').length} to try</span></span><span class="val">${ICON.chevRight}</span></button>`; }).join('')}</div>`}
@@ -1409,7 +1410,7 @@ function iosHowTo(newSafari) {
     <div class="i-h" style="text-align:center">Add Sitio to your home screen</div>
     <div class="hw-phone">${sc.map((s, k) => `<div class="hw-sc" style="${d(k)}">${s.html.replace(/class="hw-(finger|ring|list|new)/g, m => `style="${d(k)}" ${m}`)}</div>`).join('')}</div>
     <div class="hw-caps">${sc.map((s, k) => `<div class="hw-cap" style="${d(k)}"><span class="hw-n">${k + 1}</span><span>${s.cap}</span></div>`).join('')}</div>
-    <div class="muted" style="font-size:12px;font-weight:600;margin-top:10px;line-height:1.4;text-align:center">iPhones don’t let websites add themselves, so it takes these taps. You only do it once.</div></div>`;
+    <div class="muted" style="font-size:12px;font-weight:600;margin-top:10px;line-height:1.4;text-align:center">iPhones don’t let websites add themselves, so it takes these taps. You only do it once.${auth ? ' Then open Sitio from your home screen and log in with the same email.' : ''}</div></div>`;
 }
 function installView() {
   const step = (n, html) => `<li class="i-step"><span class="i-num">${n}</span><span>${html}</span></li>`;

@@ -740,3 +740,5 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .inv-hero .inv-n { font-size: 44px; font-weight: 800; color: #FFD66B; min-width: 44px; text-align: center; }
 .inv-hero b { display: block; font-size: 17px; margin-bottom: 4px; }
 .inv-hero span { font-size: 13px; line-height: 1.45; color: var(--text-2); }
+
+.lvl-perk { font-size: 12px; font-weight: 700; color: #FFD66B; margin-top: 2px; }
