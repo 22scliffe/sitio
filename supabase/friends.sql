@@ -1,5 +1,5 @@
 -- Sitio: friends. Run once in Supabase → SQL Editor (after the invite scripts).
--- Mutual friendships, max 50 each. Friends see each other's Spots and To try, never anything in
+-- Mutual friendships, max 25 each. Friends see each other's Spots and To try, never anything in
 -- "Hidden from friends" and never notes marked private. Memories show only as a count.
 -- Friends' full maps unlock once you have 5 spots of your own; before that you get a teaser.
 
@@ -64,9 +64,9 @@ begin
   if other is null then raise exception 'No one on Sitio has that username'; end if;
   select * into fr from sitio_friends where a = least(me, other) and b = greatest(me, other);
   if found and fr.status = 'accepted' then return 'already'; end if;
-  if public.sitio_friend_count(me) >= 50 then raise exception 'You already have 50 friends, the most Sitio allows'; end if;
+  if public.sitio_friend_count(me) >= 25 then raise exception 'You already have 25 friends, the most Sitio allows'; end if;
   if found and fr.requested_by = other then
-    if public.sitio_friend_count(other) >= 50 then raise exception 'They already have 50 friends'; end if;
+    if public.sitio_friend_count(other) >= 25 then raise exception 'They already have 25 friends'; end if;
     update sitio_friends set status = 'accepted', accepted_at = now() where a = fr.a and b = fr.b; return 'accepted';
   end if;
   if found then return 'pending'; end if;
@@ -82,7 +82,7 @@ begin
   if me is null or not public.sitio_is_member() then raise exception 'Log in first'; end if;
   select invited_by into inv from sitio_members where user_id = me;
   if inv is null then return 'none'; end if;
-  if public.sitio_friend_count(me) >= 50 or public.sitio_friend_count(inv) >= 50 then raise exception 'One of you already has 50 friends'; end if;
+  if public.sitio_friend_count(me) >= 25 or public.sitio_friend_count(inv) >= 25 then raise exception 'One of you already has 25 friends'; end if;
   insert into sitio_friends (a, b, requested_by, status, accepted_at) values (least(me, inv), greatest(me, inv), me, 'accepted', now())
     on conflict (a, b) do update set status = 'accepted', accepted_at = now();
   return 'accepted';
@@ -94,8 +94,8 @@ declare me uuid := auth.uid();
 begin
   if me is null then raise exception 'Log in first'; end if;
   if accept then
-    if public.sitio_friend_count(me) >= 50 then raise exception 'You already have 50 friends, the most Sitio allows'; end if;
-    if public.sitio_friend_count(other) >= 50 then raise exception 'They already have 50 friends'; end if;
+    if public.sitio_friend_count(me) >= 25 then raise exception 'You already have 25 friends, the most Sitio allows'; end if;
+    if public.sitio_friend_count(other) >= 25 then raise exception 'They already have 25 friends'; end if;
     update sitio_friends set status = 'accepted', accepted_at = now()
       where a = least(me, other) and b = greatest(me, other) and status = 'pending' and requested_by = other;
     return 'accepted';
