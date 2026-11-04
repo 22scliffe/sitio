@@ -844,3 +844,9 @@ html[lang=es] .page-title { font-size: 27px; letter-spacing: -0.6px; }
 .page-head .fr-tag-pill { margin-left: 0; align-self: flex-start; }
 .fr-tag-sub { font-size: 12px; font-weight: 600; color: var(--text-2); }
 .zoom-letter { position: fixed; inset: 0; margin: auto; z-index: 61; width: min(78vw, 340px); height: min(78vw, 340px); border-radius: 50%; display: grid; place-items: center; font-size: min(36vw, 160px); font-weight: 800; color: var(--text); background: #2A2A31; }
+
+/* Moving light around the Add to To try button, like the recaps box but in white/pink to suit the coral */
+.big-btn.cta-glow { position: relative; isolation: isolate; overflow: hidden; background: rgba(255,90,78,0.45); }
+.big-btn.cta-glow::before { content: ""; position: absolute; z-index: -2; left: 50%; top: 50%; width: 300%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(0deg); background: conic-gradient(from 0deg, transparent 0deg 230deg, rgba(255,200,190,0.2) 290deg, rgba(255,255,255,0.85) 340deg, rgba(255,170,160,0.6) 352deg, transparent 360deg); animation: ctaSpin 6s linear infinite; }
+.big-btn.cta-glow::after { content: ""; position: absolute; z-index: -1; inset: 2px; border-radius: inherit; background: var(--coral); }
+@media (prefers-reduced-motion: reduce) { .big-btn.cta-glow::before { animation: none; } }

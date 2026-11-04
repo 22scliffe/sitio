@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.22'; // also in version.txt: bump both
+const APP_VERSION = '0.6.23'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -280,10 +280,10 @@ const byId = (id) => db.places.find(p => p.id === id);
 function matches(p, filter) {
   const lt = filter.filter(f => f.startsWith('list:'));
   if (lt.length) return lt.some(t => { const l = listOf(t.slice(5)); return l && l.ids.includes(p.id); });
-  // My spots / To try choose which places; categories and cuisines then narrow them down
-  const wantSpots = filter.includes('spots'), wantTry = filter.includes('totry');
-  if (p.status === 'totry' ? !wantTry : (wantTry && !wantSpots)) return false;
-  const cats = filter.filter(f => !f.startsWith('cuisine:') && f !== 'totry' && f !== 'spots');
+  // Which places: My spots (default), To try, or All (both); categories and cuisines then narrow them down
+  const st = filter.includes('everything') ? 'all' : filter.includes('totry') ? 'totry' : 'spot';
+  if (st !== 'all' && p.status !== st) return false;
+  const cats = filter.filter(f => !f.startsWith('cuisine:') && !STATUS_F.includes(f));
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   if (!cats.length && !cuis.length) return true;
   if (cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
@@ -307,11 +307,11 @@ const catNames = p => catsOf(p).map(c => catOf(c).name).join(' & ');
 // The second choice after category depends on it: cuisine for restaurants, ambience for bars, cafés and clubs, sport, or vibe
 const DETAIL = {
   restaurant: { label: 'Cuisine', opts: CUISINES },
-  bar: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music'] },
-  cafe: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music'] },
-  club: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music'] },
+  bar: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music', 'Big', 'Small'] },
+  cafe: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music', 'Big', 'Small'] },
+  club: { label: 'Ambience', opts: ['Calm', 'Energetic', 'Crowded', 'Private', 'Cosy', 'Live music', 'Big', 'Small'] },
   padel: { label: 'Sport', opts: ['Football', 'Padel', 'Tennis', 'Running', 'Gym', 'Basketball', 'Climbing', 'Swimming', 'Yoga', 'Cycling'] },
-  chill: { label: 'Vibe', opts: ['Scenic', 'Private', 'Public', 'Quiet', 'Nature'] }
+  chill: { label: 'Vibe', opts: ['Scenic', 'Social', 'Quiet', 'Nature'] }
 };
 const detailOpts = cats => [...new Set(cats.flatMap(c => (DETAIL[c] || { opts: [] }).opts))];
 function detailChips(cats, picked, act) {
@@ -323,21 +323,21 @@ function detailChips(cats, picked, act) {
 // One category by default; "Select more than one" lets a place be several (e.g. a restaurant that's also a bar)
 function pickCat(cur, v, multi) { const n = !multi ? [v] : cur.includes(v) ? (cur.length > 1 ? cur.filter(x => x !== v) : cur) : cur.concat(v); return n; }
 const keepDetail = (cats, list) => list.filter(x => detailOpts(cats).includes(x) || !Object.values(DETAIL).some(d => d.opts.includes(x)));
+const STATUS_F = ['everything', 'totry', 'spots'];
 function cuisList(p) { return (p.cuisine || '').split(',').map(s => s.trim()).filter(Boolean); }
 function catMatch(p, cats) {
   const lt = cats.filter(f => f.startsWith('list:'));
   if (lt.length && !lt.some(t => { const l = listOf(t.slice(5)); return l && l.ids.includes(p.id); })) return false;
-  cats = cats.filter(f => f !== 'totry' && f !== 'spots' && !f.startsWith('list:')); if (!cats.length) return true;
+  cats = cats.filter(f => !STATUS_F.includes(f) && !f.startsWith('list:')); if (!cats.length) return true;
   const cuis = cats.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   if (cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
   return catsOf(p).some(c => cats.includes(c));
 }
 function filterLabel(filter) {
-  if (!filter.length) return 'All';
+  if (!filter.length) return 'My spots';
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   const parts = [];
-  if (filter.includes('spots')) parts.push('My spots');
-  if (filter.includes('totry')) parts.push('To try');
+  if (!filter.some(f => f.startsWith('list:'))) parts.push(filter.includes('everything') ? 'All' : filter.includes('totry') ? 'To try' : 'My spots');
   CATS.forEach(c => {
     if (c.id === 'restaurant' && cuis.length) parts.push(cuis.length === 1 ? 'Restaurants · ' + cuis[0] : 'Restaurants · ' + cuis.length + ' cuisines');
     else if (filter.includes(c.id)) parts.push(c.plural);
@@ -347,13 +347,14 @@ function filterLabel(filter) {
 }
 function toggleFilter(token) {
   let f = ui.filter.slice();
-  if (token === 'all') f = [];
+  if (token === 'reset') f = [];
+  else if (STATUS_F.includes(token)) { f = f.filter(x => !STATUS_F.includes(x) && !x.startsWith('list:')); if (token !== 'spots') f.push(token); return (ui.filter = f); }
   else if (f.includes(token)) f = f.filter(x => x !== token);
   else f.push(token);
   if (token.startsWith('cuisine:')) f = f.filter(x => x !== 'restaurant');
   if (token === 'restaurant') f = f.filter(x => !x.startsWith('cuisine:'));
   if (token.startsWith('list:') && f.includes(token)) f = f.filter(x => x === token || x.startsWith('list:'));
-  else if (!token.startsWith('list:') && token !== 'all') f = f.filter(x => !x.startsWith('list:'));
+  else if (!token.startsWith('list:') && token !== 'reset') f = f.filter(x => !x.startsWith('list:'));
   ui.filter = f;
 }
 
@@ -519,7 +520,7 @@ function homeView() {
   return `
   <div class="top">
     <button class="city-title" data-act="cities" aria-label="Change city"><span>${esc(cityLabel())}</span>${ICON.chevDown}</button>
-    <div class="filter-wrap"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="home">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="all" aria-label="Clear filter, show all">${ICON.close}</button>` : ''}</div>
+    <div class="filter-wrap"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="home">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="reset" aria-label="Back to My spots">${ICON.close}</button>` : ''}</div>
     <div class="top-right">
       <button class="round glass fr-toggle ${ui.friendsLayer ? 'on' : ''}" data-act="friendlayer" aria-pressed="${!!ui.friendsLayer}" aria-label="Show friends’ spots">${ICON.friends}${friendsTodo() ? '<span class="seg-dot"></span>' : ''}</button>
       <button class="round glass" data-act="search" aria-label="Search your spots">${ICON.search}</button>
@@ -538,11 +539,10 @@ function filterMenu() {
   const f = ui.filter; const cuis = f.filter(x => x.startsWith('cuisine:')).map(x => x.slice(8));
   const used = [...new Set(CUISINES.concat((ui.world ? worldList() : cityPlaces()).filter(p => catsOf(p).includes('restaurant')).flatMap(cuisList).filter(x => !detailOpts(['bar', 'padel', 'chill']).includes(x))))];
   let h = `<div class="menu" role="menu" aria-label="Show on map">`;
-  h += `<button class="${!f.length ? 'on' : ''}" data-act="filt" data-f="all">All${!f.length ? ICON.check : ''}</button>`;
-  if (ui.menu === 'home' || ui.menu === 'world') {
-    h += `<button class="${f.includes('spots') ? 'on' : ''}" data-act="filt" data-f="spots" style="font-weight:800;color:var(--text)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--text)"></span>My spots</span>${f.includes('spots') ? ICON.check : ''}</button>`;
-    h += `<button class="${f.includes('totry') ? 'on' : ''}" data-act="filt" data-f="totry" style="color:var(--coral-soft)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--coral)"></span>To try</span>${f.includes('totry') ? ICON.check : ''}</button><div class="sep"></div>`;
-  }
+  const isList = f.some(x => x.startsWith('list:')), sAll = !isList && f.includes('everything'), sTry = !isList && f.includes('totry'), sSpots = !isList && !sAll && !sTry;
+  h += `<button class="${sAll ? 'on' : ''}" data-act="filt" data-f="everything">All${sAll ? ICON.check : ''}</button>`;
+  h += `<button class="${sSpots ? 'on' : ''}" data-act="filt" data-f="spots" style="font-weight:800;color:var(--text)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--text)"></span>My spots</span>${sSpots ? ICON.check : ''}</button>`;
+  h += `<button class="${sTry ? 'on' : ''}" data-act="filt" data-f="totry" style="color:var(--coral-soft)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--coral)"></span>To try</span>${sTry ? ICON.check : ''}</button><div class="sep"></div>`;
   CATS.forEach(c => {
     const on = f.includes(c.id) || (c.id === 'restaurant' && cuis.length);
     if (c.id === 'restaurant') {
@@ -571,7 +571,7 @@ function worldView() {
   return `<div class="top">
     <div class="world-head glass"><button class="round sec-btn" style="width:40px;height:40px;flex:none" data-act="worldexit" aria-label="Back to admin">${ICON.back}</button>
       <div style="min-width:0"><div style="font-size:17px;font-weight:800">World map</div><div style="font-size:12px;font-weight:700;color:var(--text-2)">${users} ${users === 1 ? 'user' : 'users'} · ${spots} spots · ${tries} to try</div></div></div>
-    <div class="filter-wrap" style="top:72px"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="world">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="all" aria-label="Clear filter">${ICON.close}</button>` : ''}</div>
+    <div class="filter-wrap" style="top:72px"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="world">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="reset" aria-label="Back to My spots">${ICON.close}</button>` : ''}</div>
   </div>
   <div class="map-bottom"><div class="open-chip glass"><span class="dot" style="background:#F5B83D"></span>${shown} shown</div><button class="locate round glass" data-act="worldfit" aria-label="Show everything" style="color:var(--blue)">${ICON.map}</button></div>
   ${ui.menu === 'world' ? filterMenu().replace('class="menu"', 'class="menu" style="top:calc(var(--safe-top) + 126px)"') : ''}`;
@@ -1243,7 +1243,7 @@ function addSheet() {
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${pics}<label class="add-photo" style="height:76px;border-radius:14px;cursor:pointer">${ICON.plus}Add yours<input type="file" accept="image/*" hidden data-addphoto="1"></label></div>
     <label class="field-label" for="a-note">Your note</label>
     <textarea id="a-note" class="input card" rows="1" placeholder="What to order, when to go…" data-input="addNote" maxlength="500">${esc(a.note)}</textarea>
-    <div class="add-actions"><button class="big-btn primary-btn" data-act="addsave">Save to Spots</button><button class="big-btn coral-btn" data-act="addtry">Add to To try</button></div>
+    <div class="add-actions"><button class="big-btn primary-btn" data-act="addsave">Save to Spots</button><button class="big-btn coral-btn cta-glow" data-act="addtry">Add to To try</button></div>
   </div>`;
 }
 
@@ -2015,7 +2015,9 @@ function render() {
   if (ui.flash) h += `<div class="banner glass">${esc(ui.flash)}</div>`;
   if (ui.tour != null && !ui.install) h += tourView();
   uiEl.querySelectorAll('[data-sk]').forEach(e => { scrollMem[e.dataset.sk] = e.scrollTop; });
+  const oldMenu = uiEl.querySelector('.menu'), menuTop = oldMenu ? oldMenu.scrollTop : 0;
   uiEl.innerHTML = h;
+  const newMenu = uiEl.querySelector('.menu'); if (oldMenu && newMenu) { newMenu.style.animation = 'none'; newMenu.scrollTop = menuTop; } // a menu that stays open doesn't flash or jump
   const live = new Set(); uiEl.querySelectorAll('[data-sk]').forEach(e => { live.add(e.dataset.sk); const y = scrollMem[e.dataset.sk]; if (y) e.scrollTop = y; });
   Object.keys(scrollMem).forEach(k => { if (!k.startsWith('t:') && !live.has(k)) delete scrollMem[k]; });
   if (ui.tour != null) placeTour();
@@ -2536,7 +2538,7 @@ uiEl.addEventListener('click', e => {
     case 'tab': if (t.dataset.tab !== ui.tab) Object.keys(scrollMem).forEach(k => { if (k.startsWith('t:' + t.dataset.tab + ':')) delete scrollMem[k]; }); if (t.dataset.tab === 'account') setTimeout(uploadMemories, 200); ui.tab = t.dataset.tab; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; if (ui.tab === 'spots' && ui.spotsView === 'friends') { ui.newFriendsShown = newFriendIds(); markFriendsSeen(); } else ui.newFriendsShown = []; break;
     case 'pin': ui.selected = id; ui.sheet = 'spot'; break;
     case 'menu': ui.menu = ui.menu === t.dataset.menu ? null : t.dataset.menu; break;
-    case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'all') ui.menu = null; break;
+    case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'reset') ui.menu = null; break;
     case 'cuisines': e.stopPropagation(); ui.cuisineOpen = !ui.cuisineOpen; break;
     case 'cities': ui.page = 'cities'; ui.cityQ = ''; break;
     case 'closepage': ui.adminSheet = null; if (ui.page && ui.page.adminUser) { ui.page = ui.page.place ? { adminUser: ui.page.adminUser, city: ui.page.city } : ui.page.city ? { adminUser: ui.page.adminUser } : 'admin'; break; } ui.page = ui.prevPage || null; ui.prevPage = null; break;

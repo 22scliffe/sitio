@@ -246,7 +246,7 @@
     'My spots': 'Mis sitios', 'Select more than one': 'Elegir más de una', 'Just one category': 'Solo una categoría', 'Ambience': 'Ambiente', 'Sport': 'Deporte', 'Vibe': 'Estilo',
     'Calm': 'Tranquilo', 'Energetic': 'Animado', 'Crowded': 'Concurrido', 'Private': 'Privado', 'Cosy': 'Acogedor', 'Live music': 'Música en directo', 'Football': 'Fútbol', 'Padel': 'Pádel',
     'Tennis': 'Tenis', 'Running': 'Running', 'Gym': 'Gimnasio', 'Basketball': 'Baloncesto', 'Climbing': 'Escalada', 'Swimming': 'Natación', 'Yoga': 'Yoga', 'Cycling': 'Ciclismo',
-    'Scenic': 'Con vistas', 'Public': 'Público', 'Quiet': 'Tranquilo', 'Nature': 'Naturaleza', 'Next': 'Siguiente', 'Updated': 'Actualizado',
+    'Scenic': 'Con vistas', 'Public': 'Público', 'Quiet': 'Tranquilo', 'Nature': 'Naturaleza', 'Social': 'Social', 'Big': 'Grande', 'Small': 'Pequeño', 'Back to My spots': 'Volver a Mis sitios', 'Next': 'Siguiente', 'Updated': 'Actualizado',
     'Places you want to check out. Been? Save it to Spots and add a photo memory.': 'Lugares que quieres conocer. ¿Has ido? Guárdalo en Sitios y añade un recuerdo con foto.',
     'Current password': 'Contraseña actual', 'Search a city or country': 'Busca una ciudad o país', 'Search your cities or a country': 'Busca en tus ciudades o un país', 'Search your places': 'Busca en tus lugares',
     'e.g. 5': 'p. ej. 5', 'e.g. Date spots': 'p. ej. Citas', 'you@example.com': 'tu@ejemplo.com', 'Categories for': 'Categorías de', 'Install': 'Instalar',
