@@ -702,7 +702,7 @@ body.light .md-row input { color-scheme: light; }
 .rc-soon.admin { cursor: pointer; }
 
 /* Moving outline around Memory recaps (same as Create an account, in gold) */
-.settings.rc-glow { position: relative; overflow: hidden; isolation: isolate; border: 0 !important; background: rgba(255,214,107,0.16) !important; }
-.settings.rc-glow::before { content: ""; position: absolute; z-index: -2; left: 50%; top: 50%; width: 260%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(0deg); background: conic-gradient(from 0deg, transparent 0deg 220deg, rgba(255,214,107,0.3) 280deg, #FFD166 330deg, #FF8A5C 350deg, transparent 360deg); animation: ctaSpin 4s linear infinite; }
+.settings.rc-glow { position: relative; overflow: hidden; isolation: isolate; border: 0 !important; background: rgba(var(--fg),0.12) !important; }
+.settings.rc-glow::before { content: ""; position: absolute; z-index: -2; left: 50%; top: 50%; width: 260%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(0deg); background: conic-gradient(from 0deg, transparent 0deg 230deg, rgba(255,214,107,0.12) 290deg, rgba(255,209,102,0.55) 335deg, rgba(255,138,92,0.5) 352deg, transparent 360deg); animation: ctaSpin 12s linear infinite; }
 .settings.rc-glow::after { content: ""; position: absolute; z-index: -1; inset: 2px; border-radius: 16px; background: #1D1D23; }
 body.light .settings.rc-glow::after { background: #FFFFFF; }
