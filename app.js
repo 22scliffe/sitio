@@ -663,7 +663,7 @@ function listsBody() {
 function listAddRows(l, q) {
   const all = db.places.filter(p => !q || (p.name + ' ' + (p.area || '') + ' ' + (db.cities.find(c => c.id === p.cityId) || {}).name).toLowerCase().includes(q));
   const group = (title, ps) => ps.length ? `<div class="section-label" style="margin:8px 0 6px">${title} · ${ps.length}</div><div class="settings card">${ps.map(p => { const on = l.ids.includes(p.id), c = db.cities.find(x => x.id === p.cityId); return `<button class="set-row" data-act="listaddtoggle" data-id="${p.id}" style="min-height:54px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0"><span style="font-weight:800">${esc(p.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catNames(p), c && c.name].filter(Boolean).join(' · '))}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '';
-  const html = group('Spots', all.filter(p => p.status === 'spot')) + group('To try', all.filter(p => p.status === 'totry'));
+  const html = group('Spots', all.filter(p => p.status === 'spot')) + (isHidden(l) ? group('To try', all.filter(p => p.status === 'totry')) : '');
   return `<div style="max-height:52vh;overflow-y:auto">${html || '<p style="margin:8px 0">No places match.</p>'}</div>`;
 }
 function listPage(l) {
@@ -742,7 +742,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.13 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.14 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1192,7 +1192,7 @@ function dialogView() {
       items = it('editlist', l.id, ICON.pen, 'Edit list') + it('sharelist', l.id, ICON.share, 'Share list');
     } else {
       const p = byId(d.id); if (!p) return ''; const isTry = p.status === 'totry';
-      items = (isTry ? it('savetry', p.id, ICON.check, 'Save to Spots') : '') + it('listpick', p.id, ICON.list, 'Add to a list') + it('share', p.id, ICON.share, 'Share') + (isTry && ui.tab !== 'home' ? it('trymapone', p.id, ICON.map, 'Show on map') : '') + '<div class="pm-sep"></div>' + it('del', p.id, ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'pm-danger');
+      items = (isTry ? it('savetry', p.id, ICON.check, 'Save to Spots') : it('listpick', p.id, ICON.list, 'Add to a list')) + it('share', p.id, ICON.share, 'Share') + (isTry && ui.tab !== 'home' ? it('trymapone', p.id, ICON.map, 'Show on map') : '') + '<div class="pm-sep"></div>' + it('del', p.id, ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'pm-danger');
     }
     const pos = d.up ? `bottom:${d.y}px` : `top:${d.y}px`;
     return `<div class="dialog-scrim pm-scrim" data-act="closedialog"></div><div class="popmenu ${d.up ? 'up' : ''}" role="menu" style="right:${d.x}px;${pos}">${items}</div>`;
