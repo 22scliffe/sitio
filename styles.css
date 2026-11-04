@@ -838,3 +838,9 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 html[lang=es] .page-title { font-size: 27px; letter-spacing: -0.6px; }
 
 .cat-multi { display: block; margin: 8px 0 0 auto; font-size: 13px; color: var(--text-2); }
+
+.fr-tag-pill { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 8px; font-size: 10px; font-weight: 800; letter-spacing: .2px; color: #F5D38A; background: rgba(245,184,61,.14); border: 1px solid rgba(245,184,61,.35); vertical-align: middle; white-space: nowrap; }
+.fr-tag-pill.founder { color: #0E0E12; background: linear-gradient(90deg,#F5B83D,#FF7A59); border-color: transparent; }
+.page-head .fr-tag-pill { margin-left: 0; align-self: flex-start; }
+.fr-tag-sub { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.zoom-letter { position: fixed; inset: 0; margin: auto; z-index: 61; width: min(78vw, 340px); height: min(78vw, 340px); border-radius: 50%; display: grid; place-items: center; font-size: min(36vw, 160px); font-weight: 800; color: var(--text); background: #2A2A31; }
