@@ -10,7 +10,20 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sitio">
-<link rel="manifest" href="manifest.webmanifest">
+<script>
+// When the page carries a one-time login code (?hs=…), give iPhone a manifest whose start address keeps it,
+// so the home-screen icon opens with the code and logs straight in. Otherwise use the normal manifest.
+(function () {
+  var m = location.search.match(/[?&]hs=([a-f0-9]{32})/), link = document.createElement('link'); link.rel = 'manifest';
+  if (m && !(navigator.standalone || matchMedia('(display-mode: standalone)').matches)) {
+    var base = location.origin + location.pathname;
+    var mf = { name: 'Sitio', short_name: 'Sitio', description: 'Your own map of the places you vouch for.', start_url: base + '?hs=' + m[1], scope: base, display: 'standalone', orientation: 'portrait', background_color: '#141418', theme_color: '#141418',
+      icons: [{ src: base + 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: base + 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }, { src: base + 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }] };
+    link.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(mf));
+  } else link.href = 'manifest.webmanifest';
+  document.head.appendChild(link);
+})();
+</script>
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">

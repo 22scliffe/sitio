@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.1.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.2.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1486,8 +1486,9 @@ async function prepareHandoff(email, pass) {
     if (!s2 || !s2.refresh_token) { ui.handoff = 'failed: no second login'; render(); return; }
     const code = await sbFetch('/rest/v1/rpc/sitio_handoff_put', { method: 'POST', headers: { Authorization: 'Bearer ' + s2.access_token }, body: JSON.stringify({ rt: s2.refresh_token }) });
     if (!code) { ui.handoff = 'failed: no code'; render(); return; }
+    try { sessionStorage.setItem('sitio.handoffReady', '1'); } catch (e) { }
+    location.replace(location.pathname + '?hs=' + code); return;
     const start = location.origin + location.pathname + '?hs=' + code;
-    history.replaceState(null, '', location.pathname + '?hs=' + code);
     try {
       const m = await (await fetch('manifest.webmanifest')).json(), base = location.origin + location.pathname;
       m.start_url = start; m.scope = base; m.icons = (m.icons || []).map(i => Object.assign({}, i, { src: new URL(i.src, base).href }));
@@ -1498,6 +1499,7 @@ async function prepareHandoff(email, pass) {
 }
 async function takeHandoff() {
   const m = location.search.match(/[?&]hs=([a-f0-9]{32})/); if (!m) return;
+  if (!STANDALONE && auth) { let r = null; try { r = sessionStorage.getItem('sitio.handoffReady'); } catch (e) { } if (r) { ui.handoff = 'ready'; render(); } return; }
   history.replaceState(null, '', location.pathname);
   if (auth || !cloudOn()) return;
   try {
