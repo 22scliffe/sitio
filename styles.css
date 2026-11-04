@@ -725,3 +725,18 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .lc-lock .icon { width: 24px; height: 24px; }
 .lc-lock.sm { flex: none; width: 32px; height: 32px; border-radius: 10px; }
 .lc-lock.sm .icon { width: 17px; height: 17px; }
+
+/* Invite-only welcome */
+.gate { position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px); background: radial-gradient(80% 50% at 50% 20%, rgba(255,214,107,0.10), transparent 70%), var(--bg, #0E0E12); overflow-y: auto; }
+.gate-in { width: 100%; max-width: 380px; text-align: center; animation: rcRise .6s ease both; }
+.gate-logo { width: 84px; height: 84px; border-radius: 22px; box-shadow: 0 12px 30px rgba(0,0,0,0.5); }
+.gate h1 { font-size: 34px; font-weight: 800; margin: 16px 0 6px; }
+.gate p { font-size: 15px; line-height: 1.5; color: var(--text-2); margin: 0 0 10px; }
+.gate .gate-tag { font-size: 16px; color: var(--text); }
+.gate-badge { display: inline-flex; align-items: center; gap: 6px; margin: 6px 0 14px; padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: #FFD66B; background: rgba(255,214,107,0.12); border: 1px solid rgba(255,214,107,0.3); }
+.gate-badge .icon { width: 14px; height: 14px; }
+.gate-from b { color: var(--text); }
+.inv-hero { display: flex; align-items: center; gap: 16px; padding: 18px; border-radius: 20px; }
+.inv-hero .inv-n { font-size: 44px; font-weight: 800; color: #FFD66B; min-width: 44px; text-align: center; }
+.inv-hero b { display: block; font-size: 17px; margin-bottom: 4px; }
+.inv-hero span { font-size: 13px; line-height: 1.45; color: var(--text-2); }

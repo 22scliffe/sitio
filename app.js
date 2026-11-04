@@ -711,7 +711,7 @@ function accountView() {
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
-      ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
+      ${auth ? row('Invite friends', ui.invData ? Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left' : 'Invite-only', 'invites') : ''}
       ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
       ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.9.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.0.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -773,6 +773,7 @@ function authPage() {
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">${title}</span></div>
     <p class="page-sub" style="margin:4px 0 18px;line-height:1.45">${m === 'reset' ? 'Enter your email and we’ll send you a link to choose a new password.' : 'Your spots are saved online, so they’re safe and show up on any phone you log in on.'}</p>
+    ${m === 'signup' ? `<label class="field-label" for="ac">Invite${ui.inviteFrom ? ' from ' + esc(ui.inviteFrom) : ''}</label><input id="ac" class="input card" data-input="authCode" value="${esc(f.code || pendingInvite())}" autocapitalize="off" spellcheck="false" placeholder="Paste your invite link or code">` : ''}
     ${m === 'signup' ? `<label class="field-label" for="an">Username</label><input id="an" class="input card" data-input="authName" value="${esc(f.name || '')}" autocapitalize="off" spellcheck="false" autocomplete="username" maxlength="20" placeholder="e.g. liaa"><div class="page-sub" style="font-size:12px;margin-top:6px">${USER_HINT}</div>` : ''}
     <label class="field-label" for="ae">Email</label><input id="ae" class="input card" type="email" inputmode="email" autocapitalize="off" autocomplete="email" data-input="authEmail" value="${esc(f.email || '')}" placeholder="you@example.com">
     ${m !== 'reset' ? `<label class="field-label" for="ap">Password</label><input id="ap" class="input card" type="password" autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}" data-input="authPass" value="${esc(f.pass || '')}" placeholder="${m === 'signup' ? 'At least 6 characters' : ''}">` : ''}
@@ -1250,7 +1251,7 @@ function dialogView() {
     const conf = Array.from({ length: 18 }, (_, k) => { const ang = k / 18 * 360, dx = Math.round(Math.cos(ang * Math.PI / 180) * (90 + (k % 3) * 22)), dy = Math.round(Math.sin(ang * Math.PI / 180) * (90 + (k % 3) * 22)); return `<i style="--dx:${dx}px;--dy:${dy}px;--c:${['#FFD166', '#FF8A5C', '#F5B83D', '#8FD99A', '#FF5A4E', '#FFFFFF'][k % 6]};--r:${k * 37}deg"></i>`; }).join('');
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="levelup" role="dialog" aria-labelledby="lu-t" data-act="closedialog">
       <div class="lu-stage"><div class="lu-rays"></div><div class="lu-conf">${conf}</div><div class="lu-b lu-old">${old}</div><div class="lu-b lu-new">${l.badge}</div></div>
-      <div class="lu-text"><div class="lu-k">Level ${d.i + 1} unlocked</div><div class="lu-name" id="lu-t">${esc(l.name)}</div><div class="lu-sub">Congratulations! You’ve saved ${d.demo ? l.min : spotCount()} spots.</div></div>
+      <div class="lu-text"><div class="lu-k">Level ${d.i + 1} unlocked</div><div class="lu-name" id="lu-t">${esc(l.name)}</div><div class="lu-sub">${d.i === 1 ? 'You’ve earned 2 more invites. ' : ''}Congratulations! You’ve saved ${d.demo ? l.min : spotCount()} spots.</div></div>
     </div>`;
   }
   if (d.type === 'editcat') {
@@ -1454,6 +1455,74 @@ function installView() {
   </div>`;
 }
 
+/* ---------- Invite-only ---------- */
+// Sitio needs an account, and new accounts need an invite link from a member (#i=CODE).
+let memberState = null; // null = not checked yet, true / false once known
+const inviteFromUrl = (location.hash.match(/(?:^#|&)i=([a-z0-9]{6,16})/i) || [])[1];
+if (inviteFromUrl) { try { localStorage.setItem('sitio.pendingInvite', inviteFromUrl.toLowerCase()); } catch (e) { } history.replaceState(null, '', location.pathname); }
+const pendingInvite = () => { try { return localStorage.getItem('sitio.pendingInvite') || ''; } catch (e) { return ''; } };
+const gated = () => cloudOn() && (!auth || memberState === false);
+async function checkMember() {
+  if (!auth || !cloudOn()) return;
+  try {
+    let ok = await sbFetch('/rest/v1/rpc/sitio_is_member', { method: 'POST', body: '{}' }, true);
+    if (ok === false && pendingInvite()) { try { ok = await sbFetch('/rest/v1/rpc/sitio_redeem_invite', { method: 'POST', body: JSON.stringify({ c: pendingInvite() }) }, true); } catch (e) { ui.gateMsg = friendly(e); } }
+    memberState = ok !== false;
+    if (memberState) { try { localStorage.removeItem('sitio.pendingInvite'); } catch (e) { } }
+  } catch (e) { memberState = true; } // invite system not set up or offline: never lock people out
+  render(); if (memberState) sync();
+}
+function gateView() {
+  const code = pendingInvite();
+  if (auth) return `<div class="gate"><div class="gate-in">
+    <img class="gate-logo" src="icons/icon-192.png" alt=""><h1>One more step</h1>
+    <p>Sitio is invite-only. Paste the invite link or code a friend sent you to finish joining.</p>
+    <input class="input card" data-input="gateCode" placeholder="Invite code" value="${esc(ui.gateCode != null ? ui.gateCode : code)}" autocapitalize="off" spellcheck="false">
+    ${ui.gateMsg ? `<div class="card note" style="color:var(--coral-soft);margin-top:10px">${esc(ui.gateMsg)}</div>` : ''}
+    <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="gatejoin">Join Sitio</button>
+    <button class="link-btn" style="margin:14px auto 0" data-act="logout">Log out</button></div></div>`;
+  return `<div class="gate"><div class="gate-in">
+    <img class="gate-logo" src="icons/icon-192.png" alt=""><h1>Sitio</h1>
+    <p class="gate-tag">Your map of the places you vouch for, shared with friends whose taste you trust.</p>
+    <div class="gate-badge">${ICON.lock}<span>Invite-only</span></div>
+    ${ui.inviteFrom ? `<p class="gate-from"><b>${esc(ui.inviteFrom)}</b> invited you to Sitio.</p>` : code ? '<p class="gate-from">You’ve got an invite.</p>' : '<p class="gate-from">Every member is invited by a friend. Ask someone on Sitio for an invite link.</p>'}
+    <button class="big-btn primary-btn" style="width:100%;margin-top:18px" data-act="gatesignup">${code ? 'Create your account' : 'I have an invite'}</button>
+    <button class="big-btn sec-btn" style="width:100%;margin-top:10px" data-act="gatelogin">Log in</button></div></div>`;
+}
+// Who sent the invite, shown on the welcome screen
+setTimeout(() => { if (pendingInvite() && cloudOn()) sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: pendingInvite() }) }).then(r => { if (r && r.from) { ui.inviteFrom = r.from; render(); } }).catch(() => { }); }, 0);
+
+async function loadInvites() {
+  try { ui.invData = await sbFetch('/rest/v1/rpc/sitio_my_invites', { method: 'POST', body: '{}' }, true); ui.invErr = null; }
+  catch (e) { ui.invErr = e.status === 404 ? 'Invites aren’t set up yet.' : friendly(e); }
+  render();
+}
+const inviteUrl = c => location.origin + location.pathname + '#i=' + c;
+async function makeInvite() {
+  try { const c = await sbFetch('/rest/v1/rpc/sitio_create_invite', { method: 'POST', body: '{}' }, true); await loadInvites(); if (c) shareInvite(c); }
+  catch (e) { flash(/No invites left/i.test(e.message) ? 'No invites left. Reach Local amateur (5 spots) for 2 more.' : 'Couldn’t create an invite: ' + friendly(e)); }
+}
+async function shareInvite(c) {
+  const url = inviteUrl(c), text = (db.user.name || 'A friend') + ' invited you to Sitio, a map of the places we vouch for. This link works once:';
+  try { if (navigator.share) { await navigator.share({ title: 'Join me on Sitio', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text + ' ' + url); toast('Invite link copied', null); } catch (e) { flash(url); }
+}
+function invitesPage() {
+  const d = ui.invData, used = d ? d.invites.length : 0, left = d ? Math.max(0, d.allowance - used) : 0, unlimited = d && d.allowance >= 1000;
+  const head = `<div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Invite friends</span></div>`;
+  if (ui.invErr) return `<div class="page" style="z-index:16">${head}<div class="card note">${esc(ui.invErr)}</div></div>`;
+  if (!d) return `<div class="page" style="z-index:16">${head}<p class="page-sub">Loading…</p></div>`;
+  const nextBonus = d.allowance === 3 ? `<p class="page-sub" style="font-size:13px;margin-top:10px">Reach <b>Local amateur</b> (5 spots) to earn 2 more.</p>` : '';
+  return `<div class="page" style="z-index:16">${head}
+    <div class="card inv-hero"><div class="inv-n">${unlimited ? '∞' : left}</div><div><b>${unlimited ? 'Unlimited invites' : left === 1 ? 'invite left' : 'invites left'}</b><span>Sitio is invite-only. Each link works once, so send it to someone whose taste you trust.</span></div></div>
+    ${nextBonus}
+    <button class="big-btn primary-btn" style="width:100%;margin:14px 0 18px" data-act="newinvite" ${left ? '' : 'disabled'}>${ICON.share}Create an invite link</button>
+    ${d.invites.length ? `<div class="section-label" style="margin-bottom:8px">Your invites</div><div class="settings card">${d.invites.map(i => i.used_at
+      ? `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${esc(i.name || 'A friend')} joined</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${fmtDate(Date.parse(i.used_at))}</span></span><span style="color:var(--green)">${ICON.check}</span></div>`
+      : `<button class="set-row" data-act="shareinvite" data-code="${esc(i.code)}"><span style="display:flex;flex-direction:column;gap:2px"><span>Waiting to be used</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">Created ${fmtDate(Date.parse(i.created_at))} · tap to send again</span></span><span class="val">${ICON.share}</span></button>`).join('')}</div>` : ''}
+  </div>`;
+}
+
 /* ---------- render ---------- */
 const root = document.getElementById('app');
 const uiEl = document.createElement('div');
@@ -1469,6 +1538,14 @@ function render() {
   const focus = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.input;
   const selStart = focus ? document.activeElement.selectionStart : null;
   let h = '';
+  if (gated()) {
+    if (ui.page === 'auth') h += authPage(); else if (ui.page === 'privacy') h += privacyPage(); else if (ui.page === 'terms') h += termsPage(); else h += gateView();
+    if (ui.dialog && ['shared', 'sharedlist', 'recap', 'logout'].includes(ui.dialog.type)) h += dialogView();
+    if (ui.flash) h += `<div class="banner glass">${esc(ui.flash)}</div>`;
+    uiEl.innerHTML = h; mapApi.el.style.visibility = 'hidden';
+    if (focus) { const el = uiEl.querySelector(`[data-input="${focus}"]`); if (el) { el.focus(); try { el.setSelectionRange(selStart, selStart); } catch (e) { } } }
+    return;
+  }
   if (ui.world) { h += worldView(); if (ui.wSel) { const wp = worldList().find(x => x.id === ui.wSel); if (wp) h += '<div class="scrim" data-act="closeadmin" style="background:transparent"></div>' + roSheet(wp, { cur: wp._cur, who: wp._who }); else ui.wSel = null; } h += dialogView(); if (ui.toast) h += `<div class="toast" role="status"><span>${esc(ui.toast.text)}</span></div>`; if (ui.flash) h += `<div class="banner glass">${esc(ui.flash)}</div>`; uiEl.innerHTML = h; return; }
   if (ui.tab === 'home' && !ui.pinMode) h += homeView();
   if (ui.tab === 'spots') h += spotsView();
@@ -1481,6 +1558,7 @@ function render() {
   else if (ui.page === 'privacy') h += privacyPage();
   else if (ui.page === 'terms') h += termsPage();
   else if (ui.page === 'notifs') h += notifsPage();
+  else if (ui.page === 'invites') h += invitesPage();
   else if (ui.page === 'levels') h += levelsPage();
   else if (ui.page === 'import') h += importPage();
   else if (ui.page && ui.page.list) { const l = listOf(ui.page.list); if (l) h += listPage(l); else ui.page = null; }
@@ -2096,6 +2174,12 @@ uiEl.addEventListener('click', e => {
     case 'openauth': ui.page = 'auth'; ui.authMode = ui.authMode || 'signup'; ui.authMsg = null; break;
     case 'authmode': ui.authMode = t.dataset.v; ui.authMsg = null; break;
     case 'authgo': doAuth(); return;
+    case 'gatesignup': ui.authMode = 'signup'; ui.authF = Object.assign(ui.authF || {}, { code: (ui.authF && ui.authF.code) || pendingInvite() }); ui.page = 'auth'; break;
+    case 'gatelogin': ui.authMode = 'login'; ui.page = 'auth'; break;
+    case 'gatejoin': { const c = ((ui.gateCode != null ? ui.gateCode : pendingInvite()) || '').trim().replace(/^.*[#&]i=/, '').toLowerCase(); if (!c) { ui.gateMsg = 'Paste your invite link or code.'; break; } try { localStorage.setItem('sitio.pendingInvite', c); } catch (e2) { } ui.gateMsg = null; checkMember(); return; }
+    case 'invites': ui.prevPage = ui.page; ui.page = 'invites'; loadInvites(); break;
+    case 'newinvite': makeInvite(); return;
+    case 'shareinvite': shareInvite(t.dataset.code); return;
     case 'agreetoggle': if (!e.target.closest('[data-act="terms"],[data-act="privacy"]')) { ui.authF = ui.authF || {}; ui.authF.agree = !ui.authF.agree; } break;
     case 'chpass': ui.dialog = { type: 'chpass' }; break;
     case 'chpassgo': { const f = [...uiEl.querySelectorAll('[data-dlgfield]')].map(i => i.value); ui.dialog.v = f; changePasswordChecked(f[0], f[1]); return; }
@@ -2125,6 +2209,8 @@ uiEl.addEventListener('input', e => {
   if (k === 'curQ' && ui.dialog && ui.dialog.type === 'currency') { ui.dialog.q = v; const box = $('#curres'); if (box) box.innerHTML = curResults(ui.dialog, db.cities.find(x => x.id === ui.dialog.cityId) || city()); }
   if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
+  if (k === 'gateCode') ui.gateCode = v;
+  if (k === 'authCode') { ui.authF = ui.authF || {}; ui.authF.code = v; }
   if (k === 'recapY' || k === 'recapLoc') { ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[k === 'recapY' ? 'y' : 'loc'] = v; render(); }
   if (k === 'adminCityQ') { ui.adminCityQ = v; render(); }
   if (k === 'cityQ') { clearTimeout(cityTimer); cityTimer = setTimeout(() => citySuggest(v), 250); }
@@ -2253,6 +2339,13 @@ async function doAuth() {
   if (m !== 'reset' && (f.pass || '').length < 6) return msg('Your password needs at least 6 characters.');
   if (m === 'signup' && !USER_RE.test((f.name || '').trim())) return msg('Pick a username: ' + USER_HINT);
   if (m === 'signup' && !f.agree) return msg('Please confirm you’re 16 or over and agree to the Terms of use and Privacy policy.');
+  if (m === 'signup') {
+    const code = (f.code || '').trim().replace(/^.*[#&]i=/, '').toLowerCase();
+    if (!code) return msg('Sitio is invite-only. Paste the invite link or code a friend sent you.');
+    try { const r = await sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: code }) }); if (!r || !r.ok) return msg('That invite has already been used or doesn’t exist. Ask your friend for a new one.'); }
+    catch (e) { return msg('Couldn’t check the invite: ' + friendly(e)); }
+    try { localStorage.setItem('sitio.pendingInvite', code); } catch (e) { }
+  }
   if (m === 'signup') { try { const ok = await sbFetch('/rest/v1/rpc/sitio_username_available', { method: 'POST', body: JSON.stringify({ name: f.name.trim() }) }); if (ok === false) return msg('That username is taken. Try another.'); } catch (e) { if (e.status !== 404) return msg(friendly(e)); } }
   ui.authBusy = true; ui.authMsg = null; render();
   try {
@@ -2268,7 +2361,7 @@ async function doAuth() {
       if (!s || !s.access_token) { save(); ui.authMode = 'login'; ui.authMsg = { ok: true, text: 'Almost there: check your email and tap the link to confirm, then log in here.' }; }
       else {
         if (!db.user.name && s.user && s.user.user_metadata && s.user.user_metadata.name) db.user.name = s.user.user_metadata.name;
-        setAuth(s); try { if (!+localStorage.getItem('sitio.opens')) localStorage.setItem('sitio.opens', '1'); } catch (e2) { } if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
+        setAuth(s); memberState = null; setTimeout(checkMember, 50); try { if (!+localStorage.getItem('sitio.opens')) localStorage.setItem('sitio.opens', '1'); } catch (e2) { } if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
         toast(m === 'signup' ? 'Account created. Your spots are saved.' : 'Logged in', null);
         if (m === 'signup' && !db.tourDone) setTimeout(startTour, 900);
         sync();
@@ -2377,6 +2470,7 @@ async function changePassword(pw) {
   catch (e) { flash(friendly(e)); }
 }
 async function logout() {
+  memberState = null; ui.invData = null;
   try { await sbFetch('/auth/v1/logout', { method: 'POST' }, true); } catch (e) { }
   setAuth(null); syncState = ''; isAdmin = false; adminChecked = false;
   try { localStorage.removeItem(STORE_KEY); } catch (e) { }
@@ -2531,6 +2625,7 @@ function adminShowcase(tries = 0) {
   });
 }
 setTimeout(adminShowcase, 900);
+setTimeout(checkMember, 300);
 setTimeout(() => tryRecap(/[?&]demo=year/.test(location.search) ? 'year' : /[?&]demo=recap/.test(location.search)), 1000);
 if (/[?&]demo=levelup/.test(location.search)) setTimeout(() => { ui.install = false; showLevelUp(Math.max(1, levelOf(spotCount()) + 1) % LEVELS.length || 1, true); }, 400);
 readAuthHash();
