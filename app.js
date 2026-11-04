@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.8.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.8.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1641,7 +1641,20 @@ function openSharedRecap(s) {
   ui.install = false; ui.dialog = { type: 'recap', per, shared: { f: str(s.f, 20), items }, open: false, intro: true, introAt: Date.now() };
   return true;
 }
+// A recap notification opens Sitio with #recap=YEAR-K (K is 0-5, or y for the year)
+function recapFromHash(hash, tries = 0) {
+  const m = (hash || '').match(/recap=(\d{4})-(y|[0-5])/); if (!m) return false;
+  if (location.hash) history.replaceState(null, '', location.pathname);
+  const per = m[2] === 'y' ? recapYear(+m[1]) : recapPer(+m[1], +m[2]);
+  const go = (t = 0) => {
+    if ((releaseAt(per) > Date.now() && !isAdmin) || !recapItems(per).some(x => photoUrl(x.m.id))) { if (t < 30) setTimeout(() => go(t + 1), 500); return; }
+    if (ui.dialog && ui.dialog.type === 'recap') return;
+    ui.sheet = null; ui.page = null; ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
+  };
+  go(); return true;
+}
 function readSharedList() {
+  if (recapFromHash(location.hash)) return true;
   const rm = location.hash.match(/(?:^#|&)r=([A-Za-z0-9]{6,16})/);
   if (rm) { history.replaceState(null, '', location.pathname);
     sbFetch('/rest/v1/rpc/sitio_get_share', { method: 'POST', body: JSON.stringify({ sid: rm[1] }) }).then(d => { if (openSharedRecap(d)) render(); else flash('That recap isn’t available any more.'); }).catch(() => flash('Couldn’t open that recap. Check your connection.'));
@@ -2354,7 +2367,17 @@ function openPushAsk() {
 }
 function memoryPushAsk() { if (isAdmin) askPush('sitio.pushAsk.adminMem1', true); else askPush('sitio.pushAsk.mem'); }
 setTimeout(() => { refreshPushState(); openPushAsk(); }, 400);
-if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => tryRecap(), 300); });
+function adminPushPreview(tries = 0) {
+  try { if (localStorage.getItem('sitio.pushPreviewND1')) return; } catch (e) { }
+  if (!auth || !pushSupported()) return;
+  if ((!adminKnown || !pushOn) && tries < 40) return setTimeout(() => adminPushPreview(tries + 1), 500);
+  if (!isAdmin || !pushOn) return;
+  try { localStorage.setItem('sitio.pushPreviewND1', '1'); } catch (e) { }
+  sbFetch('/functions/v1/sitio-push', { method: 'POST', body: JSON.stringify({ test: true, preview: { y: 2026, k: 5 }, delay: 20 }) }, true).catch(() => { });
+  toast('Lock your phone: the Nov / Dec notification arrives in about 20 seconds', null);
+}
+setTimeout(adminPushPreview, 1500);
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => { if (!recapFromHash(e.data.url)) tryRecap(); }, 300); });
 
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {

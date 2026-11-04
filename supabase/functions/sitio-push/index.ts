@@ -33,6 +33,17 @@ Deno.serve(async (req) => {
     const { data } = await db.auth.getUser(token);
     if (!data?.user) return json({ error: "not logged in" }, 401);
     const { data: rows } = await db.from("sitio_push").select("endpoint,user_id,sub").eq("user_id", data.user.id);
+    // Admin only: preview a recap notification, sent after a short pause so the phone can be locked first
+    if (body.preview) {
+      const asUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: "Bearer " + token } } });
+      const { data: admin } = await asUser.rpc("sitio_is_admin");
+      if (admin !== true) return json({ error: "admins only" }, 403);
+      const py = Number(body.preview.y), pk = Number(body.preview.k);
+      const msg = pk === -1 ? `✨ Your ${py} in Sitio is ready` : `📸 Your ${MONTHS[pk * 2]} / ${MONTHS[pk * 2 + 1]} recap is ready`;
+      await new Promise((r) => setTimeout(r, Math.min(60, Number(body.delay) || 0) * 1000));
+      const sent = await send((rows || []) as Sub[], { title: "Sitio", body: msg + ". Open Sitio to watch it.", url: `./#recap=${py}-${pk === -1 ? "y" : pk}` });
+      return json({ sent });
+    }
     const sent = await send((rows || []) as Sub[], { title: "Sitio", body: "🔔 You’re all set. We’ll let you know when your next recap is ready.", url: "./" });
     return json({ sent });
   }
@@ -63,7 +74,7 @@ Deno.serve(async (req) => {
     if (isYear && inYear) msg = `✨ Your ${y} in Sitio is ready`;
     else if (inPer) msg = `📸 Your ${MONTHS[k * 2]} / ${MONTHS[k * 2 + 1]} recap is ready`;
     if (!msg) continue;
-    sent += await send(byUser.get(r.user_id) || [], { title: "Sitio", body: msg + ". Open Sitio to watch it.", url: "./" });
+    sent += await send(byUser.get(r.user_id) || [], { title: "Sitio", body: msg + ". Open Sitio to watch it.", url: `./#recap=${y}-${isYear && msg.startsWith("✨") ? "y" : k}` });
   }
   return json({ sent, day: today });
 });
