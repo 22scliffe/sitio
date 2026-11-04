@@ -719,3 +719,9 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .mn-btns { display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
 .mn-btns .link-btn { font-size: 13px; color: var(--text-2); text-decoration: underline; }
 .mn-ok { height: 32px; padding: 0 18px; border-radius: 16px; border: 0; font-size: 13px; font-weight: 800; color: #141418; background: var(--text); }
+
+.list-card.lc-hidden { background: linear-gradient(160deg, rgba(var(--fg),0.10), rgba(var(--fg),0.03)); }
+.lc-lock { width: 46px; height: 46px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; color: #FFD66B; background: rgba(255,214,107,0.12); border: 1px solid rgba(255,214,107,0.3); }
+.lc-lock .icon { width: 24px; height: 24px; }
+.lc-lock.sm { flex: none; width: 32px; height: 32px; border-radius: 10px; }
+.lc-lock.sm .icon { width: 17px; height: 17px; }

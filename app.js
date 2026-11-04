@@ -275,6 +275,14 @@ function matches(p, filter) {
 }
 const myLists = () => db.lists || (db.lists = []);
 const listOf = id => myLists().find(l => l.id === id);
+// Everyone has one built-in list that can't be deleted: spots in it stay on your own map but won't be shown to friends
+const HIDDEN = 'l-hidden', isHidden = l => l && l.id === HIDDEN;
+function ensureHidden() {
+  if (!myLists().some(isHidden)) db.lists.unshift({ id: HIDDEN, name: 'Hidden from friends', emoji: '🔒', ids: [], createdAt: Date.now(), updatedAt: 1, system: true });
+  else { const h = listOf(HIDDEN), i = db.lists.indexOf(h); if (i > 0) { db.lists.splice(i, 1); db.lists.unshift(h); } }
+  if (db.deleted) delete db.deleted[HIDDEN];
+}
+ensureHidden();
 const LIST_EMOJI = ['❤️', '🍷', '☀️', '🌧️', '🎉', '🧳', '🍝', '🌮', '☕', '🍸', '🌿', '🏖️', '🎶', '💸', '⭐', '👀'];
 function touchList(l) { l.updatedAt = Date.now(); save(); }
 // A place can be several categories at once (e.g. a restaurant and a cocktail bar); p.cat stays the main one
@@ -642,9 +650,9 @@ function spotsView() {
 }
 function listsBody() {
   const ls = myLists();
-  return `<div class="list-grid">${ls.map(l => { const n = l.ids.filter(id => byId(id)).length; return `<button class="list-card card" data-act="openlist" data-id="${l.id}"><span class="lc-emoji">${l.emoji}</span><span class="lc-name">${esc(l.name)}</span><span class="lc-n">${n} ${n === 1 ? 'place' : 'places'}</span></button>`; }).join('')}
+  return `<div class="list-grid">${ls.map(l => { const n = l.ids.filter(id => byId(id)).length; return `<button class="list-card card ${isHidden(l) ? 'lc-hidden' : ''}" data-act="openlist" data-id="${l.id}"><span class="lc-emoji">${isHidden(l) ? `<span class="lc-lock">${ICON.lock}</span>` : l.emoji}</span><span class="lc-name">${esc(l.name)}</span><span class="lc-n">${n} ${n === 1 ? 'place' : 'places'}</span></button>`; }).join('')}
     <button class="list-card new" data-act="newlist"><span class="lc-emoji">${ICON.plus}</span><span class="lc-name">New list</span><span class="lc-n">Date spots, rainy days…</span></button></div>
-    ${ls.length ? '' : '<p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:12px">Group places your way. Add any spot or To try place to a list from its page with the ' + ICON.list + ' button.</p>'}`;
+    ${ls.length > 1 ? '' : '<p class="page-sub" style="font-size:13px;line-height:1.45;margin-top:12px">Group places your way. Add any spot or To try place to a list from its page with the ' + ICON.list + ' button.</p>'}`;
 }
 function listAddRows(l, q) {
   const all = db.places.filter(p => !q || (p.name + ' ' + (p.area || '') + ' ' + (db.cities.find(c => c.id === p.cityId) || {}).name).toLowerCase().includes(q));
@@ -656,9 +664,10 @@ function listPage(l) {
   const ps = l.ids.map(byId).filter(Boolean);
   const byCity = db.cities.map(c => ({ c, ps: ps.filter(p => p.cityId === c.id) })).filter(g => g.ps.length);
   return `<div class="page" style="z-index:15">
-    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:24px;margin-left:4px">${l.emoji}</span><span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name)}</span></div>
-    <div class="row-btns" style="flex-wrap:nowrap;align-items:center"><button class="pill primary-btn" style="font-weight:800" data-act="listadd" data-id="${l.id}">${ICON.plus}Add</button><button class="pill sec-btn" data-act="listmap" data-id="${l.id}">${ICON.map}Show on map</button><button class="act-more" style="margin-left:auto" data-act="more" data-list="${l.id}" aria-label="More">${ICON.dots}</button></div>
-    ${byCity.length ? byCity.map(g => `<div class="section-label" style="margin:12px 0 8px">${esc(g.c.name)} · ${g.ps.length}</div><div class="list card">${g.ps.map(rowSpot).join('')}</div>`).join('') : `<div class="empty card" style="border-radius:20px">This list is empty.<br>Open any place and tap ${ICON.list} to add it here.</div>`}
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button>${isHidden(l) ? `<span class="lc-lock sm" style="margin-left:4px">${ICON.lock}</span>` : `<span style="font-size:24px;margin-left:4px">${l.emoji}</span>`}<span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.name)}</span></div>
+    <div class="row-btns" style="flex-wrap:nowrap;align-items:center"><button class="pill primary-btn" style="font-weight:800" data-act="listadd" data-id="${l.id}">${ICON.plus}Add</button><button class="pill sec-btn" data-act="listmap" data-id="${l.id}">${ICON.map}Show on map</button>${isHidden(l) ? '' : `<button class="act-more" style="margin-left:auto" data-act="more" data-list="${l.id}" aria-label="More">${ICON.dots}</button>`}</div>
+    ${isHidden(l) ? `<div class="card note" style="margin:12px 0 4px;display:flex;gap:10px;align-items:flex-start"><span class="lc-lock sm">${ICON.lock}</span><span>Spots here stay on your map and in your lists. Only you can see them: when friends arrive on Sitio, they won’t see anything in this list. Remove a spot from here to unhide it.</span></div>` : ''}
+    ${byCity.length ? byCity.map(g => `<div class="section-label" style="margin:12px 0 8px">${esc(g.c.name)} · ${g.ps.length}</div><div class="list card">${g.ps.map(rowSpot).join('')}</div>`).join('') : `<div class="empty card" style="border-radius:20px">${isHidden(l) ? 'Nothing hidden yet.<br>Open a spot, tap ••• → Add to a list, and choose Hidden from friends.' : 'This list is empty.<br>Open any place and tap ' + ICON.list + ' to add it here.'}</div>`}
   </div>`;
 }
 function rowSpot(p) {
@@ -726,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.9.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.9.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1280,7 +1289,7 @@ function dialogView() {
     const p = byId(d.id); if (!p) return '';
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
       <h3 id="dlg-t">Add ${esc(p.name)} to…</h3>
-      ${myLists().length ? `<div class="settings card" style="max-height:46vh;overflow-y:auto">${myLists().map(l => { const on = l.ids.includes(p.id); return `<button class="set-row" data-act="listtoggle" data-id="${l.id}" style="min-height:54px"><span style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">${l.emoji}</span><span style="font-weight:800">${esc(l.name)}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '<p>You don’t have any lists yet.</p>'}
+      ${myLists().length ? `<div class="settings card" style="max-height:46vh;overflow-y:auto">${myLists().filter(l => !isHidden(l)).concat(myLists().filter(isHidden)).map(l => { const on = l.ids.includes(p.id); return `<button class="set-row" data-act="listtoggle" data-id="${l.id}" style="min-height:54px"><span style="display:flex;align-items:center;gap:10px">${isHidden(l) ? `<span class="lc-lock sm">${ICON.lock}</span>` : `<span style="font-size:20px">${l.emoji}</span>`}<span style="display:flex;flex-direction:column;gap:1px;text-align:left"><span style="font-weight:800">${esc(l.name)}</span>${isHidden(l) ? '<span style="font-size:12px;font-weight:600;color:var(--text-2)">Stays on your map. Friends won’t see it.</span>' : ''}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; }).join('')}</div>` : '<p>You don’t have any lists yet.</p>'}
       <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="newlist" data-id="${p.id}">${ICON.plus}New list</button><button class="big-btn primary-btn" data-act="closedialog">Done</button></div></div>`;
   }
   if (d.type === 'listadd') {
@@ -2004,13 +2013,13 @@ uiEl.addEventListener('click', e => {
     case 'listpick': if (p) ui.dialog = { type: 'listpick', id: p.id }; break; // replaces the More sheet
     case 'listtoggle': { const l = listOf(id), pid = ui.dialog.id; if (l) { l.ids = l.ids.includes(pid) ? l.ids.filter(x => x !== pid) : l.ids.concat(pid); touchList(l); } break; }
     case 'newlist': ui.dialog = { type: 'listedit', name: '', emoji: LIST_EMOJI[0], forPlace: (ui.dialog && ui.dialog.type === 'listpick') ? ui.dialog.id : null }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="listName"]'); if (i) i.focus(); }, 60); return;
-    case 'editlist': { ui.dialog = null; const l = listOf(id); if (l) ui.dialog = { type: 'listedit', listId: l.id, name: l.name, emoji: l.emoji }; break; }
+    case 'editlist': { ui.dialog = null; const l = listOf(id); if (l && !isHidden(l)) ui.dialog = { type: 'listedit', listId: l.id, name: l.name, emoji: l.emoji }; break; }
     case 'listemoji': ui.dialog.name = (uiEl.querySelector('[data-input="listName"]') || {}).value || ui.dialog.name; ui.dialog.emoji = t.dataset.v; break;
     case 'listsave': { const dd = ui.dialog, name = ((uiEl.querySelector('[data-input="listName"]') || {}).value || '').trim().slice(0, 40); if (!name) { flash('Give the list a name.'); return; }
       if (dd.listId) { const l = listOf(dd.listId); if (l) { l.name = name; l.emoji = dd.emoji; touchList(l); } ui.dialog = null; }
       else { const l = { id: 'l-' + uid(), name, emoji: dd.emoji, ids: dd.forPlace ? [dd.forPlace] : [], createdAt: Date.now() }; myLists().push(l); touchList(l); ui.dialog = dd.forPlace ? { type: 'listpick', id: dd.forPlace } : null; toast(l.emoji + ' ' + l.name + ' created', null); }
       break; }
-    case 'sharelist': { const l = listOf(id); if (ui.dialog) { ui.dialog = null; render(); } if (l) shareList(l); return; }
+    case 'sharelist': { const l = listOf(id); if (isHidden(l)) return; if (ui.dialog) { ui.dialog = null; render(); } if (l) shareList(l); return; }
     case 'sharedlistsave': { const r = saveSharedList(ui.dialog.data); ui.dialog = null; ui.tab = 'spots'; ui.spotsView = 'lists'; ui.page = { list: r.l.id }; toast(r.l.emoji + ' ' + r.l.name + ' saved' + (r.added ? ' · ' + r.added + ' added to To try' : ''), null); lastMapKey = ''; break; }
     case 'openimport': ui.page = 'import'; ui.importMsg = ''; break;
     case 'importskip': setImportQ(importQ().filter(x => x.key !== id)); break;
@@ -2018,7 +2027,7 @@ uiEl.addEventListener('click', e => {
     case 'importadd': { const it = importQ().find(x => x.key === id); if (!it) break; ui.add = newAdd(); ui.add.name = it.name; ui.add.note = it.note || ''; ui.add.importKey = it.key;
       if (it.lat && it.lng) Object.assign(ui.add, { lat: it.lat, lng: it.lng, custom: true });
       ui.sheet = 'add'; ui.selected = null; render(); if (!it.lat) setTimeout(() => googleSuggest(it.name), 120); return; }
-    case 'dellist': ui.dialog = { type: 'dellist', listId: id }; break;
+    case 'dellist': if (id !== HIDDEN) ui.dialog = { type: 'dellist', listId: id }; break;
     case 'listadd': ui.dialog = { type: 'listadd', listId: id, q: '' }; break;
     case 'listaddtoggle': { const l = listOf(ui.dialog.listId); if (l) { l.ids = l.ids.includes(id) ? l.ids.filter(x => x !== id) : l.ids.concat(id); touchList(l); const box = $('#listaddres'); if (box) { const sc = box.firstElementChild ? box.firstElementChild.scrollTop : 0; box.innerHTML = listAddRows(l, (ui.dialog.q || '').trim().toLowerCase()); if (box.firstElementChild) box.firstElementChild.scrollTop = sc; } } return; }
     case 'dellistok': { const lid = ui.dialog.listId; db.lists = myLists().filter(l => l.id !== lid); db.deleted = db.deleted || {}; db.deleted[lid] = Date.now(); ui.filter = ui.filter.filter(f => f !== 'list:' + lid); save(); ui.dialog = null; ui.page = null; toast('List deleted', null); break; }
@@ -2227,7 +2236,7 @@ function sync() {
       const rows = await sbFetch('/rest/v1/sitio_data?select=data&user_id=eq.' + auth.user.id, {}, true);
       const remote = rows && rows[0] && rows[0].data;
       const before = JSON.stringify(db);
-      if (remote && remote.places) { db = mergeData(db, remote); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
+      if (remote && remote.places) { db = mergeData(db, remote); ensureHidden(); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
       await sbFetch('/rest/v1/sitio_data?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ user_id: auth.user.id, data: db, updated_at: new Date().toISOString() }) }, true);
       const changed = JSON.stringify(db) !== before;
       const was = syncState; syncState = 'ok'; ensureUsername(); setTimeout(uploadMemories, 500);
