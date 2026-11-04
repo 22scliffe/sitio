@@ -611,8 +611,8 @@ function spotSheet(p) {
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
     ${isTry ? tryCover(p) : memoryStrip(p)}
-    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}${tryBtns ? `<span style="margin-left:auto;flex:none">${more}</span>` : ''}</div>
-    ${tryBtns ? '' : `<div class="act-row">${first}${more}</div>`}
+    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}${isTry ? `<span style="margin-left:auto;flex:none">${more}</span>` : ''}</div>
+    ${isTry ? '' : `<div class="act-row">${first}${more}</div>`}
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${p.via ? `<div class="via-line">${ICON.friends}<span>via <b>${esc(p.via.name)}</b></span>${reportLink('Spot from ' + p.via.name + ': ' + p.name)}</div>` : ''}
     ${hoursLine(p)}
@@ -742,7 +742,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.12 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.13 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1192,7 +1192,7 @@ function dialogView() {
       items = it('editlist', l.id, ICON.pen, 'Edit list') + it('sharelist', l.id, ICON.share, 'Share list');
     } else {
       const p = byId(d.id); if (!p) return ''; const isTry = p.status === 'totry';
-      items = it('listpick', p.id, ICON.list, 'Add to a list') + it('share', p.id, ICON.share, 'Share') + (isTry && ui.tab !== 'home' ? it('trymapone', p.id, ICON.map, 'Show on map') : '') + '<div class="pm-sep"></div>' + it('del', p.id, ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'pm-danger');
+      items = (isTry ? it('savetry', p.id, ICON.check, 'Save to Spots') : '') + it('listpick', p.id, ICON.list, 'Add to a list') + it('share', p.id, ICON.share, 'Share') + (isTry && ui.tab !== 'home' ? it('trymapone', p.id, ICON.map, 'Show on map') : '') + '<div class="pm-sep"></div>' + it('del', p.id, ICON.bin, isTry ? 'Remove from To try' : 'Delete from Spots', 'pm-danger');
     }
     const pos = d.up ? `bottom:${d.y}px` : `top:${d.y}px`;
     return `<div class="dialog-scrim pm-scrim" data-act="closedialog"></div><div class="popmenu ${d.up ? 'up' : ''}" role="menu" style="right:${d.x}px;${pos}">${items}</div>`;
