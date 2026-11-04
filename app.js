@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.8.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.8.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1996,8 +1996,19 @@ uiEl.addEventListener('input', e => {
   if (k === 'cityQ') { clearTimeout(cityTimer); cityTimer = setTimeout(() => citySuggest(v), 250); }
   if (k === 'authName' || k === 'authEmail' || k === 'authPass') { ui.authF = ui.authF || {}; ui.authF[{ authName: 'name', authEmail: 'email', authPass: 'pass' }[k]] = v; }
 });
-uiEl.addEventListener('change', async e => {
-  const el = e.target; const f = el.files && el.files[0]; if (!f) return;
+// File pickers: the screen can redraw while the photo picker is open (sync, timers), which used to
+// throw away the hidden input and lose the photos. One permanent picker outside the screen fixes that.
+const picker = document.createElement('input'); picker.type = 'file'; picker.hidden = true; picker.style.display = 'none'; document.body.appendChild(picker);
+uiEl.addEventListener('click', e => {
+  const lab = e.target.closest('label'); const inp = lab ? lab.querySelector('input[type=file]') : null; if (!inp) return;
+  e.preventDefault(); e.stopPropagation();
+  Object.keys(picker.dataset).forEach(k => delete picker.dataset[k]); Object.assign(picker.dataset, inp.dataset);
+  picker.accept = inp.accept || ''; picker.multiple = inp.multiple; picker.value = ''; picker.click();
+}, true);
+picker.addEventListener('change', () => handleFile(picker));
+uiEl.addEventListener('change', e => handleFile(e.target));
+async function handleFile(el) {
+  const f = el.files && el.files[0]; if (!f) return;
   try {
     if (el.dataset.import) { await importFiles([...el.files]); el.value = ''; return; }
     if (el.dataset.restore) { restore(f); return; }
@@ -2014,7 +2025,7 @@ uiEl.addEventListener('change', async e => {
     else if (el.dataset.userphoto) { db.user.photo = id; db.user.avatar = await thumbUrl(blob); save(); }
     render();
   } catch (err) { flash('Couldn’t add that photo.'); }
-});
+}
 
 // Swipe rows: left = delete (asks first), right = save a To try place (asks price)
 let sw = null;
