@@ -698,13 +698,13 @@ function accountView() {
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
+      ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
+      ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
       ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
       ${row('Directions open in', db.settings.dirApp === 'apple' ? 'Apple Maps' : 'Google Maps', 'dirapp')}
       ${row('Currency', esc(city().currency) + ' (' + esc(city().name) + ')', 'currency')}
-      ${auth ? row('Invite friends', 'Send the app link', 'invite') : ''}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
-      ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${row('Back up my spots', 'Save a file', 'backup')}
       <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
       ${row('Import from Google Maps', importQ().length ? importQ().length + ' to add' : '', 'openimport')}
@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.8.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.8.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -2281,17 +2281,17 @@ resnap();
 checkLevel();
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
-  try { if (localStorage.getItem('sitio.previewDemo1')) return; } catch (e) { }
+  try { if (localStorage.getItem('sitio.previewDemo2')) return; } catch (e) { }
   if (!isAdmin) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => adminShowcase(tries + 1), 500); return; }
-  const show = s => { if (!openSharedRecap(s)) return false; try { localStorage.setItem('sitio.previewDemo1', '1'); } catch (e) { } ui.tab = 'home'; render(); return true; };
+  const show = s => { if (!openSharedRecap(s)) return false; try { localStorage.setItem('sitio.previewDemo2', '1'); } catch (e) { } ui.tab = 'home'; render(); return true; };
   // the real demo if it has been sent, otherwise the same recap built from this phone
   sbFetch('/rest/v1/rpc/sitio_get_share', { method: 'POST', body: JSON.stringify({ sid: DEMO_RECAP }) }).catch(() => null).then(d => {
     if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { setTimeout(() => adminShowcase(tries + 1), 1000); return; }
     if (d && d.t === 'recap' && show(d)) return;
     const per = recapPer(2026, 5), its = recapItems(per).filter(x => photoUrl(x.m.id));
     if (!its.length) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
-    try { localStorage.setItem('sitio.previewDemo1', '1'); } catch (e) { }
+    try { localStorage.setItem('sitio.previewDemo2', '1'); } catch (e) { }
     ui.tab = 'home'; ui.dialog = { type: 'recap', per, shared: { f: db.user.name || '', items: its.map(x => ({ src: photoUrl(x.m.id), name: x.p.name, where: [x.p.area, cityOf(x.p) && cityOf(x.p).name].filter(Boolean).join(', '), at: x.m.at })) }, open: false, intro: true, introAt: Date.now() }; render();
   });
 }
