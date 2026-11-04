@@ -741,7 +741,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.3.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1826,7 +1826,7 @@ function invitesPage() {
 /* ---------- render ---------- */
 const root = document.getElementById('app');
 const uiEl = document.createElement('div');
-let lastMapKey = '';
+let lastMapKey = ''; const scrollMem = {};
 function render() {
   document.body.classList.toggle('light', !db.settings.darkMap);
   // Map pins
@@ -1848,10 +1848,14 @@ function render() {
     return;
   }
   if (ui.world) { h += worldView(); if (ui.wSel) { const wp = worldList().find(x => x.id === ui.wSel); if (wp) h += '<div class="scrim" data-act="closeadmin" style="background:transparent"></div>' + roSheet(wp, { cur: wp._cur, who: wp._who }); else ui.wSel = null; } h += dialogView(); if (ui.toast) h += `<div class="toast" role="status"><span>${esc(ui.toast.text)}</span></div>`; if (ui.flash) h += `<div class="banner glass">${esc(ui.flash)}</div>`; uiEl.innerHTML = h; return; }
+  const tag = (from, cls, k) => { h = h.slice(0, from) + h.slice(from).replace(new RegExp('<div class="' + cls + '(?=[\\s"])'), `<div data-sk="${esc(k)}" class="${cls}`); };
+  const m0 = h.length;
   if (ui.tab === 'home' && !ui.pinMode) h += homeView();
   if (ui.tab === 'spots') h += spotsView();
   if (ui.tab === 'totry') h += tryView();
   if (ui.tab === 'account') h += accountView();
+  tag(m0, 'page', 't:' + ui.tab + ':' + (ui.tab === 'spots' ? ui.spotsView || '' : ''));
+  const m1 = h.length;
   if (ui.page === 'cities') h += citiesPage();
   if (ui.page === 'recaps') h += recapsPage();
   else if (ui.page === 'profile') h += profilePage();
@@ -1872,7 +1876,9 @@ function render() {
   }
   else if (ui.page && ui.page.adminUser) h += adminUserPage(ui.page.adminUser, ui.page.city);
   else if (ui.page && ui.page.spot) { const p = byId(ui.page.spot); if (p) h += spotPage(p); else ui.page = null; }
+  tag(m1, 'page', 'p:' + JSON.stringify(ui.page || null));
   if ((!ui.page || ui.page === 'cities') && !ui.sheet) h += tabbar();
+  const m2 = h.length;
   if (ui.sheet === 'friendspot' && ui.fspot) h += (ui.tab === 'home' && !ui.page ? '' : '<div class="scrim" data-act="closesheet"></div>') + friendSheet(ui.fspot);
   if (ui.sheet === 'spot' && ui.selected && byId(ui.selected)) h += (ui.tab === 'home' ? '' : '<div class="scrim" data-act="closesheet"></div>') + spotSheet(byId(ui.selected));
   if (ui.adminSheet && ui.page && ui.page.adminUser && ui.page.city) {
@@ -1882,6 +1888,7 @@ function render() {
   }
   if (ui.sheet === 'add' && ui.add && ui.pinMode) h += `<div class="pin-mode"><div class="pm-top glass">Move the map to put the pin exactly on the spot</div><div class="pm-pin" aria-hidden="true"><div class="pm-head">${ICON.pin}</div><div class="pm-dot"></div></div><div class="pm-bar"><button class="big-btn sec-btn glass" data-act="pincancel">Cancel</button><button class="big-btn primary-btn" data-act="pinok">Use this spot</button></div><button class="locate round glass pm-loc" data-act="locate" aria-label="Go to my location" style="color:var(--blue)">${ICON.nav}</button></div>`;
   else if (ui.sheet === 'add' && ui.add) h += '<div class="scrim" data-act="closesheet"></div>' + addSheet();
+  tag(m2, 'sheet', 's:' + (ui.sheet || '') + ':' + (ui.selected || ''));
   // One-time note about Google Maps storage, shown on first open
   let mapsNoted = true; try { mapsNoted = !!localStorage.getItem('sitio.mapsNote'); } catch (e) { }
   if (!mapsNoted && !ui.install && ui.tour == null && !ui.dialog && !ui.page && !ui.toast) h += `<div class="maps-note" role="note"><span>Sitio uses Google Maps to show places. Google may store a small amount of data on your device.</span><span class="mn-btns"><button class="link-btn" data-act="mapsmore">Learn more</button><button class="mn-ok" data-act="mapsok">OK</button></span></div>`;
@@ -1890,7 +1897,10 @@ function render() {
   if (ui.install) h += installView();
   if (ui.flash) h += `<div class="banner glass">${esc(ui.flash)}</div>`;
   if (ui.tour != null && !ui.install) h += tourView();
+  uiEl.querySelectorAll('[data-sk]').forEach(e => { scrollMem[e.dataset.sk] = e.scrollTop; });
   uiEl.innerHTML = h;
+  const live = new Set(); uiEl.querySelectorAll('[data-sk]').forEach(e => { live.add(e.dataset.sk); const y = scrollMem[e.dataset.sk]; if (y) e.scrollTop = y; });
+  Object.keys(scrollMem).forEach(k => { if (!k.startsWith('t:') && !live.has(k)) delete scrollMem[k]; });
   if (ui.tour != null) placeTour();
   const rs = uiEl.querySelector('.rc-strip');
   if (rs) { let rt = null; rs.addEventListener('scroll', () => { clearTimeout(rt); rt = setTimeout(() => { const i = Math.round(rs.scrollLeft / rs.clientWidth); uiEl.querySelectorAll('.rc-dots i').forEach((d, k) => d.classList.toggle('on', k === i)); }, 60); }); }
@@ -2380,7 +2390,7 @@ uiEl.addEventListener('click', e => {
   const act = t.dataset.act, id = t.dataset.id, p = id ? byId(id) : null;
   if (ui.menu && !t.closest('.menu') && act !== 'menu') ui.menu = null;
   switch (act) {
-    case 'tab': if (t.dataset.tab === 'account') setTimeout(uploadMemories, 200); ui.tab = t.dataset.tab; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; if (ui.tab === 'spots' && ui.spotsView === 'friends') { ui.newFriendsShown = newFriendIds(); markFriendsSeen(); } else ui.newFriendsShown = []; break;
+    case 'tab': if (t.dataset.tab !== ui.tab) Object.keys(scrollMem).forEach(k => { if (k.startsWith('t:' + t.dataset.tab + ':')) delete scrollMem[k]; }); if (t.dataset.tab === 'account') setTimeout(uploadMemories, 200); ui.tab = t.dataset.tab; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; if (ui.tab === 'spots' && ui.spotsView === 'friends') { ui.newFriendsShown = newFriendIds(); markFriendsSeen(); } else ui.newFriendsShown = []; break;
     case 'pin': ui.selected = id; ui.sheet = 'spot'; break;
     case 'menu': ui.menu = ui.menu === t.dataset.menu ? null : t.dataset.menu; break;
     case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'all') ui.menu = null; break;
