@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     if (!rows || !rows.length) return json({ sent: 0 });
     const { data: d } = await db.from("sitio_data").select("data").eq("user_id", body.friend.to).maybeSingle();
     if (d?.data?.settings?.nFriends === false) return json({ sent: 0, off: true });
-    const sent = await send(rows as Sub[], { title: "Sitio", body: String(body.friend.body || "").slice(0, 160), url: "./#friends" });
+    const sent = await send(rows as Sub[], { title: "Sitio", body: String(body.friend.body || "").slice(0, 160), url: body.friend.url === "./#totry" ? "./#totry" : "./#friends" });
     return json({ sent });
   }
 
