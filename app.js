@@ -694,7 +694,7 @@ function accountView() {
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
     <div class="section-label" style="margin-bottom:8px">Memory recaps</div>
-    <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
+    <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}${pushSupported() && auth ? `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>Recap notifications</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">A heads-up on release days</span></span><button class="toggle ${pushOn ? 'on' : ''}" data-act="pushtoggle" aria-pressed="${pushOn}" aria-label="Recap notifications"></button></div>` : ''}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.8.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.8.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1120,6 +1120,11 @@ function dialogView() {
       <input class="input card" placeholder="${mapApi.google ? 'Search, e.g. London or Sitges' : 'Name, e.g. London'}" data-input="cityQ" autocomplete="off" autocapitalize="words">
       <div id="citysug" style="margin-top:8px"></div>
       <div class="btn-grid" style="margin-top:8px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button>${mapApi.google ? '' : '<button class="big-btn primary-btn" data-act="citymanual">Add</button>'}</div></div>`;
+  }
+  if (d.type === 'pushask') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
+      <div class="push-bell">🔔</div><h3 id="dlg-t">Get a heads-up when your recap is ready?</h3><p>One notification on each release day, only when you have memories from that time. Nothing else.</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Not now</button><button class="big-btn primary-btn" data-act="pushon">Turn on</button></div></div>`;
   }
   if (d.type === 'recap') {
     const items = d.shared ? d.shared.items : recapItems(d.per, d.loc).filter(x => photoUrl(x.m.id)).map(x => ({ src: photoUrl(x.m.id), name: x.p.name, where: [x.p.area, cityOf(x.p) && cityOf(x.p).name].filter(Boolean).join(', '), at: x.m.at, pid: x.p.id, mid: x.m.id }));
@@ -1912,7 +1917,7 @@ uiEl.addEventListener('click', e => {
     case 'listmap': ui.filter = ['list:' + id]; ui.page = null; ui.tab = 'home'; ui.selected = null; ui.sheet = null; lastMapKey = ''; break;
     case 'trymapone': ui.dialog = null; ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p) mapApi.focus(p); break;
     case 'notetoggle': ui.noteOpen = ui.noteOpen === id ? null : id; break;
-    case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; break; }
+    case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; setTimeout(memoryPushAsk, 1200); break; }
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
@@ -1920,6 +1925,8 @@ uiEl.addEventListener('click', e => {
     case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; break;
     case 'recapsend': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog); return;
     case 'recapdemo': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog, DEMO_RECAP); return;
+    case 'pushon': ui.dialog = null; enablePush(); break;
+    case 'pushtoggle': if (pushOn) disablePush(); else enablePush(); return;
     case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') { ui.dialog.open = true; ui.dialog.intro = false; } break;
     case 'memcover': { const q = byId(ui.dialog.id); if (q && coverOf(q) !== ui.dialog.m) { q.thumb = { id: ui.dialog.m, set: Date.now() }; save(); lastMapKey = ''; toast('Thumbnail updated', null); } break; }
     case 'memdelno': ui.dialog = { type: 'memory', id: ui.dialog.id, m: ui.dialog.m }; break;
@@ -2133,7 +2140,7 @@ async function doAuth() {
       if (!s || !s.access_token) { save(); ui.authMode = 'login'; ui.authMsg = { ok: true, text: 'Almost there: check your email and tap the link to confirm, then log in here.' }; }
       else {
         if (!db.user.name && s.user && s.user.user_metadata && s.user.user_metadata.name) db.user.name = s.user.user_metadata.name;
-        setAuth(s); if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
+        setAuth(s); try { if (!+localStorage.getItem('sitio.opens')) localStorage.setItem('sitio.opens', '1'); } catch (e2) { } if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
         toast(m === 'signup' ? 'Account created. Your spots are saved.' : 'Logged in', null);
         if (m === 'signup' && !db.tourDone) setTimeout(startTour, 900);
         sync();
@@ -2142,7 +2149,7 @@ async function doAuth() {
   } catch (e) { ui.authMsg = { text: friendly(e) }; }
   ui.authBusy = false; render();
 }
-var isAdmin = false, adminChecked = false, adminErr = '';
+var isAdmin = false, adminChecked = false, adminErr = '', adminKnown = false;
 var unameAsked = false;
 async function claimUsername(name) {
   try { return await sbFetch('/rest/v1/rpc/sitio_claim_username', { method: 'POST', body: JSON.stringify({ name }) }, true) === true; }
@@ -2168,7 +2175,7 @@ async function saveUsername(n, fromDialog) {
 }
 function checkAdmin() {
   if (!auth || adminChecked) return; adminChecked = true;
-  sbFetch('/rest/v1/rpc/sitio_is_admin', { method: 'POST', body: '{}' }, true).then(v => { isAdmin = v === true; adminErr = isAdmin ? '' : 'not admin'; if (ui.tab === 'account') render(); }).catch(e => { adminErr = (e && (e.status + ' ' + e.message)) || 'error'; if (ui.tab === 'account') render(); });
+  sbFetch('/rest/v1/rpc/sitio_is_admin', { method: 'POST', body: '{}' }, true).then(v => { isAdmin = v === true; adminKnown = true; adminErr = isAdmin ? '' : 'not admin'; if (ui.tab === 'account') render(); }).catch(e => { adminKnown = true; adminErr = (e && (e.status + ' ' + e.message)) || 'error'; if (ui.tab === 'account') render(); });
 }
 async function loadAdmin() {
   try { ui.adminData = await sbFetch('/rest/v1/rpc/sitio_admin_users', { method: 'POST', body: '{}' }, true) || []; }
@@ -2290,6 +2297,65 @@ root.appendChild(mapApi.el); root.appendChild(uiEl);
 mapApi.init();
 resnap();
 checkLevel();
+/* ---------- Recap notifications ---------- */
+const PUSHKEY = (window.SITIO_CONFIG || {}).pushKey || '';
+const pushSupported = () => !!PUSHKEY && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && (STANDALONE || !IS_IOS);
+let pushOn = false, pushBusy = false;
+function b64urlToBytes(s) { const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function pushSub() { try { const r = await navigator.serviceWorker.ready; return await r.pushManager.getSubscription(); } catch (e) { return null; } }
+async function refreshPushState() { if (!pushSupported()) return; const s = await pushSub(); const on = !!s && Notification.permission === 'granted'; if (on !== pushOn) { pushOn = on; render(); } }
+async function enablePush() {
+  if (!auth) { flash('Log in first so we know where to send it.'); return; }
+  if (pushBusy) return; pushBusy = true;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { flash(perm === 'denied' ? 'Notifications are blocked. Turn them on for Sitio in your phone’s Settings → Notifications.' : 'No problem, you can turn them on later in Memory recaps.'); return; }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlToBytes(PUSHKEY) });
+    await sbFetch('/rest/v1/sitio_push?on_conflict=endpoint', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ endpoint: sub.endpoint, user_id: auth.user.id, sub: sub.toJSON() }) }, true);
+    pushOn = true; toast('Recap notifications on', null);
+    sbFetch('/functions/v1/sitio-push', { method: 'POST', body: JSON.stringify({ test: true }) }, true).catch(() => { });
+  } catch (e) { flash('Couldn’t turn on notifications: ' + friendly(e)); }
+  finally { pushBusy = false; render(); }
+}
+async function disablePush() {
+  const s = await pushSub();
+  if (s) { try { if (auth) await sbFetch('/rest/v1/sitio_push?endpoint=eq.' + encodeURIComponent(s.endpoint), { method: 'DELETE' }, true); } catch (e) { } try { await s.unsubscribe(); } catch (e) { } }
+  pushOn = false; toast('Recap notifications off', null); render();
+}
+const pushIdle = () => !ui.dialog && !ui.install && !ui.sheet && !ui.page && ui.tour == null;
+function askPush(key, force, tries = 0) {
+  if (!pushSupported() || !auth || Notification.permission === 'denied') return;
+  try { if (localStorage.getItem(key)) return; } catch (e) { }
+  if (pushOn && !force) return;
+  if (!pushIdle()) { if (tries < 240) setTimeout(() => askPush(key, force, tries + 1), 600); return; }
+  // only ask once the notification setup exists online, so nobody is asked before it can work
+  pushReady().then(ok => { if (!ok || !pushIdle()) return; try { localStorage.setItem(key, '1'); } catch (e) { } ui.dialog = { type: 'pushask' }; render(); });
+}
+let pushReadyP = null;
+function pushReady() { return pushReadyP || (pushReadyP = sbFetch('/rest/v1/sitio_push?select=endpoint&limit=1', {}, true).then(() => true, () => { pushReadyP = null; return false; })); }
+// The ask on opening: 2nd logged-in open; 3rd for the two accounts that get the demo recap first; next open for the admin (test)
+function openPushAsk() {
+  if (!pushSupported() || !auth) return;
+  let n = 0; try { n = (+localStorage.getItem('sitio.opens') || 0) + 1; localStorage.setItem('sitio.opens', String(n)); } catch (e) { }
+  const decide = (tries = 0) => {
+    if (!auth) return;
+    if (!adminKnown && tries < 30) return setTimeout(() => decide(tries + 1), 500);
+    if (isAdmin) return askPush('sitio.pushAsk.adminOpen1', true);
+    if (!auth.user.created_at && tries < 30) {
+      if (tries === 0) sbFetch('/auth/v1/user', {}, true).then(u => { if (u && u.created_at && auth) { auth.user.created_at = u.created_at; try { localStorage.setItem('sitio.auth', JSON.stringify(auth)); } catch (e) { } } }).catch(() => { });
+      return setTimeout(() => decide(tries + 1), 500);
+    }
+    const made = Date.parse(auth.user.created_at || '');
+    const need = made && made < DEMO_CUTOFF ? 3 : 2;
+    if (n >= need) askPush('sitio.pushAsk.open');
+  };
+  setTimeout(decide, 1200);
+}
+function memoryPushAsk() { if (isAdmin) askPush('sitio.pushAsk.adminMem1', true); else askPush('sitio.pushAsk.mem'); }
+setTimeout(() => { refreshPushState(); openPushAsk(); }, 400);
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => tryRecap(), 300); });
+
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
   try { if (localStorage.getItem('sitio.previewDemo2')) return; } catch (e) { }

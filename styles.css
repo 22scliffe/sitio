@@ -706,3 +706,6 @@ body.light .md-row input { color-scheme: light; }
 .settings.rc-glow::before { content: ""; position: absolute; z-index: -2; left: 50%; top: 50%; width: 260%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(0deg); background: conic-gradient(from 0deg, transparent 0deg 230deg, rgba(255,214,107,0.12) 290deg, rgba(255,209,102,0.55) 335deg, rgba(255,138,92,0.5) 352deg, transparent 360deg); animation: ctaSpin 12s linear infinite; }
 .settings.rc-glow::after { content: ""; position: absolute; z-index: -1; inset: 2px; border-radius: 16px; background: #1D1D23; }
 body.light .settings.rc-glow::after { background: #FFFFFF; }
+
+.push-bell { font-size: 40px; line-height: 1; margin: 2px 0 10px; animation: bellRing 1.6s ease .3s 2; transform-origin: 50% 10%; display: inline-block; }
+@keyframes bellRing { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-12deg); } 30% { transform: rotate(9deg); } 40% { transform: rotate(-6deg); } 50% { transform: rotate(0); } }
