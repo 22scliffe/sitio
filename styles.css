@@ -742,3 +742,7 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .inv-hero span { font-size: 13px; line-height: 1.45; color: var(--text-2); }
 
 .lvl-perk { font-size: 12px; font-weight: 700; color: #FFD66B; margin-top: 2px; }
+
+.invited-by { display: flex; align-items: center; gap: 8px; margin: 8px 2px 0; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.invited-by .icon { width: 14px; height: 14px; color: #FFD66B; }
+.invited-by b { color: var(--text); }

@@ -706,11 +706,11 @@ function accountView() {
     <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
+    ${auth ? `<div class="settings card" style="margin:-6px 0 18px">${row('Invite friends', ui.invData ? (ui.invData.allowance >= 1000 ? 'Unlimited' : Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left') : 'Invite-only', 'invites')}</div>` : ''}
     <div class="section-label" style="margin-bottom:8px">Memory recaps</div>
     <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
-      ${auth ? row('Invite friends', ui.invData ? (ui.invData.allowance >= 1000 ? 'Unlimited' : Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left') : 'Invite-only', 'invites') : ''}
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
       ${auth ? row('Account details', 'username, photo, email', 'profile') : row('Log in or create account', '', 'openauth')}
       ${tog('Opening hours', 'Greys out closed spots on the map', 'hours')}
@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.0.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.0.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -760,7 +760,7 @@ function profilePage() {
     <label class="field-label" for="nm">Username</label>
     <div style="display:flex;gap:8px"><input id="nm" class="input card" style="flex:1" value="${esc(ui.unameDraft != null ? ui.unameDraft : (u.name || ''))}" data-input="unameDraft" maxlength="20" autocapitalize="off" autocomplete="username" spellcheck="false"><button class="big-btn primary-btn" style="width:auto;padding:0 18px;height:52px" data-act="saveuname">Save</button></div>
     <div class="page-sub" style="font-size:12px;margin-top:6px">${USER_HINT}</div>
-    ${auth ? `<label class="field-label">Email</label><div class="input card" style="display:flex;align-items:center;color:var(--text-2)">${esc(auth.user.email)}</div>
+    ${auth ? `<label class="field-label">Email</label><div class="input card" style="display:flex;align-items:center;color:var(--text-2)">${esc(auth.user.email)}</div>${ui.inviter ? `<div class="invited-by">${ICON.lock}<span>${ui.inviter.invited ? 'Invited by <b>' + esc(ui.inviter.by || 'a friend') + '</b>' : isAdmin ? '<b>Founder</b> of Sitio' : '<b>Founding member</b>'}${ui.inviter.invited && ui.inviter.joined ? ' · joined ' + fmtDate(Date.parse(ui.inviter.joined)) : ''}</span></div>` : ''}
     <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="resetmail"><span>Forgot password</span><span class="val" style="font-size:12px">Email me a reset link${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button><button class="set-row" data-act="delacct"><span style="color:var(--coral-soft)">Delete account</span><span class="val"></span></button></div>`
     : `<label class="field-label">Account</label><button class="card acct-cta" data-act="openauth" style="width:100%"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account or log in</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>`}
   </div>`;
@@ -1508,7 +1508,7 @@ async function checkMember() {
     memberState = ok !== false;
     if (memberState) { try { localStorage.removeItem('sitio.pendingInvite'); } catch (e) { } }
   } catch (e) { memberState = true; } // invite system not set up or offline: never lock people out
-  render(); if (memberState) sync();
+  render(); if (memberState) { sync(); if (!ui.invData) loadInvites(); }
 }
 function gateView() {
   const code = pendingInvite();
@@ -1530,6 +1530,7 @@ function gateView() {
 // Who sent the invite, shown on the welcome screen
 setTimeout(() => { if (pendingInvite() && cloudOn()) sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: pendingInvite() }) }).then(r => { if (r && r.from) { ui.inviteFrom = r.from; render(); } }).catch(() => { }); }, 0);
 
+async function loadInviter() { if (!auth || ui.inviter) return; try { ui.inviter = await sbFetch('/rest/v1/rpc/sitio_my_inviter', { method: 'POST', body: '{}' }, true); render(); } catch (e) { } }
 async function loadInvites() {
   try { ui.invData = await sbFetch('/rest/v1/rpc/sitio_my_invites', { method: 'POST', body: '{}' }, true); ui.invErr = null; }
   catch (e) { ui.invErr = e.status === 404 ? 'Invites aren’t set up yet.' : friendly(e); }
@@ -2120,7 +2121,7 @@ uiEl.addEventListener('click', e => {
     case 'pickcur': { const c = db.cities.find(x => x.id === ui.dialog.cityId); if (c) { c.currency = t.dataset.v; save(); } ui.dialog = null; break; }
     case 'backup': backup(); return;
     case 'clearsample': db.places = db.places.filter(x => !x.sample); db.sample = false; save(); toast('Starter spots removed', null); return;
-    case 'profile': ui.page = 'profile'; break;
+    case 'profile': loadInviter(); ui.page = 'profile'; break;
     case 'nudgeyes': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'signup'; ui.authMsg = null; break;
     case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
     case 'saveuname': saveUsername((ui.unameDraft != null ? ui.unameDraft : db.user.name || '').trim()); return;
@@ -2510,7 +2511,7 @@ async function changePassword(pw) {
   catch (e) { flash(friendly(e)); }
 }
 async function logout() {
-  memberState = null; ui.invData = null;
+  memberState = null; ui.invData = null; ui.inviter = null;
   try { await sbFetch('/auth/v1/logout', { method: 'POST' }, true); } catch (e) { }
   setAuth(null); syncState = ''; isAdmin = false; adminChecked = false;
   try { localStorage.removeItem(STORE_KEY); } catch (e) { }

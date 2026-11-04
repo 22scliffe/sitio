@@ -87,3 +87,14 @@ create policy "members only" on public.sitio_data as restrictive for all to auth
 drop policy if exists "members only" on public.sitio_shares;
 create policy "members only" on public.sitio_shares as restrictive for insert to authenticated
   with check (public.sitio_is_member());
+
+-- Who invited me (shown on your profile). Accounts from before invites are founding members.
+create or replace function public.sitio_my_inviter() returns json
+language sql stable security definer set search_path = public as $$
+  select json_build_object('member', m.user_id is not null, 'joined', m.joined_at,
+    'by', (select d.data->'user'->>'name' from sitio_data d where d.user_id = m.invited_by),
+    'invited', m.invited_by is not null)
+  from (select auth.uid() as uid) x left join sitio_members m on m.user_id = x.uid;
+$$;
+revoke all on function public.sitio_my_inviter() from public, anon;
+grant execute on function public.sitio_my_inviter() to authenticated;
