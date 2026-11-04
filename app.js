@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.7.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.7.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1138,7 +1138,7 @@ function dialogView() {
     return `<div class="dialog-scrim rc-scrim" data-act="closedialog" style="--el:${d.introAt ? Date.now() - d.introAt : 0}ms"></div>${recapBg(d.per, d.introAt ? Date.now() - d.introAt : 0)}<div class="recap open" role="dialog" aria-labelledby="rc-t">${head}
       <div class="rc-strip">${items.map(x => `<div class="rc-slide"><div class="rc-photo"><img src="${x.src}" alt=""></div>${cap(x)}</div>`).join('')}</div>
       ${items.length > 1 ? `<div class="mv-count rc-dots">${items.map((x, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      ${!d.shared ? `<button class="link-btn" style="margin:-4px auto 0;color:rgba(255,255,255,.75)" data-act="recapsend">${ICON.share} Share this recap</button>` : ''}
+      ${!d.shared ? `<button class="link-btn" style="margin:-4px auto 0;color:rgba(255,255,255,.75)" data-act="recapsend">${ICON.share} Share this recap</button>` : ''}${!d.shared && isAdmin && auth ? `<button class="link-btn" style="margin:-8px auto 0;color:#FFD66B" data-act="recapdemo">Show this to everyone once (demo)</button>` : ''}
       <button class="big-btn primary-btn" style="width:100%" data-act="closedialog">Done</button></div>`;
   }
   if (d.type === 'levelup') {
@@ -1588,7 +1588,7 @@ async function shareList(l) {
   try { await navigator.clipboard.writeText(text + '\n' + url); toast('List link copied', null); } catch (e) { flash(url); }
 }
 // One-off: send a recap (with 14-day photo links) to friends as a short link
-async function sendRecap(d) {
+async function sendRecap(d, demoId) {
   if (!auth) { flash('Log in to share recaps. Your account keeps the photos online.'); return; }
   const ms = recapItems(d.per, d.loc).filter(x => x.m.cloud);
   if (!ms.length) { flash('These photos aren’t online yet. Try again in a minute.'); return; }
@@ -1602,13 +1602,27 @@ async function sendRecap(d) {
       items.push({ u: SBURL + '/storage/v1' + j.signedURL, n: x.p.name, w: [x.p.area, cityOf(x.p) && cityOf(x.p).name].filter(Boolean).join(', '), at: x.m.at });
     }
     if (!items.length) { flash('Couldn’t prepare the photos.'); return; }
-    const id = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join('');
-    await sbFetch('/rest/v1/sitio_shares', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ id, owner: auth.user.id, data: { t: 'recap', y: d.per.y, k: d.per.k, f: db.user.name || '', items } }) }, true);
+    const id = demoId || Array.from(crypto.getRandomValues(new Uint8Array(8)), b => 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 56]).join('');
+    await sbFetch('/rest/v1/sitio_shares', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ id, owner: auth.user.id, data: { t: 'recap', y: d.per.y, k: d.per.k, f: db.user.name || '', o: auth.user.id, items } }) }, true);
+    if (demoId) { toast('Done. Everyone else sees it next time they open Sitio', null); return; }
     const url = location.origin + location.pathname + '#r=' + id, text = 'My ' + (d.per.year ? d.per.y : d.per.label) + ' on Sitio ✨';
     try { if (navigator.share) { await navigator.share({ title: 'Sitio recap', text, url }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
     try { await navigator.clipboard.writeText(text + '\n' + url); toast('Recap link copied', null); } catch (e) { flash(url); }
   } catch (e) { flash('Couldn’t create the link: ' + friendly(e)); }
 }
+// One-off demo: the admin's recap pops up once for everyone else the next time they open Sitio
+const DEMO_RECAP = 'demoND2026';
+function checkDemoRecap(tries = 0) {
+  if (!cloudOn()) return;
+  try { if (localStorage.getItem('sitio.seen.' + DEMO_RECAP)) return; } catch (e) { }
+  if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => checkDemoRecap(tries + 1), 500); return; }
+  sbFetch('/rest/v1/rpc/sitio_get_share', { method: 'POST', body: JSON.stringify({ sid: DEMO_RECAP }) }).then(d => {
+    if (!d || d.t !== 'recap' || isAdmin || (auth && d.o === auth.user.id)) return;
+    if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { setTimeout(() => checkDemoRecap(tries + 1), 1000); return; }
+    if (openSharedRecap(d)) { try { localStorage.setItem('sitio.seen.' + DEMO_RECAP, '1'); } catch (e) { } ui.tab = 'home'; render(); }
+  }).catch(() => { });
+}
+setTimeout(checkDemoRecap, 1500);
 function openSharedRecap(s) {
   if (!s || s.t !== 'recap' || !Array.isArray(s.items)) return false;
   const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
@@ -1901,6 +1915,7 @@ uiEl.addEventListener('click', e => {
     case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k; ui.dialog = { type: 'recap', per: k === 'y' ? recapYear(y) : recapPer(y, +k), loc: t.dataset.loc || '', open: false, intro: true, introAt: Date.now() }; break; }
     case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; break;
     case 'recapsend': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog); return;
+    case 'recapdemo': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog, DEMO_RECAP); return;
     case 'recapopen': if (ui.dialog && ui.dialog.type === 'recap') { ui.dialog.open = true; ui.dialog.intro = false; } break;
     case 'memcover': { const q = byId(ui.dialog.id); if (q && coverOf(q) !== ui.dialog.m) { q.thumb = { id: ui.dialog.m, set: Date.now() }; save(); lastMapKey = ''; toast('Thumbnail updated', null); } break; }
     case 'memdelno': ui.dialog = { type: 'memory', id: ui.dialog.id, m: ui.dialog.m }; break;
@@ -2262,14 +2277,14 @@ resnap();
 checkLevel();
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
-  try { if (localStorage.getItem('sitio.showcaseND2026')) return; } catch (e) { }
+  try { if (localStorage.getItem('sitio.showcaseND2026b')) return; } catch (e) { }
   if (!isAdmin) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   const y0 = new Date().getFullYear(); let per = null;
   const cands = [recapPer(2026, 5)]; for (let y = y0; y >= y0 - 3; y--) for (let k = 5; k >= 0; k--) { const p = recapPer(y, k); if (releaseAt(p) <= Date.now()) cands.push(p); }
   for (const p of cands) { if (recapItems(p).filter(x => photoUrl(x.m.id)).length) { per = p; break; } }
   if (!per) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
-  try { localStorage.setItem('sitio.showcaseND2026', '1'); } catch (e) { }
+  try { localStorage.setItem('sitio.showcaseND2026b', '1'); } catch (e) { }
   ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
 }
 setTimeout(adminShowcase, 900);
