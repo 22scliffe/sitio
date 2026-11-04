@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.0.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.0.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1410,7 +1410,7 @@ function iosHowTo(newSafari) {
     <div class="i-h" style="text-align:center">Add Sitio to your home screen</div>
     <div class="hw-phone">${sc.map((s, k) => `<div class="hw-sc" style="${d(k)}">${s.html.replace(/class="hw-(finger|ring|list|new)/g, m => `style="${d(k)}" ${m}`)}</div>`).join('')}</div>
     <div class="hw-caps">${sc.map((s, k) => `<div class="hw-cap" style="${d(k)}"><span class="hw-n">${k + 1}</span><span>${s.cap}</span></div>`).join('')}</div>
-    <div class="muted" style="font-size:12px;font-weight:600;margin-top:10px;line-height:1.4;text-align:center">iPhones don’t let websites add themselves, so it takes these taps. You only do it once.${auth ? ' Then open Sitio from your home screen. You’ll already be logged in (if not, just log in with the same email).' : ''}</div></div>`;
+    <div class="muted" style="font-size:12px;font-weight:600;margin-top:10px;line-height:1.4;text-align:center">iPhones don’t let websites add themselves, so it takes these taps. You only do it once.${auth ? ' Then open Sitio from your home screen. You’ll already be logged in (if not, just log in with the same email).' : ''}${ui.handoff === 'ready' ? '<br><span style="color:var(--green)">✓ Your login will carry over</span>' : ui.handoff && ui.handoff.startsWith('failed') ? '<br><span style="opacity:.6">Automatic login unavailable (' + esc(ui.handoff.slice(8)) + ')</span>' : ''}</div></div>`;
 }
 function installView() {
   const step = (n, html) => `<li class="i-step"><span class="i-num">${n}</span><span>${html}</span></li>`;
@@ -1462,11 +1462,12 @@ function installView() {
 // home-screen icon will open (and in the app manifest). The first open swaps the code for the login.
 async function prepareHandoff(email, pass) {
   if (STANDALONE || !IS_IOS || !cloudOn() || !pass) return;
+  ui.handoff = 'working'; render();
   try {
     const s2 = await sbFetch('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password: pass }) });
-    if (!s2 || !s2.refresh_token) return;
+    if (!s2 || !s2.refresh_token) { ui.handoff = 'failed: no second login'; render(); return; }
     const code = await sbFetch('/rest/v1/rpc/sitio_handoff_put', { method: 'POST', headers: { Authorization: 'Bearer ' + s2.access_token }, body: JSON.stringify({ rt: s2.refresh_token }) });
-    if (!code) return;
+    if (!code) { ui.handoff = 'failed: no code'; render(); return; }
     const start = location.origin + location.pathname + '?hs=' + code;
     history.replaceState(null, '', location.pathname + '?hs=' + code);
     try {
@@ -1474,7 +1475,8 @@ async function prepareHandoff(email, pass) {
       m.start_url = start; m.scope = base; m.icons = (m.icons || []).map(i => Object.assign({}, i, { src: new URL(i.src, base).href }));
       const link = document.querySelector('link[rel="manifest"]'); if (link) link.href = URL.createObjectURL(new Blob([JSON.stringify(m)], { type: 'application/manifest+json' }));
     } catch (e) { }
-  } catch (e) { }
+    ui.handoff = 'ready'; render();
+  } catch (e) { ui.handoff = 'failed: ' + (e.status === 404 ? 'not set up in Supabase' : friendly(e)); render(); }
 }
 async function takeHandoff() {
   const m = location.search.match(/[?&]hs=([a-f0-9]{32})/); if (!m) return;
@@ -1687,7 +1689,7 @@ function placeTour() {
   tip.style.transform = 'none';
   if (below) { tip.style.top = (r.bottom - rootR.top + 18) + 'px'; tip.style.bottom = 'auto'; } else { tip.style.bottom = (rootR.bottom - r.top + 18) + 'px'; tip.style.top = 'auto'; }
 }
-function maybeNudge(reason) { if (DEMO_INV) return;
+function maybeNudge(reason) { return; // retired: Sitio is invite-only, so everyone using it already has an account
   if (ui.tour != null) return;
   if (!cloudOn() || auth || ui.install || ui.dialog || ui.sheet === 'add' || ui.page === 'auth') return;
   let last = 0; try { last = +localStorage.getItem('sitio.nudgeAt') || 0; } catch (e) { }
