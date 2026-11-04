@@ -739,7 +739,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.3.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.3.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1247,9 +1247,10 @@ function dialogView() {
   }
   if (d.type === 'addfriend') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
-      <h3 id="dlg-t">Add a friend</h3><p>Type their Sitio username. They’ll see that you added them, and you’re friends once they add you back.</p>
-      <input class="input card" data-input="frName" placeholder="e.g. liaa" autocapitalize="off" spellcheck="false" value="${esc(d.v || '')}">
-      <div class="btn-grid" style="margin-top:14px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="frsend">Add</button></div></div>`;
+      <h3 id="dlg-t">Add a friend</h3><p>Search their Sitio username. They’ll see that you added them, and you’re friends once they add you back.</p>
+      <label class="search card" style="margin:4px 0 0">${ICON.search}<input type="search" name="sitio-friend-search" data-input="frName" placeholder="Search usernames" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" enterkeyhint="search" value="${esc(d.v || '')}"></label>
+      <div id="frres">${frResults(d)}</div>
+      <button class="big-btn sec-btn" style="width:100%;margin-top:12px" data-act="closedialog">Done</button></div>`;
   }
   if (d.type === 'friendinviter') {
     return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
@@ -1568,6 +1569,26 @@ function saveFriendSpot(f) {
   if (mine) { toast('Already in your ' + (mine.status === 'spot' ? 'Spots' : 'To try'), null); return; }
   const np = copyPlace(src, f.city || null, 'totry', 0); np.via = { id: f.owner, name: fname(f.ownerName) }; np.coordsAt = 0; save(); lastMapKey = '';
   toast(np.name + ' saved to To try · via ' + fname(f.ownerName), () => { db.places = db.places.filter(x => x.id !== np.id); save(); lastMapKey = ''; render(); });
+}
+function frResults(d) {
+  const v = (d.v || '').trim();
+  if (v.length < 2) return '<p class="page-sub" style="font-size:13px;margin:10px 2px 0">Type at least 2 letters.</p>';
+  if (d.err) return `<p class="page-sub" style="font-size:13px;margin:10px 2px 0">${esc(d.err)}</p>`;
+  if (!d.res) return '<p class="page-sub" style="font-size:13px;margin:10px 2px 0">Searching…</p>';
+  if (!d.res.length) return '<p class="page-sub" style="font-size:13px;margin:10px 2px 0">No one on Sitio with a username like that.</p>';
+  return `<div class="settings card" style="margin-top:10px">${d.res.map(u => { const r = u.rel || '';
+    const btn = r === 'accepted' ? '<span class="val" style="color:var(--green)">Friends</span>' : r === 'pending:out' ? '<span class="val">Added</span>'
+      : `<button class="pill primary-btn" style="height:32px;font-weight:800" data-act="${r === 'pending:in' ? 'fryes' : 'fradd'}" data-id="${esc(u.id)}" data-name="${esc(u.name)}">${ICON.plus}${r === 'pending:in' ? 'Add back' : 'Add'}</button>`;
+    return `<div class="set-row" style="min-height:56px"><span class="fr-who"><span class="avatar fr-av">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc((u.name[0] || '?').toUpperCase())}</span><span><b>${esc(u.name)}</b></span></span>${btn}</div>`; }).join('')}</div>`;
+}
+let frTimer = null;
+function searchFriends() {
+  const d = ui.dialog; if (!d || d.type !== 'addfriend') return; const v = (d.v || '').trim();
+  d.res = null; d.err = null; const box = $('#frres'); if (box) box.innerHTML = frResults(d);
+  if (v.length < 2) return;
+  clearTimeout(frTimer); frTimer = setTimeout(() => sbFetch('/rest/v1/rpc/sitio_find_users', { method: 'POST', body: JSON.stringify({ q: v }) }, true)
+    .then(r => { if (ui.dialog === d && (d.v || '').trim() === v) { d.res = r || []; const b = $('#frres'); if (b) b.innerHTML = frResults(d); } })
+    .catch(e => { if (ui.dialog === d) { d.err = e.status === 404 ? 'Search isn’t switched on yet.' : friendly(e); const b = $('#frres'); if (b) b.innerHTML = frResults(d); } }), 220);
 }
 function openFriendsTab() { ui.tab = 'spots'; ui.spotsView = 'friends'; ui.page = null; ui.sheet = null; ui.dialog = null; render(); setTimeout(loadFriends, 300); }
 function friendsBody() {
@@ -2399,9 +2420,10 @@ uiEl.addEventListener('click', e => {
     case 'givereset': { const uid = ui.dialog.uid, x = ui.dialog.extra; ui.dialog = null; giveInvites(uid, -x); break; }
     case 'friendlayer': if (!auth) return; ui.friendsLayer = !ui.friendsLayer; if (ui.friendsLayer && (!ui.friendLayerData || Date.now() - (ui.friendLayerAt || 0) > 300000)) { loadFriendLayer(); } else { lastMapKey = ''; if (ui.friendsLayer) toast('Showing friends’ spots', null); } break;
     case 'addfriend': ui.dialog = { type: 'addfriend', v: '' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="frName"]'); if (i) i.focus(); }, 60); return;
+    case 'fradd': { const n = t.dataset.name; sbFetch('/rest/v1/rpc/sitio_friend_request', { method: 'POST', body: JSON.stringify({ name: n }) }, true).then(r => { toast(r === 'accepted' ? 'You’re now friends with ' + n : 'Added ' + n + '. You’ll be friends once they add you back', null); loadFriends(); if (ui.dialog && ui.dialog.type === 'addfriend') searchFriends(); }).catch(e => flash(friendly(e))); return; }
     case 'frsend': { const n = (ui.dialog.v || '').trim().replace(/^@/, ''); if (!n) { flash('Type their username.'); return; } ui.dialog = null; render();
       sbFetch('/rest/v1/rpc/sitio_friend_request', { method: 'POST', body: JSON.stringify({ name: n }) }, true).then(r => { toast(r === 'accepted' ? 'You’re now friends with ' + n : r === 'already' ? 'You’re already friends' : r === 'pending' ? 'You’ve already added ' + n : 'Added ' + n + '. You’ll be friends once they add you back', null); loadFriends(); }).catch(e => flash(friendly(e))); return; }
-    case 'fryes': case 'frno': sbFetch('/rest/v1/rpc/sitio_friend_respond', { method: 'POST', body: JSON.stringify({ other: id, accept: act === 'fryes' }) }, true).then(() => { if (act === 'fryes') toast('You’re now friends', null); ui.friendLayerData = null; loadFriends(); }).catch(e => flash(friendly(e))); return;
+    case 'fryes': case 'frno': sbFetch('/rest/v1/rpc/sitio_friend_respond', { method: 'POST', body: JSON.stringify({ other: id, accept: act === 'fryes' }) }, true).then(() => { if (act === 'fryes') toast('You’re now friends', null); ui.friendLayerData = null; loadFriends(); if (ui.dialog && ui.dialog.type === 'addfriend') searchFriends(); }).catch(e => flash(friendly(e))); return;
     case 'frinviter': ui.dialog = null; render(); sbFetch('/rest/v1/rpc/sitio_friend_inviter', { method: 'POST', body: '{}' }, true).then(() => { toast('Friend added', null); loadFriends(); }).catch(e => flash(friendly(e))); return;
     case 'openfriend': ui.prevPage = ui.page; ui.page = { friend: id }; loadFriendMap(id); break;
     case 'friendspot': { const M = (ui.friendMaps || {})[t.dataset.owner]; const p = M && (M.places || []).find(x => x.id === t.dataset.pid); if (!p) return; const F = (ui.friends.friends || []).find(x => x.id === t.dataset.owner); ui.fspot = { p, owner: t.dataset.owner, ownerName: (M && M.name) || (F && F.name), city: (M.cities || []).find(c => c.id === p.cityId) || null }; ui.sheet = 'friendspot'; break; }
@@ -2442,7 +2464,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
   if (k === 'gateCode') ui.gateCode = v;
-  if (k === 'frName' && ui.dialog && ui.dialog.type === 'addfriend') ui.dialog.v = v;
+  if (k === 'frName' && ui.dialog && ui.dialog.type === 'addfriend') { ui.dialog.v = v; searchFriends(); }
   if (k === 'giveN' && ui.dialog && ui.dialog.type === 'giveinv') ui.dialog.n = v;
   if (k === 'authCode') { ui.authF = ui.authF || {}; ui.authF.code = v; }
   if (k === 'recapY' || k === 'recapLoc') { ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[k === 'recapY' ? 'y' : 'loc'] = v; render(); }

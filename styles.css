@@ -798,3 +798,8 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .via-line .icon { width: 15px; height: 15px; }
 .note-priv { display: flex; align-items: center; gap: 6px; margin: 6px 2px 10px; padding: 0; border: 0; background: transparent; font-size: 12px; font-weight: 700; color: var(--text-2); }
 .note-priv .icon { width: 13px; height: 13px; }
+#frres .set-row { gap: 10px; }
+#frres .fr-who { flex: 1; min-width: 0; }
+#frres .fr-who b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#frres .fr-who > span:last-child { min-width: 0; }
+#frres .pill { flex: none; white-space: nowrap; }
