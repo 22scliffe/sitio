@@ -197,13 +197,15 @@ function status(p, now = new Date()) {
 
 /* ---------- geography ---------- */
 let me = Object.assign({}, DEFAULT_ME), haveLocation = false;
+const hasCoords = p => typeof p.lat === 'number' && typeof p.lng === 'number';
 function dist(p) {
+  if (!hasCoords(p)) return 1e12;
   const R = 6371000, toR = Math.PI / 180;
   const dLat = (p.lat - me.lat) * toR, dLng = (p.lng - me.lng) * toR;
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(me.lat * toR) * Math.cos(p.lat * toR) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(a));
 }
-const fmtDist = (m) => m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1) + ' km';
+const fmtDist = (m) => m >= 1e11 ? '' : m < 1000 ? Math.round(m / 10) * 10 + ' m' : (m / 1000).toFixed(1) + ' km';
 const AT = (() => { const m = (location.search.match(/[?&]at=(-?[\d.]+),(-?[\d.]+)/) || []); return m[1] ? { lat: +m[1], lng: +m[2] } : null; })();
 function locate(center) {
   if (AT) { const first = !haveLocation; me = Object.assign({}, AT); haveLocation = true; if (center || (first && nearCity())) mapApi.center(me); if (first) whereAmI(); render(); return; }
@@ -245,7 +247,7 @@ const cur = () => (city() && city().currency) || '€';
 function cityCentre(c) {
   c = c || city(); if (!c) return null;
   if (c.lat != null) return { lat: c.lat, lng: c.lng };
-  const ps = db.places.filter(p => p.cityId === c.id); if (!ps.length) return null;
+  const ps = db.places.filter(p => p.cityId === c.id && hasCoords(p)); if (!ps.length) return null;
   return { lat: ps.reduce((s, x) => s + x.lat, 0) / ps.length, lng: ps.reduce((s, x) => s + x.lng, 0) / ps.length };
 }
 // Filter cities by city or country name; sorted by country then city so same-named towns stay apart
@@ -326,7 +328,7 @@ const art = (p) => {
 const priceHtml = (n, p) => { const c = placeCur(p); return `<span class="price"><span class="on">${c.repeat(n)}</span><span class="off">${c.repeat(3 - n)}</span></span>`; };
 const metaLine = (p, withDist = true) => [catNames(p), p.cuisine || '', p.area, ui.globe && cityOf(p) ? cityOf(p).name : '', withDist ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · ');
 const gLink = (p) => p.googleId ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}&query_place_id=${encodeURIComponent(p.googleId)}` : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
-const aLink = (p) => `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}`;
+const aLink = (p) => hasCoords(p) ? `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}` : `https://maps.apple.com/?q=${encodeURIComponent(p.name)}`;
 const dirButtons = (p) => {
   const g = `<a class="big-btn ${db.settings.dirApp === 'google' ? 'primary-btn' : 'sec-btn'}" href="${gLink(p)}" target="_blank" rel="noopener">${ICON.pin}Google Maps</a>`;
   const a = `<a class="big-btn ${db.settings.dirApp === 'apple' ? 'primary-btn' : 'sec-btn'}" href="${aLink(p)}" target="_blank" rel="noopener">${ICON.nav}Apple Maps</a>`;
@@ -433,7 +435,7 @@ const mapApi = (() => {
     update(list, selected) { if (mode === 'mock') drawMock(); placePins(list, selected); },
     center(c) { center = { lat: c.lat, lng: c.lng }; if (gmap) { gmap.panTo(center); if (gmap.getZoom() < 14) gmap.setZoom(15); } else redraw(); },
     fit(list) {
-      if (!list.length) return;
+      list = list.filter(hasCoords); if (!list.length) return;
       if (gmap) { const b = new google.maps.LatLngBounds(); list.forEach(p => b.extend({ lat: p.lat, lng: p.lng })); gmap.fitBounds(b, 60); if (list.length === 1) gmap.setZoom(14); }
       else { center = { lat: list.reduce((s, p) => s + p.lat, 0) / list.length, lng: list.reduce((s, p) => s + p.lng, 0) / list.length }; redraw(); }
     },
@@ -723,7 +725,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.9.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.9.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1447,7 +1449,7 @@ let lastMapKey = '';
 function render() {
   document.body.classList.toggle('light', !db.settings.darkMap);
   // Map pins
-  const list = (ui.world ? worldList() : cityPlaces()).filter(p => matches(p, ui.filter));
+  const list = (ui.world ? worldList() : cityPlaces()).filter(p => hasCoords(p) && matches(p, ui.filter));
   const key = JSON.stringify([ui.world ? 'w' : 'c', list.map(p => p.id + p.status + p.price + coverOf(p) + (photoUrls[coverOf(p)] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
   if (key !== lastMapKey) { mapApi.update(list, ui.selected); lastMapKey = key; }
   mapApi.el.style.visibility = ui.tab === 'home' || ui.world ? 'visible' : 'hidden';
@@ -1604,7 +1606,7 @@ function copyPlace(src, srcCity, status, price) {
 function delPlace(p) { db.places = db.places.filter(x => x.id !== p.id); (p.photos || []).forEach(id => idb.del(id).catch(() => {})); (p.memories || []).forEach(m => { idb.del(m.id).catch(() => {}); if (m.cloud) deleteCloudMemory(m.id); }); save(); if (ui.selected === p.id) { ui.selected = null; ui.sheet = null; } if (ui.page && ui.page.spot === p.id) ui.page = null; ui.dialog = null; render(); }
 
 function shareLink(p) {
-  const data = { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), p: p.status === 'spot' ? p.price : 0, o: p.note || '', g: p.googleId || '', f: db.user.name || '', cu: cur() };
+  const data = { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +(p.lat || 0).toFixed(5), ln: +(p.lng || 0).toFixed(5), p: p.status === 'spot' ? p.price : 0, o: p.note || '', g: p.googleId || '', f: db.user.name || '', cu: cur() };
   const b = btoa(unescape(encodeURIComponent(JSON.stringify(data)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   return location.origin + location.pathname + '#share=' + b;
 }
@@ -1659,12 +1661,12 @@ function importPage() {
 }
 function listLink(l) {
   const ps = l.ids.map(byId).filter(Boolean).slice(0, 40);
-  const data = { n: l.name, e: l.emoji, f: db.user.name || '', p: ps.map(p => { const c = db.cities.find(x => x.id === p.cityId) || {}; return { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), o: p.note || '', g: p.googleId || '', ci: { n: c.name || '', cc: c.cc || '', cu: c.currency || '€', la: c.lat != null ? +c.lat.toFixed(3) : null, ln: c.lng != null ? +c.lng.toFixed(3) : null } }; }) };
+  const data = { n: l.name, e: l.emoji, f: db.user.name || '', p: ps.map(p => { const c = db.cities.find(x => x.id === p.cityId) || {}; return { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +(p.lat || 0).toFixed(5), ln: +(p.lng || 0).toFixed(5), o: p.note || '', g: p.googleId || '', ci: { n: c.name || '', cc: c.cc || '', cu: c.currency || '€', la: c.lat != null ? +c.lat.toFixed(3) : null, ln: c.lng != null ? +c.lng.toFixed(3) : null } }; }) };
   return location.origin + location.pathname + '#list=' + b64enc(data);
 }
 function listData(l) {
   const ps = l.ids.map(byId).filter(Boolean).slice(0, 60);
-  return { n: l.name, e: l.emoji, f: db.user.name || '', p: ps.map(p => { const c = db.cities.find(x => x.id === p.cityId) || {}; return { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +p.lat.toFixed(5), ln: +p.lng.toFixed(5), o: p.note || '', g: p.googleId || '', ci: { n: c.name || '', cc: c.cc || '', cu: c.currency || '€', la: c.lat != null ? +c.lat.toFixed(3) : null, ln: c.lng != null ? +c.lng.toFixed(3) : null } }; }) };
+  return { n: l.name, e: l.emoji, f: db.user.name || '', p: ps.map(p => { const c = db.cities.find(x => x.id === p.cityId) || {}; return { n: p.name, c: p.cat, cs: catsOf(p), q: p.cuisine || '', a: p.area || '', la: +(p.lat || 0).toFixed(5), ln: +(p.lng || 0).toFixed(5), o: p.note || '', g: p.googleId || '', ci: { n: c.name || '', cc: c.cc || '', cu: c.currency || '€', la: c.lat != null ? +c.lat.toFixed(3) : null, ln: c.lng != null ? +c.lng.toFixed(3) : null } }; }) };
 }
 async function shortListLink(l) {
   if (!auth || !cloudOn()) return null;
@@ -2015,7 +2017,7 @@ uiEl.addEventListener('click', e => {
     case 'listaddtoggle': { const l = listOf(ui.dialog.listId); if (l) { l.ids = l.ids.includes(id) ? l.ids.filter(x => x !== id) : l.ids.concat(id); touchList(l); const box = $('#listaddres'); if (box) { const sc = box.firstElementChild ? box.firstElementChild.scrollTop : 0; box.innerHTML = listAddRows(l, (ui.dialog.q || '').trim().toLowerCase()); if (box.firstElementChild) box.firstElementChild.scrollTop = sc; } } return; }
     case 'dellistok': { const lid = ui.dialog.listId; db.lists = myLists().filter(l => l.id !== lid); db.deleted = db.deleted || {}; db.deleted[lid] = Date.now(); ui.filter = ui.filter.filter(f => f !== 'list:' + lid); save(); ui.dialog = null; ui.page = null; toast('List deleted', null); break; }
     case 'listmap': ui.filter = ['list:' + id]; ui.page = null; ui.tab = 'home'; ui.selected = null; ui.sheet = null; lastMapKey = ''; break;
-    case 'trymapone': ui.dialog = null; ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p) mapApi.focus(p); break;
+    case 'trymapone': ui.dialog = null; ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p && hasCoords(p)) mapApi.focus(p); break;
     case 'notetoggle': ui.noteOpen = ui.noteOpen === id ? null : id; break;
     case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; setTimeout(memoryPushAsk, 1200); break; }
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
@@ -2475,7 +2477,8 @@ setTimeout(adminPushPreview, 1500);
 let coordsRunning = false;
 async function refreshCoords(tries = 0) {
   if (coordsRunning) return; if (!mapApi.google) { if (tries < 30) setTimeout(() => refreshCoords(tries + 1), 2000); return; }
-  const due = db.places.filter(p => p.googleId && Date.now() - (p.coordsAt || 0) > 25 * 864e5).slice(0, 15); if (!due.length) return;
+  const missing = db.places.filter(p => p.googleId && !hasCoords(p));
+  const due = missing.slice(0, 60).concat(db.places.filter(p => p.googleId && hasCoords(p) && Date.now() - (p.coordsAt || 0) > 25 * 864e5).slice(0, 15)); if (!due.length) return;
   coordsRunning = true;
   try {
     const { Place } = await google.maps.importLibrary('places');
@@ -2486,7 +2489,7 @@ async function refreshCoords(tries = 0) {
     save(); lastMapKey = ''; render();
   } catch (e) { } finally { coordsRunning = false; }
 }
-setTimeout(refreshCoords, 6000);
+setTimeout(refreshCoords, 1500);
 if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => { if (!recapFromHash(e.data.url)) tryRecap(); }, 300); });
 
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
