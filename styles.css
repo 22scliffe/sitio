@@ -709,3 +709,6 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 
 .push-bell { font-size: 40px; line-height: 1; margin: 2px 0 10px; animation: bellRing 1.6s ease .3s 2; transform-origin: 50% 10%; display: inline-block; }
 @keyframes bellRing { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(14deg); } 20% { transform: rotate(-12deg); } 30% { transform: rotate(9deg); } 40% { transform: rotate(-6deg); } 50% { transform: rotate(0); } }
+
+.agree-row { display: flex; align-items: flex-start; gap: 10px; width: 100%; margin-top: 14px; padding: 0; border: 0; background: transparent; text-align: left; font-size: 13px; font-weight: 600; line-height: 1.45; color: var(--text-2); }
+.agree-row .check-box { flex: none; margin-top: 1px; }

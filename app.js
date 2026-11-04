@@ -710,7 +710,8 @@ function accountView() {
       ${row('Back up my spots', 'Save a file', 'backup')}
       <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
       ${row('Import from Google Maps', importQ().length ? importQ().length + ' to add' : '', 'openimport')}
-      ${row('Privacy', '', 'privacy')}
+      ${row('Privacy policy', '', 'privacy')}
+      ${row('Terms of use', '', 'terms')}
       ${row('Notifications', pushOn ? 'On' : 'Off', 'notifs')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
@@ -722,7 +723,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.9.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.9.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -764,13 +765,14 @@ function authPage() {
     <label class="field-label" for="ae">Email</label><input id="ae" class="input card" type="email" inputmode="email" autocapitalize="off" autocomplete="email" data-input="authEmail" value="${esc(f.email || '')}" placeholder="you@example.com">
     ${m !== 'reset' ? `<label class="field-label" for="ap">Password</label><input id="ap" class="input card" type="password" autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}" data-input="authPass" value="${esc(f.pass || '')}" placeholder="${m === 'signup' ? 'At least 6 characters' : ''}">` : ''}
     ${ui.authMsg ? `<div class="card note" style="margin:14px 0 0;${ui.authMsg.ok ? '' : 'color:var(--coral-soft)'}">${esc(ui.authMsg.text)}</div>` : ''}
+    ${m === 'signup' ? `<div class="agree-row" data-act="agreetoggle" role="checkbox" aria-checked="${!!f.agree}" tabindex="0"><span class="check-box ${f.agree ? 'on' : ''}">${f.agree ? ICON.check : ''}</span><span>I’m 16 or over and agree to the <button class="link-btn" style="display:inline;padding:0;font-size:inherit;text-decoration:underline;color:inherit" data-act="terms">Terms of use</button> and <button class="link-btn" style="display:inline;padding:0;font-size:inherit;text-decoration:underline;color:inherit" data-act="privacy">Privacy policy</button></span></div>` : ''}
     <button class="big-btn primary-btn" style="width:100%;margin-top:18px" data-act="authgo" ${ui.authBusy ? 'disabled' : ''}>${btn}</button>
     <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:18px">
       ${m === 'signup' ? '<button class="link-btn" data-act="authmode" data-v="login">Already have an account? Log in</button>' : '<button class="link-btn" data-act="authmode" data-v="signup">New here? Create an account</button>'}
       ${m === 'login' ? '<button class="link-btn" data-act="authmode" data-v="reset">Forgot password?</button>' : ''}
       ${m === 'reset' ? '<button class="link-btn" data-act="authmode" data-v="login">Back to log in</button>' : ''}
     </div>
-    <p class="page-sub" style="font-size:11px;line-height:1.5;text-align:center;margin-top:18px;opacity:.8">${m === 'signup' ? 'By creating an account you agree that' : 'By logging in you agree that'} Sitio stores your email and saved places to run your account, as explained in the <button class="link-btn" style="display:inline;padding:0;font-size:11px;text-decoration:underline;color:inherit" data-act="privacy">Privacy notice</button>. You can delete your account at any time.</p>
+    <p class="page-sub" style="font-size:11px;line-height:1.5;text-align:center;margin-top:18px;opacity:.8">${m === 'signup' ? 'Sitio stores your email and saved places to run your account.' : 'By logging in you agree to the <button class="link-btn" style="display:inline;padding:0;font-size:inherit;text-decoration:underline;color:inherit" data-act="terms">Terms of use</button> and that Sitio stores your email and saved places to run your account, as explained in the <button class="link-btn" style="display:inline;padding:0;font-size:inherit;text-decoration:underline;color:inherit" data-act="privacy">Privacy policy</button>.'} You can delete your account at any time.</p>
     <p class="page-sub" style="font-size:12px;text-align:center;margin-top:14px;opacity:.7">Google and Apple sign-in coming soon.</p>
   </div>`;
 }
@@ -971,20 +973,78 @@ function notifsPage() {
     ${s('Changing your mind', 'Switch any type off here, or turn notifications off completely here or in your phone’s Settings. It takes effect straight away. Questions: ' + CONTACT + '.')}
   </div>`;
 }
-function privacyPage() {
-  const s = (h, t) => `<div class="section-label" style="margin:18px 0 6px">${h}</div><p class="page-sub" style="line-height:1.55;font-size:14px">${t}</p>`;
+// Legal pages: plain-language privacy policy and terms of use (UK and EU)
+const LEGAL_UPDATED = '4 November 2026';
+function legalPage(title, intro, parts) {
+  const s = ([h, t]) => `<div class="section-label" style="margin:18px 0 6px">${h}</div>${(Array.isArray(t) ? t : [t]).map(x => `<p class="page-sub" style="line-height:1.55;font-size:14px;margin:0 0 8px">${x}</p>`).join('')}`;
   return `<div class="page" style="z-index:16">
-    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Privacy</span></div>
-    <p class="page-sub" style="line-height:1.55;font-size:14px">Sitio is a small, independent app. This explains what it keeps about you and why.</p>
-    ${s('What’s stored', 'If you create an account: your email, your name and the places you save (names, locations, notes, prices, cities and settings). Your password is stored encrypted and nobody can read it. Memory photos are stored privately in your account: only you can see them.')}
-    ${s('Why', 'Only to keep your lists safe and let you use them on any phone you log in on. Nothing is sold, shared or used for advertising.')}
-    ${s('Who can see it', 'You. We at Sitio can also see account emails and saved lists, only to keep the app working, fix problems and help if you ask. Places you share with a link are seen by whoever you send it to.')}
-    ${s('Where', 'Accounts and lists are stored with Supabase on servers in the EU. Maps and place search are provided by Google, under Google’s privacy policy.')}
-    ${s('Notifications', 'Only if you turn them on: we keep a private notification address from your phone to send the types you chose (memory recaps, spots and friends, events). Events are off unless you switch them on. Turn any of them off under Notifications in Settings.')}
-    ${s('Without an account', 'Everything stays on your phone only. Nothing is sent to Sitio.')}
-    ${s('Your choices', 'You can see and change your data in the app, download it under Back up my spots, and delete your account at any time under Account details, which removes your email and lists for good. For anything else, email ' + CONTACT + '.')}
-    <p class="page-sub" style="font-size:12px;margin-top:18px;opacity:.7">Last updated November 2026</p>
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">${title}</span></div>
+    <p class="page-sub" style="line-height:1.55;font-size:14px">${intro}</p>
+    ${parts.map(s).join('')}
+    <p class="page-sub" style="font-size:12px;margin-top:18px;opacity:.7">Last updated ${LEGAL_UPDATED}</p>
   </div>`;
+}
+const mail = `<a href="mailto:${CONTACT}" style="color:inherit">${CONTACT}</a>`;
+function privacyPage() {
+  return legalPage('Privacy policy', 'Sitio is a small, independent app run from Spain. This explains what we keep about you, why, who helps us run it, and your rights under the UK and EU GDPR.', [
+    ['Who we are', `Sitio is the data controller for your account. Contact us any time at ${mail}.`],
+    ['What we collect', [
+      '<b>Account:</b> your email, username, display name and optional profile photo. Your password is stored encrypted and nobody can read it.',
+      '<b>Your places and lists:</b> the places you save (names, locations, notes, prices, categories, cities), your lists and your settings.',
+      '<b>Memories:</b> the photos you add and the date you give them, stored privately in your account.',
+      '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose.',
+      '<b>Your location:</b> used on your phone to show distances, centre the map and suggest your city. It is not stored on our servers. When you search or the app works out your city, your rough location is sent to Google or OpenStreetMap to answer that request.',
+      '<b>Technical data:</b> like any website, our hosts see your IP address and device type when you open Sitio.'
+    ]],
+    ['Why, and the legal basis', [
+      '<b>To run your account and the app</b> (keeping your places, memories and lists, syncing your phones, sharing links you create): this is needed to provide the service you signed up for (contract).',
+      '<b>Notifications:</b> only with your consent, per type. Events are promotional and stay off unless you switch them on. You can withdraw consent any time.',
+      '<b>Keeping Sitio safe and working</b> (fixing problems, preventing misuse, the admin view used to support users): our legitimate interest in running a reliable service.',
+      'We do not sell your data, use it for advertising, or build profiles about you.'
+    ]],
+    ['Who helps us run Sitio', [
+      '<b>Supabase</b> stores accounts, lists, memories and notification settings on servers in the EU, under a data processing agreement.',
+      '<b>Google</b> provides the map and place search (Google Maps Platform, Google’s privacy policy applies). Google may set its own cookies.',
+      '<b>GitHub</b> hosts the app’s files (GitHub Pages).',
+      '<b>OpenStreetMap</b> services (Nominatim, Overpass) help find your city and opening hours.',
+      '<b>Apple, Google or Mozilla</b> deliver notifications to your phone if you turn them on.'
+    ]],
+    ['International transfers', 'Google and GitHub are based in the US. Transfers are covered by the EU–US Data Privacy Framework (and the UK extension) and by standard contractual clauses.'],
+    ['Who can see your data', 'You. Places, lists and recaps you share by link are visible to anyone with that link. The person who runs Sitio can see account emails and saved data, only to keep the app working, fix problems and help if you ask.'],
+    ['How long we keep it', [
+      'Your account data is kept until you delete your account. Deleting it removes your email, places, lists and memory photos for good.',
+      'Notification addresses are deleted when you turn notifications off, block them on your phone or delete your account.',
+      'Photo links inside shared recaps stop working after 14 days. Email us to remove any other shared link.',
+      'Without an account, everything stays only on your phone.'
+    ]],
+    ['Cookies and storage', 'Sitio itself uses no tracking or advertising cookies. It stores your places, settings and login on your phone (local storage) so the app works, which is strictly necessary. Google Maps may set its own cookies when the map loads.'],
+    ['Your rights', [
+      'You can access, correct, download (Back up my spots), and delete your data (Account details → Delete account) in the app.',
+      `You can also ask us to restrict or object to how we use it, or withdraw any consent, by emailing ${mail}. We reply within one month.`,
+      'You can complain to a data protection authority: the AEPD in Spain (aepd.es), the ICO in the UK (ico.org.uk), or the authority where you live.'
+    ]],
+    ['Age', 'Sitio is for people aged 16 and over. We do not knowingly keep data about anyone younger; if you think we do, email us and we will delete it.'],
+    ['Security', 'Data is encrypted in transit, passwords are encrypted, memory photos are private to your account, and access to our systems is limited to the person who runs Sitio.'],
+    ['Changes', 'If we change this policy in a way that matters, we will tell you in the app before it applies.']
+  ]);
+}
+function termsPage() {
+  return legalPage('Terms of use', 'These terms are the agreement between you and Sitio. They are written to be short and plain. By creating an account you agree to them.', [
+    ['Who can use Sitio', 'You need to be 16 or over. Keep your login details to yourself; you are responsible for what happens in your account.'],
+    ['What Sitio is', 'A free app for keeping your own map of places you vouch for, your memories there, and sharing them with people you choose. We may change, pause or stop features, and will try to give notice of anything big.'],
+    ['Your content', [
+      'What you add (places, notes, lists, photos) stays yours. You give Sitio permission to store it and show it to you and to the people you share it with, only to run the app.',
+      'Only add photos and content you have the right to use, and be thoughtful about photos of other people.'
+    ]],
+    ['Please don’t', 'Use Sitio for anything illegal; post someone else’s private information; add content that is hateful, harassing, sexual or violent; try to break, overload or access parts of Sitio that aren’t yours; or use it to send spam or advertising.'],
+    ['If something goes wrong', 'We can remove content or suspend accounts that break these terms. If we do, we will tell you why unless the law or safety stops us.'],
+    ['Places and information', 'Place details, opening hours and maps come from you, your friends, Google and OpenStreetMap. They may be out of date, so check before you go. Recommendations are personal opinions.'],
+    ['Our responsibility', 'Sitio is provided free and as it is. We do our best to keep it running and your data safe, but we can’t promise it will always be available or error-free. Nothing in these terms limits liability that can’t be limited by law, or takes away your rights as a consumer where you live.'],
+    ['Ending', 'You can stop using Sitio and delete your account at any time in Account details. We may close accounts that seriously or repeatedly break these terms.'],
+    ['Changes', 'If we update these terms in a way that matters, we will tell you in the app before the change applies.'],
+    ['Law', 'These terms are governed by Spanish law. If you live in the UK or elsewhere in the EU, you keep the protections of your local consumer law and can bring a claim where you live.'],
+    ['Contact', mail]
+  ]);
 }
 const fmtDate = t => t ? new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
 function adminPage() {
@@ -1405,6 +1465,7 @@ function render() {
   else if (ui.page === 'profile') h += profilePage();
   else if (ui.page === 'auth') h += authPage();
   else if (ui.page === 'privacy') h += privacyPage();
+  else if (ui.page === 'terms') h += termsPage();
   else if (ui.page === 'notifs') h += notifsPage();
   else if (ui.page === 'levels') h += levelsPage();
   else if (ui.page === 'import') h += importPage();
@@ -1991,6 +2052,7 @@ uiEl.addEventListener('click', e => {
       toast('Switched to ' + c.name + ' · prices in ' + c.currency, null); break; }
     case 'hereno': { const h = ui.dialog.h; if (h.key) try { localStorage.setItem(h.key, String(Date.now() + 7 * 864e5)); } catch (e) { } ui.dialog = null; break; }
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
+    case 'terms': ui.prevPage = ui.page; ui.page = 'terms'; break;
     case 'notifs': ui.prevPage = ui.page; ui.page = 'notifs'; refreshPushState(); break;
     case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': ui.page = { adminUser: id }; ui.adminCityQ = ''; break;
@@ -2010,6 +2072,7 @@ uiEl.addEventListener('click', e => {
     case 'openauth': ui.page = 'auth'; ui.authMode = ui.authMode || 'signup'; ui.authMsg = null; break;
     case 'authmode': ui.authMode = t.dataset.v; ui.authMsg = null; break;
     case 'authgo': doAuth(); return;
+    case 'agreetoggle': if (!e.target.closest('[data-act="terms"],[data-act="privacy"]')) { ui.authF = ui.authF || {}; ui.authF.agree = !ui.authF.agree; } break;
     case 'chpass': ui.dialog = { type: 'chpass' }; break;
     case 'chpassgo': { const f = [...uiEl.querySelectorAll('[data-dlgfield]')].map(i => i.value); ui.dialog.v = f; changePasswordChecked(f[0], f[1]); return; }
     case 'resetmail': sendResetEmail(); return;
@@ -2165,6 +2228,7 @@ async function doAuth() {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return msg('Enter a valid email.');
   if (m !== 'reset' && (f.pass || '').length < 6) return msg('Your password needs at least 6 characters.');
   if (m === 'signup' && !USER_RE.test((f.name || '').trim())) return msg('Pick a username: ' + USER_HINT);
+  if (m === 'signup' && !f.agree) return msg('Please confirm you’re 16 or over and agree to the Terms of use and Privacy policy.');
   if (m === 'signup') { try { const ok = await sbFetch('/rest/v1/rpc/sitio_username_available', { method: 'POST', body: JSON.stringify({ name: f.name.trim() }) }); if (ok === false) return msg('That username is taken. Try another.'); } catch (e) { if (e.status !== 404) return msg(friendly(e)); } }
   ui.authBusy = true; ui.authMsg = null; render();
   try {
@@ -2406,6 +2470,23 @@ function adminPushPreview(tries = 0) {
   toast('Lock your phone: the Nov / Dec notification arrives in about 20 seconds', null);
 }
 setTimeout(adminPushPreview, 1500);
+// Google's terms allow keeping coordinates from Places for 30 days, so places found through Google
+// get their location refreshed (a few per visit) before it goes stale. The Google place ID can be kept.
+let coordsRunning = false;
+async function refreshCoords(tries = 0) {
+  if (coordsRunning) return; if (!mapApi.google) { if (tries < 30) setTimeout(() => refreshCoords(tries + 1), 2000); return; }
+  const due = db.places.filter(p => p.googleId && Date.now() - (p.coordsAt || 0) > 25 * 864e5).slice(0, 15); if (!due.length) return;
+  coordsRunning = true;
+  try {
+    const { Place } = await google.maps.importLibrary('places');
+    for (const p of due) {
+      try { const pl = new Place({ id: p.googleId }); await pl.fetchFields({ fields: ['location'] }); if (pl.location) { p.lat = pl.location.lat(); p.lng = pl.location.lng(); } p.coordsAt = Date.now(); }
+      catch (e) { if (/NOT_FOUND|not found/i.test(String(e && e.message))) p.coordsAt = Date.now(); }
+    }
+    save(); lastMapKey = ''; render();
+  } catch (e) { } finally { coordsRunning = false; }
+}
+setTimeout(refreshCoords, 6000);
 if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'recap') setTimeout(() => { if (!recapFromHash(e.data.url)) tryRecap(); }, 300); });
 
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
