@@ -341,6 +341,8 @@ const dirButtons = (p) => {
   // One button: opens your chosen maps app (Settings → Directions open in)
   return `<a class="big-btn primary-btn dir-one" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener">${ICON.nav}Directions</a>`;
 };
+// To try and friends' spots: look at it on Sitio's map first; Directions hands off to your maps app
+const mapDirButtons = (p, act, extra = '') => `<div class="btn-grid"><button class="big-btn primary-btn" data-act="${act}" ${extra}>${ICON.map}View on map</button><a class="big-btn sec-btn" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener">${ICON.nav}Directions</a></div>`;
 const hoursLine = (p) => {
   const s = status(p);
   if (!db.settings.hours) return '';
@@ -615,7 +617,7 @@ function spotSheet(p) {
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price, p)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button><button class="note-priv" data-act="notepriv" data-id="${p.id}">${p.notePrivate ? ICON.lock + 'Only you can see this note · share with friends' : ICON.friends + 'Friends can see this note · make it private'}</button>` : '<div style="height:12px"></div>'}
-    ${dirButtons(p)}
+    ${isTry && hasCoords(p) && (ui.tab !== 'home' || ui.page) ? mapDirButtons(p, 'trymapone', `data-id="${p.id}"`) : dirButtons(p)}
   </div>`;
 }
 // To try places: same layout as Spots, with the place's picture where memories would be
@@ -739,7 +741,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.10 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.11 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1674,7 +1676,7 @@ function friendSheet(f) {
     ${(p.mems || []).length ? `<div class="mem"><div class="mem-head"><span>📸 ${esc(who)}’s memories · ${p.mems.length}</span></div><div class="mem-strip">${p.mems.map(m => { const u = friendPhoto(f.owner, m.id); return `<button class="mem-item" ${u ? `data-act="frphoto" data-src="${u}"` : ''}>${u ? `<img src="${u}" alt="">` : '<span class="mem-gone">Loading…</span>'}<span class="mem-date">${esc(new Date(m.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }))}</span></button>`; }).join('')}</div></div>`
       : p.mem ? `<div class="fr-mem">📸 ${esc(who)} has ${plural(p.mem, 'memory', 'memories')} here</div>` : ''}
     ${mine ? `<div class="card note" style="margin:12px 0">Already in your ${mine.status === 'spot' ? 'Spots' : 'To try'}.</div>` : `<button class="big-btn coral-btn" style="width:100%;margin:12px 0 8px" data-act="frsave">${ICON.plus}Save to To try</button>`}
-    ${typeof p.lat === 'number' ? dirButtons(p) : ''}
+    ${typeof p.lat !== 'number' ? '' : ui.tab !== 'home' || ui.page ? mapDirButtons(p, 'frmapone') : dirButtons(p)}
     <p class="page-sub" style="font-size:12px;margin:10px 0 0">From ${esc(who)}’s map. It only becomes one of your Spots once you’ve been and save it yourself.</p>
   </div>`;
 }
@@ -1829,7 +1831,9 @@ function render() {
   document.body.classList.toggle('light', !db.settings.darkMap);
   // Map pins
   const onlyFriends = ui.friendsLayer && !ui.world && ui.tab === 'home';
+  if (ui.focusF && !(ui.sheet === 'friendspot' && ui.fspot === ui.focusF && ui.tab === 'home')) ui.focusF = null;
   const list = (onlyFriends ? [] : (ui.world ? worldList() : cityPlaces()).filter(p => hasCoords(p) && matches(p, ui.filter))).concat(onlyFriends ? friendPins() : []);
+  if (ui.focusF && !ui.world) { const f = ui.focusF, pid = 'f:' + f.owner + ':' + f.p.id; if (!list.some(x => x.id === pid)) list.push({ id: pid, name: f.p.name, lat: f.p.lat, lng: f.p.lng, cat: f.p.cat, cats: f.p.cats, status: 'friend', _friend: f }); }
   const key = JSON.stringify([ui.world ? 'w' : 'c', ui.friendsLayer ? (ui.friendLayerAt || 1) : 0, list.map(p => p.id + p.status + p.price + coverOf(p) + (photoUrls[coverOf(p)] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
   if (key !== lastMapKey) { mapApi.update(list, ui.selected); lastMapKey = key; }
   mapApi.el.style.visibility = ui.tab === 'home' || ui.world ? 'visible' : 'hidden';
@@ -2490,6 +2494,7 @@ uiEl.addEventListener('click', e => {
     case 'listaddtoggle': { const l = listOf(ui.dialog.listId); if (l) { l.ids = l.ids.includes(id) ? l.ids.filter(x => x !== id) : l.ids.concat(id); touchList(l); const box = $('#listaddres'); if (box) { const sc = box.firstElementChild ? box.firstElementChild.scrollTop : 0; box.innerHTML = listAddRows(l, (ui.dialog.q || '').trim().toLowerCase()); if (box.firstElementChild) box.firstElementChild.scrollTop = sc; } } return; }
     case 'dellistok': { const lid = ui.dialog.listId; db.lists = myLists().filter(l => l.id !== lid); db.deleted = db.deleted || {}; db.deleted[lid] = Date.now(); ui.filter = ui.filter.filter(f => f !== 'list:' + lid); save(); ui.dialog = null; ui.page = null; toast('List deleted', null); break; }
     case 'listmap': ui.filter = ['list:' + id]; ui.page = null; ui.tab = 'home'; ui.selected = null; ui.sheet = null; lastMapKey = ''; break;
+    case 'frmapone': { const f = ui.fspot; if (!f || typeof f.p.lat !== 'number') return; ui.page = null; ui.prevPage = null; ui.dialog = null; ui.tab = 'home'; ui.world = false; ui.focusF = f; ui.sheet = 'friendspot'; ui.selected = null; lastMapKey = ''; render(); mapApi.focus({ lat: f.p.lat, lng: f.p.lng }); return; }
     case 'trymapone': ui.dialog = null; ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p && hasCoords(p)) mapApi.focus(p); break;
     case 'notetoggle': ui.noteOpen = ui.noteOpen === id ? null : id; break;
     case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; setTimeout(memoryPushAsk, 1200); break; }
