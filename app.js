@@ -468,7 +468,7 @@ function tabbar() {
     const ic = iconName === 'totry' ? icon('totry', on ? '#FF5A4E' : 'none', on ? '#FF5A4E' : 'currentColor') : icon(iconName, on ? 'currentColor' : 'none');
     return `<button class="${on ? 'on' : ''}" data-act="tab" data-tab="${id}" aria-label="${label}">${ic}${label}${extra}</button>`;
   };
-  return `<nav class="tabbar glass" aria-label="Main">${t('home', 'Home', 'home')}${t('spots', 'Spots', 'spots', ui.friends && (ui.friends.friends || []).some(f => f.incoming) && !(ui.tab === 'spots' && ui.spotsView === 'friends') ? '<span class="badge dot" aria-label="Something to do in Friends"></span>' : '')}${t('totry', 'To try', 'totry', n && ui.tab !== 'totry' ? `<span class="badge">${n}</span>` : '')}${t('account', 'Account', 'account')}</nav>`;
+  return `<nav class="tabbar glass" aria-label="Main">${t('home', 'Home', 'home')}${t('spots', 'Spots', 'spots', friendsTodo() && !(ui.tab === 'spots' && ui.spotsView === 'friends') ? '<span class="badge dot" aria-label="Something to do in Friends"></span>' : '')}${t('totry', 'To try', 'totry', n && ui.tab !== 'totry' ? `<span class="badge">${n}</span>` : '')}${t('account', 'Account', 'account')}</nav>`;
 }
 
 function homeView() {
@@ -482,7 +482,7 @@ function homeView() {
     <button class="city-title" data-act="cities" aria-label="Change city"><span>${esc(cityLabel())}</span>${ICON.chevDown}</button>
     <div class="filter-wrap"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="home">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="all" aria-label="Clear filter, show all">${ICON.close}</button>` : ''}</div>
     <div class="top-right">
-      <button class="round glass fr-toggle ${ui.friendsLayer ? 'on' : ''}" data-act="friendlayer" aria-pressed="${!!ui.friendsLayer}" aria-label="Show friends’ spots">${ICON.friends}${ui.friends && (ui.friends.friends || []).some(f => f.incoming) ? '<span class="seg-dot"></span>' : ''}</button>
+      <button class="round glass fr-toggle ${ui.friendsLayer ? 'on' : ''}" data-act="friendlayer" aria-pressed="${!!ui.friendsLayer}" aria-label="Show friends’ spots">${ICON.friends}${friendsTodo() ? '<span class="seg-dot"></span>' : ''}</button>
       <button class="round glass" data-act="search" aria-label="Search your spots">${ICON.search}</button>
       <button class="round primary-btn" data-act="add" aria-label="Add a spot" style="box-shadow:0 8px 24px rgba(0,0,0,.5)">${ICON.plus}</button>
     </div>
@@ -646,7 +646,7 @@ function spotsView() {
   }
   return `<div class="page">
     <div class="page-head head2"><div><h1 class="page-title">Spots</h1><div class="page-sub">${cityPlaces().filter(p => p.status === 'spot').length} ${cityPlaces().filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(cityLabel())}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
-    <div class="seg" role="tablist"><button class="${!ui.spotsView || ui.spotsView === 'places' ? 'on' : ''}" data-act="spview" data-v="places" role="tab">Places</button><button class="${ui.spotsView === 'lists' ? 'on' : ''}" data-act="spview" data-v="lists" role="tab">Lists${myLists().length ? ` <span class="seg-n">${myLists().length}</span>` : ''}</button><button class="${ui.spotsView === 'friends' ? 'on' : ''}" data-act="spview" data-v="friends" role="tab">Friends${ui.friends && (ui.friends.friends || []).some(f => f.incoming) ? ' <span class="seg-dot"></span>' : ''}</button></div>
+    <div class="seg" role="tablist"><button class="${!ui.spotsView || ui.spotsView === 'places' ? 'on' : ''}" data-act="spview" data-v="places" role="tab">Places</button><button class="${ui.spotsView === 'lists' ? 'on' : ''}" data-act="spview" data-v="lists" role="tab">Lists${myLists().length ? ` <span class="seg-n">${myLists().length}</span>` : ''}</button><button class="${ui.spotsView === 'friends' ? 'on' : ''}" data-act="spview" data-v="friends" role="tab">Friends${friendsTodo() && ui.spotsView !== 'friends' ? ' <span class="seg-dot"></span>' : ''}</button></div>
     ${ui.spotsView === 'friends' ? friendsBody() : ui.spotsView === 'lists' ? listsBody() : `<label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
     <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats))}${ICON.chevDown}</button><button class="pill ${ui.spotsOpenNow ? 'green-on' : 'sec-btn'}" data-act="opennow" aria-pressed="${ui.spotsOpenNow}">${ui.spotsOpenNow ? ICON.check : ''}Open now</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ICON.star}Favourites</button></div>
     ${body}`}
@@ -739,7 +739,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.3.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.3.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1539,7 +1539,7 @@ setTimeout(takeHandoff, 0);
 const fname = n => n || 'A friend';
 async function loadFriends() {
   if (!auth || !cloudOn()) return;
-  try { ui.friends = await sbFetch('/rest/v1/rpc/sitio_my_friends', { method: 'POST', body: '{}' }, true); ui.friendsErr = null; }
+  try { ui.friends = await sbFetch('/rest/v1/rpc/sitio_my_friends', { method: 'POST', body: '{}' }, true); ui.friendsErr = null; if (!seenFriends()) markFriendsSeen(); if (ui.tab === 'spots' && ui.spotsView === 'friends') { ui.newFriendsShown = [...new Set([...(ui.newFriendsShown || []), ...newFriendIds()])]; markFriendsSeen(); } }
   catch (e) { ui.friendsErr = e.status === 404 ? 'Friends aren’t switched on yet.' : friendly(e); }
   render();
 }
@@ -1590,7 +1590,12 @@ function searchFriends() {
     .then(r => { if (ui.dialog === d && (d.v || '').trim() === v) { d.res = r || []; const b = $('#frres'); if (b) b.innerHTML = frResults(d); } })
     .catch(e => { if (ui.dialog === d) { d.err = e.status === 404 ? 'Search isn’t switched on yet.' : friendly(e); const b = $('#frres'); if (b) b.innerHTML = frResults(d); } }), 220);
 }
-function openFriendsTab() { ui.tab = 'spots'; ui.spotsView = 'friends'; ui.page = null; ui.sheet = null; ui.dialog = null; render(); setTimeout(loadFriends, 300); }
+// "Something to do" in Friends: someone added you, or a new friend you haven't seen yet (per phone)
+function seenFriends() { try { const v = localStorage.getItem('sitio.seenFriends'); return v ? new Set(JSON.parse(v)) : null; } catch (e) { return null; } }
+function markFriendsSeen() { if (!ui.friends) return; try { localStorage.setItem('sitio.seenFriends', JSON.stringify((ui.friends.friends || []).filter(f => f.status === 'accepted').map(f => f.id))); } catch (e) { } }
+function newFriendIds() { const s = seenFriends(); if (!s || !ui.friends) return []; return (ui.friends.friends || []).filter(f => f.status === 'accepted' && !s.has(f.id)).map(f => f.id); }
+const friendsTodo = () => !!ui.friends && ((ui.friends.friends || []).some(f => f.incoming) || newFriendIds().length > 0);
+function openFriendsTab() { ui.tab = 'spots'; ui.spotsView = 'friends'; ui.newFriendsShown = newFriendIds(); markFriendsSeen(); ui.page = null; ui.sheet = null; ui.dialog = null; render(); setTimeout(loadFriends, 300); }
 function friendsBody() {
   const F = ui.friends;
   if (ui.friendsErr) return `<div class="card note">${esc(ui.friendsErr)}</div>`;
@@ -1602,7 +1607,7 @@ function friendsBody() {
     ${!F.unlocked ? `<div class="card note fr-lock">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
     ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Added you · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>added you</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="fryes" data-id="${esc(f.id)}">${ICON.plus}Add back</button></div>`).join('')}</div>` : ''}
     <div class="section-label" style="margin:14px 0 8px">Friends${mates.length ? ' · ' + mates.length : ''}</div>
-    ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>vouches for ${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
+    ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}</b><span>vouches for ${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
       : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Tap Add and type a friend’s username, or invite someone from Account.</div>`}
     ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">You added</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>friends once they add you back</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Undo</button></div>`).join('')}</div>` : ''}`;
 }
@@ -2258,7 +2263,7 @@ uiEl.addEventListener('click', e => {
   const act = t.dataset.act, id = t.dataset.id, p = id ? byId(id) : null;
   if (ui.menu && !t.closest('.menu') && act !== 'menu') ui.menu = null;
   switch (act) {
-    case 'tab': if (t.dataset.tab === 'account') setTimeout(uploadMemories, 200); ui.tab = t.dataset.tab; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; break;
+    case 'tab': if (t.dataset.tab === 'account') setTimeout(uploadMemories, 200); ui.tab = t.dataset.tab; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; if (ui.tab === 'spots' && ui.spotsView === 'friends') { ui.newFriendsShown = newFriendIds(); markFriendsSeen(); } else ui.newFriendsShown = []; break;
     case 'pin': ui.selected = id; ui.sheet = 'spot'; break;
     case 'menu': ui.menu = ui.menu === t.dataset.menu ? null : t.dataset.menu; break;
     case 'filt': toggleFilter(t.dataset.f); if (t.dataset.f === 'all') ui.menu = null; break;
@@ -2318,7 +2323,7 @@ uiEl.addEventListener('click', e => {
     case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
     case 'saveuname': saveUsername((ui.unameDraft != null ? ui.unameDraft : db.user.name || '').trim()); return;
     case 'unamedlg': saveUsername(((uiEl.querySelector('[data-input="unameDraft"]') || {}).value || '').trim(), true); return;
-    case 'spview': ui.spotsView = t.dataset.v; ui.menu = null; if (ui.spotsView === 'friends') loadFriends(); break;
+    case 'spview': ui.spotsView = t.dataset.v; ui.menu = null; if (ui.spotsView === 'friends') { ui.newFriendsShown = newFriendIds(); markFriendsSeen(); loadFriends(); } break;
     case 'openlist': ui.page = { list: id }; break;
     case 'listpick': if (p) ui.dialog = { type: 'listpick', id: p.id }; break; // replaces the More sheet
     case 'listtoggle': { const l = listOf(id), pid = ui.dialog.id; if (l) { l.ids = l.ids.includes(pid) ? l.ids.filter(x => x !== pid) : l.ids.concat(pid); touchList(l); } break; }
