@@ -699,3 +699,4 @@ body.light .md-row input { color-scheme: light; }
 .rc-bg.icy { box-shadow: inset 0 0 90px rgba(170,220,255,0.22), inset 0 0 20px rgba(220,240,255,0.25); }
 .rc-bg.icy .fall { color: #DDF2FF; text-shadow: 0 0 8px rgba(170,220,255,0.8); }
 .rc-bg.winter .fall { color: #EAF4FF; }
+.rc-soon.admin { cursor: pointer; }

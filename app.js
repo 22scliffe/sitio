@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.7.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.7.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -836,7 +836,7 @@ function recapList(loc, year) {
 }
 function recapSoonRows() {
   const now = new Date(), cur = recapPer(now.getFullYear(), Math.floor(now.getMonth() / 2)), yr = recapYear(now.getFullYear());
-  return [cur, yr].filter(p => releaseAt(p) > Date.now()).map(p => { const r = new Date(releaseAt(p)); return `<div class="set-row rc-soon"><span>${esc(recapName(p))}</span><span class="val">Releasing ${ordinal(r.getDate())} ${MONTH_NAMES[r.getMonth()].slice(0, 3)}</span></div>`; }).join('');
+  return [cur, yr].filter(p => releaseAt(p) > Date.now()).map(p => { const r = new Date(releaseAt(p)); const label = `<span>${esc(recapName(p))}</span><span class="val">Releasing ${ordinal(r.getDate())} ${MONTH_NAMES[r.getMonth()].slice(0, 3)}</span>`; return isAdmin && recapItems(p).length ? `<button class="set-row rc-soon admin" data-act="recapshow" data-y="${p.y}" data-k="${p.k}">${label}</button>` : `<div class="set-row rc-soon">${label}</div>`; }).join('');
 }
 // Festive background behind a recap: fireworks + sparkles for the year, soft seasonal glow for two-month ones
 const SEASON = [['#9CC8FF', '#FFE2A8'], ['#FF9EC4', '#9BE3A8'], ['#FFD66B', '#FFB36B'], ['#FFB44D', '#3FC6D9'], ['#F5A03D', '#C2582E'], ['#8FD8FF', '#D9F2FF']];
@@ -2277,15 +2277,19 @@ resnap();
 checkLevel();
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
-  try { if (localStorage.getItem('sitio.showcaseND2026b')) return; } catch (e) { }
+  try { if (localStorage.getItem('sitio.previewDemo1')) return; } catch (e) { }
   if (!isAdmin) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => adminShowcase(tries + 1), 500); return; }
-  const y0 = new Date().getFullYear(); let per = null;
-  const cands = [recapPer(2026, 5)]; for (let y = y0; y >= y0 - 3; y--) for (let k = 5; k >= 0; k--) { const p = recapPer(y, k); if (releaseAt(p) <= Date.now()) cands.push(p); }
-  for (const p of cands) { if (recapItems(p).filter(x => photoUrl(x.m.id)).length) { per = p; break; } }
-  if (!per) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
-  try { localStorage.setItem('sitio.showcaseND2026b', '1'); } catch (e) { }
-  ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
+  const show = s => { if (!openSharedRecap(s)) return false; try { localStorage.setItem('sitio.previewDemo1', '1'); } catch (e) { } ui.tab = 'home'; render(); return true; };
+  // the real demo if it has been sent, otherwise the same recap built from this phone
+  sbFetch('/rest/v1/rpc/sitio_get_share', { method: 'POST', body: JSON.stringify({ sid: DEMO_RECAP }) }).catch(() => null).then(d => {
+    if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { setTimeout(() => adminShowcase(tries + 1), 1000); return; }
+    if (d && d.t === 'recap' && show(d)) return;
+    const per = recapPer(2026, 5), its = recapItems(per).filter(x => photoUrl(x.m.id));
+    if (!its.length) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
+    try { localStorage.setItem('sitio.previewDemo1', '1'); } catch (e) { }
+    ui.tab = 'home'; ui.dialog = { type: 'recap', per, shared: { f: db.user.name || '', items: its.map(x => ({ src: photoUrl(x.m.id), name: x.p.name, where: [x.p.area, cityOf(x.p) && cityOf(x.p).name].filter(Boolean).join(', '), at: x.m.at })) }, open: false, intro: true, introAt: Date.now() }; render();
+  });
 }
 setTimeout(adminShowcase, 900);
 setTimeout(() => tryRecap(/[?&]demo=year/.test(location.search) ? 'year' : /[?&]demo=recap/.test(location.search)), 1000);
