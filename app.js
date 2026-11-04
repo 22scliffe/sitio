@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.1.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.1.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1544,12 +1544,12 @@ function gateView() {
     <p class="gate-tag">Your map of the places you vouch for, shared with friends whose taste you trust.</p>
     ${ui.suspended ? `<div class="card note" style="color:var(--coral-soft);margin:8px 0 6px">This account has been suspended. If you think this is a mistake, email ${CONTACT}.</div>` : ''}
     <div class="gate-badge">${ICON.lock}<span>Invite-only</span></div>
-    ${ui.inviteFrom ? `<p class="gate-from"><b>${esc(ui.inviteFrom)}</b> invited you to Sitio.</p>` : code ? '<p class="gate-from">You’ve got an invite.</p>' : '<p class="gate-from">Every member is invited by a friend. Ask someone on Sitio for an invite link.</p>'}
+    ${ui.invitePaused ? '<p class="gate-from">This invite is paused at the moment. Try again later or ask a friend for another one.</p>' : ui.inviteFrom ? `<p class="gate-from"><b>${esc(ui.inviteFrom)}</b> invited you to Sitio.</p>` : code ? '<p class="gate-from">You’ve got an invite.</p>' : '<p class="gate-from">Every member is invited by a friend. Ask someone on Sitio for an invite link.</p>'}
     <button class="big-btn primary-btn" style="width:100%;margin-top:18px" data-act="gatesignup">${code ? 'Create your account' : 'I have an invite'}</button>
     <button class="big-btn sec-btn" style="width:100%;margin-top:10px" data-act="gatelogin">Log in</button></div></div>`;
 }
 // Who sent the invite, shown on the welcome screen
-setTimeout(() => { if (pendingInvite() && cloudOn()) sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: pendingInvite() }) }).then(r => { if (r && r.from) { ui.inviteFrom = r.from; render(); } }).catch(() => { }); }, 0);
+setTimeout(() => { if (pendingInvite() && cloudOn()) sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: pendingInvite() }) }).then(r => { if (r && r.from) { ui.inviteFrom = r.from; render(); } else if (r && r.paused) { ui.invitePaused = true; render(); } }).catch(() => { }); }, 0);
 
 async function loadAdminInv(uid) {
   try { const r = await sbFetch('/rest/v1/rpc/sitio_admin_invites', { method: 'POST', body: JSON.stringify({ uid }) }, true); ui.adminInv = Object.assign({}, ui.adminInv, { [uid]: r }); ui.adminInvErr = null; }
@@ -2428,7 +2428,7 @@ async function doAuth() {
   if (m === 'signup') {
     const code = (f.code || '').trim().replace(/^.*[#&]i=/, '').toLowerCase();
     if (!code) return msg('Sitio is invite-only. Paste the invite link or code a friend sent you.');
-    try { const r = await sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: code }) }); if (!r || !r.ok) return msg('That invite has already been used or doesn’t exist. Ask your friend for a new one.'); }
+    try { const r = await sbFetch('/rest/v1/rpc/sitio_check_invite', { method: 'POST', body: JSON.stringify({ c: code }) }); if (r && r.paused) return msg('This invite is paused at the moment. Try again later or ask a friend for another one.'); if (!r || !r.ok) return msg('That invite has already been used or doesn’t exist. Ask your friend for a new one.'); }
     catch (e) { return msg('Couldn’t check the invite: ' + friendly(e)); }
     try { localStorage.setItem('sitio.pendingInvite', code); } catch (e) { }
   }

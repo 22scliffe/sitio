@@ -82,3 +82,30 @@ end $$;
 
 revoke all on function public.sitio_user_is_admin(uuid), public.sitio_admin_suspend(uuid, boolean), public.sitio_my_status() from public, anon;
 grant execute on function public.sitio_admin_suspend(uuid, boolean), public.sitio_my_status() to authenticated;
+-- Sitio: invite links from a suspended account are paused until the account is reinstated.
+-- Links already used before the suspension are unaffected. Run once in Supabase → SQL Editor.
+
+create or replace function public.sitio_check_invite(c text) returns json
+language sql stable security definer set search_path = public as $$
+  select case when exists (select 1 from sitio_suspended s where s.user_id = i.inviter)
+    then json_build_object('ok', false, 'paused', true)
+    else json_build_object('ok', true, 'from', (select d.data->'user'->>'name' from sitio_data d where d.user_id = i.inviter)) end
+  from sitio_invites i where i.code = lower(trim(c)) and i.used_by is null;
+$$;
+
+create or replace function public.sitio_redeem_invite(c text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare inv uuid;
+begin
+  if auth.uid() is null then raise exception 'Log in first'; end if;
+  if public.sitio_is_member() then return true; end if;
+  if exists (select 1 from sitio_invites i join sitio_suspended s on s.user_id = i.inviter where i.code = lower(trim(c)) and i.used_by is null)
+    then raise exception 'This invite is paused at the moment. Try again later or ask for another one.'; end if;
+  update sitio_invites set used_by = auth.uid(), used_at = now()
+    where code = lower(trim(c)) and used_by is null returning inviter into inv;
+  if inv is null then raise exception 'That invite has already been used or doesn''t exist'; end if;
+  insert into sitio_members (user_id, invited_by) values (auth.uid(), inv);
+  return true;
+end $$;
+
+grant execute on function public.sitio_check_invite(text) to anon, authenticated;
