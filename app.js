@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.8.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.8.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1123,7 +1123,7 @@ function dialogView() {
   }
   if (d.type === 'pushask') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
-      <div class="push-bell">🔔</div><h3 id="dlg-t">Get a heads-up when your recap is ready?</h3><p>One notification on each release day, only when you have memories from that time. Nothing else.</p>
+      <div class="push-bell">🔔</div><h3 id="dlg-t">Know when your memories are ready to relive</h3><p>One notification every two months, and one for your year in December. Only when you’ve added memories.</p>
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Not now</button><button class="big-btn primary-btn" data-act="pushon">Turn on</button></div></div>`;
   }
   if (d.type === 'recap') {
@@ -2354,7 +2354,7 @@ function openPushAsk() {
   const decide = (tries = 0) => {
     if (!auth) return;
     if (!adminKnown && tries < 30) return setTimeout(() => decide(tries + 1), 500);
-    if (isAdmin) return askPush('sitio.pushAsk.adminOpen1', true);
+    if (isAdmin) return askPush('sitio.pushAsk.adminOpen2', true);
     if (!auth.user.created_at && tries < 30) {
       if (tries === 0) sbFetch('/auth/v1/user', {}, true).then(u => { if (u && u.created_at && auth) { auth.user.created_at = u.created_at; try { localStorage.setItem('sitio.auth', JSON.stringify(auth)); } catch (e) { } } }).catch(() => { });
       return setTimeout(() => decide(tries + 1), 500);
