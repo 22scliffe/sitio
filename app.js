@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.7.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.7.8 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1617,6 +1617,7 @@ function checkDemoRecap(tries = 0) {
   if (!auth) { if (tries < 40) setTimeout(() => checkDemoRecap(tries + 1), 500); return; }
   try { if (localStorage.getItem('sitio.seen.' + DEMO_RECAP)) return; } catch (e) { }
   if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => checkDemoRecap(tries + 1), 500); return; }
+  if (!auth.user.created_at) { sbFetch('/auth/v1/user', {}, true).then(u => { if (u && u.created_at && auth) { auth.user.created_at = u.created_at; try { localStorage.setItem('sitio.auth', JSON.stringify(auth)); } catch (e) { } checkDemoRecap(tries + 1); } }).catch(() => { }); return; }
   sbFetch('/rest/v1/rpc/sitio_get_share', { method: 'POST', body: JSON.stringify({ sid: DEMO_RECAP }) }).then(d => {
     // only accounts that existed before the demo was made (Lola and Marta), never new sign-ups or logged-out phones
     const made = auth && auth.user && Date.parse(auth.user.created_at || '');
@@ -2039,7 +2040,7 @@ function cloudOn() { return !!(SBURL && SBKEY); }
 var auth = null; try { auth = JSON.parse(localStorage.getItem('sitio.auth')); } catch (e) { auth = null; }
 var syncState = '', pushTimer = null, syncing = null, syncAgain = false;
 function setAuth(s) {
-  auth = s ? { access_token: s.access_token, refresh_token: s.refresh_token, expires_at: s.expires_at || Math.floor(Date.now() / 1000) + (s.expires_in || 3600), user: { id: s.user.id, email: s.user.email } } : null;
+  auth = s ? { access_token: s.access_token, refresh_token: s.refresh_token, expires_at: s.expires_at || Math.floor(Date.now() / 1000) + (s.expires_in || 3600), user: { id: s.user.id, email: s.user.email, created_at: s.user.created_at || (auth && auth.user && auth.user.id === s.user.id ? auth.user.created_at : undefined) } } : null;
   try { if (auth) localStorage.setItem('sitio.auth', JSON.stringify(auth)); else localStorage.removeItem('sitio.auth'); } catch (e) { }
 }
 async function sbFetch(path, opts = {}, needUser) {
