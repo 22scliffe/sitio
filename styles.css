@@ -714,3 +714,8 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .agree-row .check-box { flex: none; margin-top: 1px; }
 
 .rep-link { display: block; margin: 8px auto 0; font-size: 12px; font-weight: 600; color: var(--text-2); opacity: .7; text-decoration: underline; }
+
+.maps-note { position: absolute; z-index: 24; left: 16px; right: 16px; bottom: calc(var(--tab-bottom) + 78px); max-width: 520px; margin: 0 auto; padding: 12px 14px; border-radius: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--text); background: var(--dialog-bg); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 1px solid rgba(var(--fg),0.2); box-shadow: inset 0 1.5px 1px rgba(var(--fg),0.3), 0 8px 24px rgba(0,0,0,0.45); animation: up .3s; }
+.mn-btns { display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
+.mn-btns .link-btn { font-size: 13px; color: var(--text-2); text-decoration: underline; }
+.mn-ok { height: 32px; padding: 0 18px; border-radius: 16px; border: 0; font-size: 13px; font-weight: 800; color: #141418; background: var(--text); }

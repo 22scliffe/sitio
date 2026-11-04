@@ -726,7 +726,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.9.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.9.7 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1492,6 +1492,9 @@ function render() {
   }
   if (ui.sheet === 'add' && ui.add && ui.pinMode) h += `<div class="pin-mode"><div class="pm-top glass">Move the map to put the pin exactly on the spot</div><div class="pm-pin" aria-hidden="true"><div class="pm-head">${ICON.pin}</div><div class="pm-dot"></div></div><div class="pm-bar"><button class="big-btn sec-btn glass" data-act="pincancel">Cancel</button><button class="big-btn primary-btn" data-act="pinok">Use this spot</button></div><button class="locate round glass pm-loc" data-act="locate" aria-label="Go to my location" style="color:var(--blue)">${ICON.nav}</button></div>`;
   else if (ui.sheet === 'add' && ui.add) h += '<div class="scrim" data-act="closesheet"></div>' + addSheet();
+  // One-time note about Google Maps storage, shown on first open
+  let mapsNoted = true; try { mapsNoted = !!localStorage.getItem('sitio.mapsNote'); } catch (e) { }
+  if (!mapsNoted && !ui.install && ui.tour == null && !ui.dialog && !ui.page && !ui.toast) h += `<div class="maps-note" role="note"><span>Sitio uses Google Maps to show places. Google may store a small amount of data on your device.</span><span class="mn-btns"><button class="link-btn" data-act="mapsmore">Learn more</button><button class="mn-ok" data-act="mapsok">OK</button></span></div>`;
   if (ui.toast) h += `<div class="toast" role="status"><span>${ui.toast.ok ? `<span style="color:var(--green);display:flex">${ICON.check}</span>` : ''}${esc(ui.toast.text)}</span>${ui.toast.undo ? '<button data-act="undo">Undo</button>' : ''}</div>`;
   h += dialogView();
   if (ui.install) h += installView();
@@ -2058,6 +2061,8 @@ uiEl.addEventListener('click', e => {
     case 'hereno': { const h = ui.dialog.h; if (h.key) try { localStorage.setItem(h.key, String(Date.now() + 7 * 864e5)); } catch (e) { } ui.dialog = null; break; }
     case 'privacy': ui.prevPage = ui.page; ui.page = 'privacy'; break;
     case 'terms': ui.prevPage = ui.page; ui.page = 'terms'; break;
+    case 'mapsok': try { localStorage.setItem('sitio.mapsNote', '1'); } catch (e2) { } break;
+    case 'mapsmore': try { localStorage.setItem('sitio.mapsNote', '1'); } catch (e2) { } ui.prevPage = ui.page; ui.page = 'privacy'; render(); setTimeout(() => { const h3 = [...uiEl.querySelectorAll('.section-label')].find(x => /cookies/i.test(x.textContent)); if (h3) h3.scrollIntoView({ block: 'start' }); }, 60); return;
     case 'report': {
       const what = t.dataset.what || '';
       const body = 'What are you reporting? (a place, note, photo, list, recap or a person)\n\n' + (what ? 'About: ' + what + '\n\n' : '') + 'What’s wrong with it?\n\n' + 'Anything else we should know?\n\n' + (auth ? '— Sent from the Sitio account ' + auth.user.email : '');
