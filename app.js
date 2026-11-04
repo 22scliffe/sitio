@@ -379,6 +379,7 @@ const mapApi = (() => {
     pinMap = new Map(list.map(p => [p.id, p]));
     pinsEl.innerHTML = list.map(p => {
       const st = status(p); const closed = p.status === 'spot' && st && !st.open;
+      if (p._friend) return `<div class="pin friend" data-pin="${p.id}"><button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}, ${esc(p._friend.ownerName || 'a friend')}’s spot"><span class="fr-pin">${esc(((p._friend.ownerName || '?')[0] || '?').toUpperCase())}</span></button><div class="label">${esc(p.name)}</div></div>`;
       return `<div class="pin ${p.status === 'totry' ? 'totry' : ''} ${closed ? 'closed' : ''} ${selected === p.id ? 'selected' : ''}" data-pin="${p.id}">
         <button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}">${p.status === 'totry' && !(p.photos && p.photos.length) ? ART.totry : art(p)}</button>
         <div class="label">${esc(p.name)}</div>${closed && selected === p.id ? `<div class="sub">${esc(st.text)}</div>` : ''}</div>`;
@@ -400,6 +401,7 @@ const mapApi = (() => {
     const r = e.target.closest('.ring'); if (!r) return;
     e.stopPropagation(); pinClickAt = Date.now();
     if (ui.world) { ui.wSel = r.dataset.id; ui.menu = null; const wp = pinMap.get(ui.wSel); if (wp) api.focus(wp); render(); return; }
+    const fp = pinMap.get(r.dataset.id); if (fp && fp._friend) { ui.fspot = fp._friend; ui.sheet = 'friendspot'; ui.selected = null; ui.menu = null; render(); return; }
     ui.selected = r.dataset.id; ui.sheet = 'spot'; ui.menu = null; const sp = byId(ui.selected); if (sp) api.focus(sp); render();
   });
   function initMock() {
@@ -480,6 +482,7 @@ function homeView() {
     <button class="city-title" data-act="cities" aria-label="Change city"><span>${esc(cityLabel())}</span>${ICON.chevDown}</button>
     <div class="filter-wrap"><button class="filter-pill ${pillCls} ${pillCls ? '' : 'glass'}" data-act="menu" data-menu="home">${ICON.filter}<span class="txt">${esc(filterLabel(ui.filter))}</span>${ICON.chevDown}</button>${ui.filter.length ? `<button class="filter-x round glass" data-act="filt" data-f="all" aria-label="Clear filter, show all">${ICON.close}</button>` : ''}</div>
     <div class="top-right">
+      <button class="round glass fr-toggle ${ui.friendsLayer ? 'on' : ''}" data-act="friendlayer" aria-pressed="${!!ui.friendsLayer}" aria-label="Show friends’ spots">${ICON.friends}${ui.friends && (ui.friends.friends || []).some(f => f.incoming) ? '<span class="seg-dot"></span>' : ''}</button>
       <button class="round glass" data-act="search" aria-label="Search your spots">${ICON.search}</button>
       <button class="round primary-btn" data-act="add" aria-label="Add a spot" style="box-shadow:0 8px 24px rgba(0,0,0,.5)">${ICON.plus}</button>
     </div>
@@ -609,9 +612,10 @@ function spotSheet(p) {
     <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}</div>
     <div class="act-row">${first}${more}</div>
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
+    ${p.via ? `<div class="via-line">${ICON.friends}<span>via <b>${esc(p.via.name)}</b></span></div>` : ''}
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price, p)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
-    ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button>` : '<div style="height:12px"></div>'}
+    ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button><button class="note-priv" data-act="notepriv" data-id="${p.id}">${p.notePrivate ? ICON.lock + 'Only you can see this note · share with friends' : ICON.friends + 'Friends can see this note · make it private'}</button>` : '<div style="height:12px"></div>'}
     ${dirButtons(p)}
   </div>`;
 }
@@ -642,11 +646,11 @@ function spotsView() {
   }
   return `<div class="page">
     <div class="page-head head2"><div><h1 class="page-title">Spots</h1><div class="page-sub">${cityPlaces().filter(p => p.status === 'spot').length} ${cityPlaces().filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(cityLabel())}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
-    <div class="seg" role="tablist"><button class="${ui.spotsView !== 'lists' ? 'on' : ''}" data-act="spview" data-v="places" role="tab">Places</button><button class="${ui.spotsView === 'lists' ? 'on' : ''}" data-act="spview" data-v="lists" role="tab">Lists${myLists().length ? ` <span class="seg-n">${myLists().length}</span>` : ''}</button></div>
-    ${ui.spotsView === 'lists' ? listsBody() : `<label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
+    <div class="seg" role="tablist"><button class="${!ui.spotsView || ui.spotsView === 'places' ? 'on' : ''}" data-act="spview" data-v="places" role="tab">Places</button><button class="${ui.spotsView === 'lists' ? 'on' : ''}" data-act="spview" data-v="lists" role="tab">Lists${myLists().length ? ` <span class="seg-n">${myLists().length}</span>` : ''}</button><button class="${ui.spotsView === 'friends' ? 'on' : ''}" data-act="spview" data-v="friends" role="tab">Friends${ui.friends && (ui.friends.friends || []).some(f => f.incoming) ? ' <span class="seg-dot"></span>' : ''}</button></div>
+    ${ui.spotsView === 'friends' ? friendsBody() : ui.spotsView === 'lists' ? listsBody() : `<label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
     <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats))}${ICON.chevDown}</button><button class="pill ${ui.spotsOpenNow ? 'green-on' : 'sec-btn'}" data-act="opennow" aria-pressed="${ui.spotsOpenNow}">${ui.spotsOpenNow ? ICON.check : ''}Open now</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ICON.star}Favourites</button></div>
     ${body}`}
-  </div>${ui.menu === 'spots' && ui.spotsView !== 'lists' ? filterMenu() : ''}`;
+  </div>${ui.menu === 'spots' && (!ui.spotsView || ui.spotsView === 'places') ? filterMenu() : ''}`;
 }
 function listsBody() {
   const ls = myLists();
@@ -735,7 +739,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.2.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.3.0 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1006,6 +1010,7 @@ function privacyPage() {
       '<b>Account:</b> your email, username, display name and optional profile photo. Your password is stored encrypted and nobody can read it.',
       '<b>Your places and lists:</b> the places you save (names, locations, notes, prices, categories, cities), your lists and your settings.',
       '<b>Memories:</b> the photos you add and the date you give them, stored privately in your account.',
+      '<b>Friends:</b> who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices and how many memories you have there), but never spots in Hidden from friends, notes you mark private, or your photos.',
       '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose.',
       '<b>Your location:</b> used on your phone to show distances, centre the map and suggest your city. It is not stored on our servers. When you search or the app works out your city, your rough location is sent to Google or OpenStreetMap to answer that request.',
       '<b>Technical data:</b> like any website, our hosts see your IP address and device type when you open Sitio.'
@@ -1024,7 +1029,7 @@ function privacyPage() {
       '<b>Apple, Google or Mozilla</b> deliver notifications to your phone if you turn them on.'
     ]],
     ['International transfers', 'Google and GitHub are based in the US. Transfers are covered by the EU–US Data Privacy Framework (and the UK extension) and by standard contractual clauses.'],
-    ['Who can see your data', 'You. Places, lists and recaps you share by link are visible to anyone with that link. The person who runs Sitio can see account emails and saved data, only to keep the app working, fix problems and help if you ask.'],
+    ['Who can see your data', 'You, and the friends you accept (as described above). Places, lists and recaps you share by link are visible to anyone with that link. The person who runs Sitio can see account emails and saved data, only to keep the app working, fix problems and help if you ask.'],
     ['How long we keep it', [
       'Your account data is kept until you delete your account. Deleting it removes your email, places, lists and memory photos for good.',
       'Notification addresses are deleted when you turn notifications off, block them on your phone or delete your account.',
@@ -1239,6 +1244,22 @@ function dialogView() {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">Suspend ${esc(d.name)}?</h3><p>They’ll be logged out on every phone and can’t log back in or see their spots until you reinstate them. Nothing is deleted.</p>
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="suspend" data-id="${esc(d.uid)}" data-on="1">Suspend</button></div></div>`;
+  }
+  if (d.type === 'addfriend') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
+      <h3 id="dlg-t">Add a friend</h3><p>Type their Sitio username. They’ll get a request, and you’ll see each other’s spots once they accept.</p>
+      <input class="input card" data-input="frName" placeholder="e.g. liaa" autocapitalize="off" spellcheck="false" value="${esc(d.v || '')}">
+      <div class="btn-grid" style="margin-top:14px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="frsend">Send request</button></div></div>`;
+  }
+  if (d.type === 'friendinviter') {
+    return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
+      <div style="font-size:38px;margin-bottom:6px">🤝</div><h3 id="dlg-t">Add ${esc(d.name)} as a friend?</h3><p>${esc(d.name)} invited you to Sitio. As friends you’ll see each other’s spots, and can save theirs to try.</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Not now</button><button class="big-btn primary-btn" data-act="frinviter">Add friend</button></div></div>`;
+  }
+  if (d.type === 'unfriend') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
+      <h3 id="dlg-t">Remove ${esc(d.name)}?</h3><p>You’ll stop seeing each other’s spots. They won’t be told. Spots you saved from them stay in your To try.</p>
+      <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="unfriend" data-id="${esc(d.id)}">Remove</button></div></div>`;
   }
   if (d.type === 'pushask') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
@@ -1511,6 +1532,105 @@ async function takeHandoff() {
 }
 setTimeout(takeHandoff, 0);
 
+/* ---------- Friends ---------- */
+// Mutual friends (max 50). You see their Spots (and what they want to try) once you have 5 spots yourself.
+// Their spots never join your map: saving one puts it in your To try with "via …".
+const fname = n => n || 'A friend';
+async function loadFriends() {
+  if (!auth || !cloudOn()) return;
+  try { ui.friends = await sbFetch('/rest/v1/rpc/sitio_my_friends', { method: 'POST', body: '{}' }, true); ui.friendsErr = null; }
+  catch (e) { ui.friendsErr = e.status === 404 ? 'Friends aren’t switched on yet.' : friendly(e); }
+  render();
+}
+async function loadFriendMap(id) {
+  try { ui.friendMaps = Object.assign({}, ui.friendMaps, { [id]: await sbFetch('/rest/v1/rpc/sitio_friend_map', { method: 'POST', body: JSON.stringify({ other: id }) }, true) }); }
+  catch (e) { ui.friendMaps = Object.assign({}, ui.friendMaps, { [id]: { error: friendly(e) } }); }
+  render();
+}
+async function loadFriendLayer() {
+  try {
+    const r = await sbFetch('/rest/v1/rpc/sitio_friends_spots', { method: 'POST', body: '{}' }, true);
+    if (r && r.locked) { ui.friendsLayer = false; flash('Save 5 spots of your own to see your friends’ spots on the map.'); }
+    ui.friendLayerData = r || { places: [] }; ui.friendLayerAt = Date.now();
+  } catch (e) { ui.friendsLayer = false; flash('Couldn’t load friends’ spots: ' + friendly(e)); }
+  lastMapKey = ''; render();
+}
+// Friends' spots as map pins (separate style, never mixed into your own)
+function friendPins() {
+  if (!ui.friendsLayer || !ui.friendLayerData) return [];
+  const cats = ui.filter.filter(f => f !== 'totry' && !f.startsWith('list:'));
+  const mine = new Set(db.places.map(p => p.googleId).filter(Boolean));
+  return (ui.friendLayerData.places || []).filter(p => typeof p.lat === 'number' && typeof p.lng === 'number' && !(p.googleId && mine.has(p.googleId)) && catMatch(p, cats))
+    .map(p => ({ id: 'f:' + p.owner + ':' + p.id, name: p.name, lat: p.lat, lng: p.lng, cat: p.cat, cats: p.cats, status: 'friend', _friend: { p, owner: p.owner, ownerName: p.ownerName, city: p.city } }));
+}
+function saveFriendSpot(f) {
+  const src = f.p, mine = db.places.find(x => (src.googleId && x.googleId === src.googleId) || (x.name === src.name && Math.abs((x.lat || 0) - src.lat) < 0.0005));
+  if (mine) { toast('Already in your ' + (mine.status === 'spot' ? 'Spots' : 'To try'), null); return; }
+  const np = copyPlace(src, f.city || null, 'totry', 0); np.via = { id: f.owner, name: fname(f.ownerName) }; np.coordsAt = 0; save(); lastMapKey = '';
+  toast(np.name + ' saved to To try · via ' + fname(f.ownerName), () => { db.places = db.places.filter(x => x.id !== np.id); save(); lastMapKey = ''; render(); });
+}
+function friendsBody() {
+  const F = ui.friends;
+  if (ui.friendsErr) return `<div class="card note">${esc(ui.friendsErr)}</div>`;
+  if (!F) return '<p class="page-sub">Loading…</p>';
+  const list = F.friends || [], incoming = list.filter(f => f.incoming), sent = list.filter(f => f.status === 'pending' && !f.incoming), mates = list.filter(f => f.status === 'accepted');
+  const av = f => `<span class="avatar fr-av">${f.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc((fname(f.name)[0] || '?').toUpperCase())}</span>`;
+  const need = Math.max(0, 5 - spotCount());
+  return `<div class="fr-head card"><div><b>${F.count} of 50 friends</b><span>Friends see your Spots and what you want to try. Never your hidden spots or private notes.</span></div><button class="pill primary-btn" style="height:38px;font-weight:800;flex:none" data-act="addfriend">${ICON.plus}Add</button></div>
+    ${!F.unlocked ? `<div class="card note fr-lock">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
+    ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Requests · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>wants to be friends</span></span></span><span style="display:flex;gap:6px"><button class="pill sec-btn" style="height:34px;white-space:nowrap" data-act="frno" data-id="${esc(f.id)}">Decline</button><button class="pill primary-btn" style="height:34px;font-weight:800" data-act="fryes" data-id="${esc(f.id)}">Accept</button></span></div>`).join('')}</div>` : ''}
+    <div class="section-label" style="margin:14px 0 8px">Friends${mates.length ? ' · ' + mates.length : ''}</div>
+    ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>vouches for ${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
+      : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Tap Add and type a friend’s username, or invite someone from Account.</div>`}
+    ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">Waiting for them</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>request sent</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Cancel</button></div>`).join('')}</div>` : ''}`;
+}
+function friendPage(id) {
+  const F = (ui.friends && ui.friends.friends || []).find(x => x.id === id), M = (ui.friendMaps || {})[id];
+  const head = `<div class="page-head" style="justify-content:flex-start;gap:10px"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span class="avatar fr-av" style="width:40px;height:40px">${F && F.avatar ? `<img src="${esc(F.avatar)}" alt="">` : esc((fname(F && F.name)[0] || '?').toUpperCase())}</span><span style="font-size:22px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(fname((M && M.name) || (F && F.name)))}</span></div>`;
+  if (!M) return `<div class="page" style="z-index:15">${head}<p class="page-sub">Loading…</p></div>`;
+  if (M.error) return `<div class="page" style="z-index:15">${head}<div class="card note">${esc(M.error)}</div></div>`;
+  const who = fname(M.name), cityOfF = p => (M.cities || []).find(c => c.id === p.cityId);
+  const row = p => `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}"><span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0"><b>${esc(p.name)}</b><span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`;
+  const group = ps => { const by = {}; ps.forEach(p => { const c = cityOfF(p); const k = c ? c.name : 'Other'; (by[k] = by[k] || []).push(p); }); return Object.keys(by).map(k => `<div class="section-label" style="margin:14px 0 8px">${esc(k)} · ${by[k].length}</div><div class="settings card">${by[k].map(row).join('')}</div>`).join(''); };
+  if (M.locked) return `<div class="page" style="z-index:15">${head}
+    <div class="card fr-teaser"><div class="inv-n">${M.spots}</div><div><b>${esc(who)} vouches for ${plural(M.spots, 'spot')}</b><span>Save ${Math.max(0, 5 - spotCount())} more of your own to unlock their full map.</span></div></div>
+    ${M.places.length ? `<div class="section-label" style="margin:14px 0 8px">A taste of ${esc(who)}’s map</div><div class="settings card">${M.places.map(row).join('')}</div>` : ''}
+    <button class="link-btn" style="margin:22px auto 0;color:var(--coral-soft)" data-act="unfriendask" data-id="${esc(id)}">Remove ${esc(who)} as a friend</button></div>`;
+  const spots = M.places.filter(p => p.status === 'spot'), tries = M.places.filter(p => p.status === 'totry');
+  return `<div class="page" style="z-index:15">${head}
+    <p class="page-sub" style="margin:-4px 0 6px">Vouches for ${plural(spots.length, 'spot')}${tries.length ? ' · wants to try ' + tries.length : ''}</p>
+    ${spots.length ? group(spots) : `<div class="empty card" style="border-radius:20px">${esc(who)} hasn’t saved any spots yet.</div>`}
+    ${tries.length ? `<details class="fr-tries"><summary>${esc(who)} wants to try · ${tries.length}</summary>${group(tries)}</details>` : ''}
+    <button class="link-btn" style="margin:22px auto 0;color:var(--coral-soft)" data-act="unfriendask" data-id="${esc(id)}">Remove ${esc(who)} as a friend</button></div>`;
+}
+function friendSheet(f) {
+  const p = f.p, who = fname(f.ownerName), cur = (f.city && f.city.currency) || '€', isTry = p.status === 'totry';
+  const mine = db.places.find(x => (p.googleId && x.googleId === p.googleId) || (x.name === p.name && Math.abs((x.lat || 0) - p.lat) < 0.0005));
+  return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="closesheet"><div class="grab"></div>
+    <div class="fr-cover">${ART[p.cat] || ART.restaurant}<span class="fr-tag">${isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'}</span></div>
+    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2></div>
+    <div class="meta">${esc([catNames(p), p.cuisine, p.area, f.city && f.city.name, typeof p.lat === 'number' ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · '))}</div>
+    ${!isTry && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(cur.repeat(p.price))}</span><span class="off">${esc(cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
+    ${p.note ? `<div class="note card"><b>${esc(who)}:</b> ${esc(p.note)}</div>` : ''}
+    ${p.mem ? `<div class="fr-mem">📸 ${esc(who)} has ${plural(p.mem, 'memory', 'memories')} here</div>` : ''}
+    ${mine ? `<div class="card note" style="margin:12px 0">Already in your ${mine.status === 'spot' ? 'Spots' : 'To try'}.</div>` : `<button class="big-btn coral-btn" style="width:100%;margin:12px 0 8px" data-act="frsave">${ICON.plus}Save to To try</button>`}
+    ${typeof p.lat === 'number' ? dirButtons(p) : ''}
+    <p class="page-sub" style="font-size:12px;margin:10px 0 0">From ${esc(who)}’s map. It only becomes one of your Spots once you’ve been and save it yourself.</p>
+  </div>`;
+}
+// New members are asked once (per phone) to become friends with whoever invited them
+async function maybeAskInviter(tries = 0) {
+  try { if (localStorage.getItem('sitio.askedFriend')) return; } catch (e) { return; }
+  if (!auth || memberState !== true) return;
+  const made = Date.parse(auth.user.created_at || ''); if (!made || Date.now() - made > 14 * 864e5) return;
+  if (!ui.inviter) await loadInviter(); if (!ui.friends) await loadFriends();
+  const inv = ui.inviter; if (!inv || !inv.invited || !inv.by || !ui.friends) return;
+  if ((ui.friends.friends || []).some(f => (f.name || '').toLowerCase() === inv.by.toLowerCase())) return;
+  if (ui.install || ui.dialog || ui.page || ui.sheet || ui.tour != null || gated()) { if (tries < 200) setTimeout(() => maybeAskInviter(tries + 1), 800); return; }
+  try { localStorage.setItem('sitio.askedFriend', '1'); } catch (e) { }
+  ui.dialog = { type: 'friendinviter', name: inv.by }; render();
+}
+
 /* ---------- Invite-only ---------- */
 // Sitio needs an account, and new accounts need an invite link from a member (#i=CODE).
 let memberState = null; // null = not checked yet, true / false once known
@@ -1530,7 +1650,7 @@ async function checkMember() {
     memberState = ok !== false;
     if (memberState) { try { localStorage.removeItem('sitio.pendingInvite'); } catch (e) { } }
   } catch (e) { memberState = true; } // invite system not set up or offline: never lock people out
-  render(); if (memberState) { sync(); if (!ui.invData) loadInvites(); }
+  render(); if (memberState) { sync(); if (!ui.invData) loadInvites(); loadFriends(); setTimeout(maybeAskInviter, 1500); }
 }
 function gateView() {
   const code = pendingInvite();
@@ -1608,8 +1728,8 @@ let lastMapKey = '';
 function render() {
   document.body.classList.toggle('light', !db.settings.darkMap);
   // Map pins
-  const list = (ui.world ? worldList() : cityPlaces()).filter(p => hasCoords(p) && matches(p, ui.filter));
-  const key = JSON.stringify([ui.world ? 'w' : 'c', list.map(p => p.id + p.status + p.price + coverOf(p) + (photoUrls[coverOf(p)] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
+  const list = (ui.world ? worldList() : cityPlaces()).filter(p => hasCoords(p) && matches(p, ui.filter)).concat(ui.world || ui.tab !== 'home' ? [] : friendPins());
+  const key = JSON.stringify([ui.world ? 'w' : 'c', ui.friendsLayer ? (ui.friendLayerAt || 1) : 0, list.map(p => p.id + p.status + p.price + coverOf(p) + (photoUrls[coverOf(p)] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
   if (key !== lastMapKey) { mapApi.update(list, ui.selected); lastMapKey = key; }
   mapApi.el.style.visibility = ui.tab === 'home' || ui.world ? 'visible' : 'hidden';
 
@@ -1637,6 +1757,7 @@ function render() {
   else if (ui.page === 'terms') h += termsPage();
   else if (ui.page === 'notifs') h += notifsPage();
   else if (ui.page === 'invites') h += invitesPage();
+  else if (ui.page && ui.page.friend) h += friendPage(ui.page.friend);
   else if (ui.page === 'levels') h += levelsPage();
   else if (ui.page === 'import') h += importPage();
   else if (ui.page && ui.page.list) { const l = listOf(ui.page.list); if (l) h += listPage(l); else ui.page = null; }
@@ -1649,6 +1770,7 @@ function render() {
   else if (ui.page && ui.page.adminUser) h += adminUserPage(ui.page.adminUser, ui.page.city);
   else if (ui.page && ui.page.spot) { const p = byId(ui.page.spot); if (p) h += spotPage(p); else ui.page = null; }
   if ((!ui.page || ui.page === 'cities') && !ui.sheet) h += tabbar();
+  if (ui.sheet === 'friendspot' && ui.fspot) h += (ui.tab === 'home' && !ui.page ? '' : '<div class="scrim" data-act="closesheet"></div>') + friendSheet(ui.fspot);
   if (ui.sheet === 'spot' && ui.selected && byId(ui.selected)) h += (ui.tab === 'home' ? '' : '<div class="scrim" data-act="closesheet"></div>') + spotSheet(byId(ui.selected));
   if (ui.adminSheet && ui.page && ui.page.adminUser && ui.page.city) {
     const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), ap = au && au.data && (au.data.places || []).find(x => x.id === ui.adminSheet);
@@ -2173,7 +2295,7 @@ uiEl.addEventListener('click', e => {
     case 'nudgelogin': ui.dialog = null; ui.page = 'auth'; ui.authMode = 'login'; ui.authMsg = null; break;
     case 'saveuname': saveUsername((ui.unameDraft != null ? ui.unameDraft : db.user.name || '').trim()); return;
     case 'unamedlg': saveUsername(((uiEl.querySelector('[data-input="unameDraft"]') || {}).value || '').trim(), true); return;
-    case 'spview': ui.spotsView = t.dataset.v; ui.menu = null; break;
+    case 'spview': ui.spotsView = t.dataset.v; ui.menu = null; if (ui.spotsView === 'friends') loadFriends(); break;
     case 'openlist': ui.page = { list: id }; break;
     case 'listpick': if (p) ui.dialog = { type: 'listpick', id: p.id }; break; // replaces the More sheet
     case 'listtoggle': { const l = listOf(id), pid = ui.dialog.id; if (l) { l.ids = l.ids.includes(pid) ? l.ids.filter(x => x !== pid) : l.ids.concat(pid); touchList(l); } break; }
@@ -2273,6 +2395,18 @@ uiEl.addEventListener('click', e => {
     case 'giveunl': { const uid = ui.dialog.uid; ui.dialog = null; giveInvites(uid, 100000); break; }
     case 'givereset2': { const x = ((ui.adminInv || {})[id] || {}).extra || 0; if (x) giveInvites(id, -x); return; }
     case 'givereset': { const uid = ui.dialog.uid, x = ui.dialog.extra; ui.dialog = null; giveInvites(uid, -x); break; }
+    case 'friendlayer': if (!auth) return; ui.friendsLayer = !ui.friendsLayer; if (ui.friendsLayer && (!ui.friendLayerData || Date.now() - (ui.friendLayerAt || 0) > 300000)) { loadFriendLayer(); } else { lastMapKey = ''; if (ui.friendsLayer) toast('Showing friends’ spots', null); } break;
+    case 'addfriend': ui.dialog = { type: 'addfriend', v: '' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="frName"]'); if (i) i.focus(); }, 60); return;
+    case 'frsend': { const n = (ui.dialog.v || '').trim().replace(/^@/, ''); if (!n) { flash('Type their username.'); return; } ui.dialog = null; render();
+      sbFetch('/rest/v1/rpc/sitio_friend_request', { method: 'POST', body: JSON.stringify({ name: n }) }, true).then(r => { toast(r === 'accepted' ? 'You’re now friends with ' + n : r === 'already' ? 'You’re already friends' : r === 'pending' ? 'Request already sent' : 'Request sent to ' + n, null); loadFriends(); }).catch(e => flash(friendly(e))); return; }
+    case 'fryes': case 'frno': sbFetch('/rest/v1/rpc/sitio_friend_respond', { method: 'POST', body: JSON.stringify({ other: id, accept: act === 'fryes' }) }, true).then(() => { if (act === 'fryes') toast('Friend added', null); ui.friendLayerData = null; loadFriends(); }).catch(e => flash(friendly(e))); return;
+    case 'frinviter': ui.dialog = null; render(); sbFetch('/rest/v1/rpc/sitio_friend_inviter', { method: 'POST', body: '{}' }, true).then(() => { toast('Friend added', null); loadFriends(); }).catch(e => flash(friendly(e))); return;
+    case 'openfriend': ui.prevPage = ui.page; ui.page = { friend: id }; loadFriendMap(id); break;
+    case 'friendspot': { const M = (ui.friendMaps || {})[t.dataset.owner]; const p = M && (M.places || []).find(x => x.id === t.dataset.pid); if (!p) return; const F = (ui.friends.friends || []).find(x => x.id === t.dataset.owner); ui.fspot = { p, owner: t.dataset.owner, ownerName: (M && M.name) || (F && F.name), city: (M.cities || []).find(c => c.id === p.cityId) || null }; ui.sheet = 'friendspot'; break; }
+    case 'frsave': if (ui.fspot) { saveFriendSpot(ui.fspot); } break;
+    case 'unfriendask': { const F = (ui.friends && ui.friends.friends || []).find(x => x.id === id); ui.dialog = { type: 'unfriend', id, name: fname(F && F.name) }; break; }
+    case 'unfriend': ui.dialog = null; sbFetch('/rest/v1/rpc/sitio_friend_remove', { method: 'POST', body: JSON.stringify({ other: id }) }, true).then(() => { toast('Friend removed', null); ui.page = null; ui.friendLayerData = null; loadFriends(); }).catch(e => flash(friendly(e))); return;
+    case 'notepriv': if (p) { p.notePrivate = !p.notePrivate; save(); toast(p.notePrivate ? 'Note is now just for you' : 'Friends can see this note', null); } break;
     case 'newinvite': if (DEMO_INV) { const d = ui.invData; if (d.invites.length < d.allowance) d.invites.unshift({ code: 'demo' + d.invites.length, created_at: new Date().toISOString(), used_at: null }); toast('Demo: this would open your share sheet with the link', null); break; } makeInvite(); return;
     case 'shareinvite': if (DEMO_INV) { const i = ui.invData.invites.find(x => x.code === t.dataset.code); if (i) { i.used_at = new Date().toISOString(); i.name = ['Lola', 'Marta', 'Pablo', 'Ana', 'Leo'][ui.invData.invites.indexOf(i) % 5]; } toast('Demo: a friend used this invite', null); break; } shareInvite(t.dataset.code); return;
     case 'demolevel': ui.invData.allowance = ui.invData.allowance === 3 ? 5 : ui.invData.allowance === 5 ? 8 : 3; toast(ui.invData.allowance === 5 ? 'Demo: reached Local amateur, +2 invites' : ui.invData.allowance === 8 ? 'Demo: reached Spot connoisseur, +3 invites' : 'Demo: back to 3 invites', null); break;
@@ -2306,6 +2440,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
   if (k === 'gateCode') ui.gateCode = v;
+  if (k === 'frName' && ui.dialog && ui.dialog.type === 'addfriend') ui.dialog.v = v;
   if (k === 'giveN' && ui.dialog && ui.dialog.type === 'giveinv') ui.dialog.n = v;
   if (k === 'authCode') { ui.authF = ui.authF || {}; ui.authF.code = v; }
   if (k === 'recapY' || k === 'recapLoc') { ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[k === 'recapY' ? 'y' : 'loc'] = v; render(); }
