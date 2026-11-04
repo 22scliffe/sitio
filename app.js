@@ -735,7 +735,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v2.0.1 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v2.0.2 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1517,7 +1517,7 @@ function invitesPage() {
   return `<div class="page" style="z-index:16">${head}
     <div class="card inv-hero"><div class="inv-n">${unlimited ? '∞' : left}</div><div><b>${unlimited ? 'Unlimited invites' : left === 1 ? 'invite left' : 'invites left'}</b><span>Sitio is invite-only. Each link works once, so send it to someone whose taste you trust.</span></div></div>
     ${nextBonus}
-    <button class="big-btn primary-btn" style="width:100%;margin:14px 0 18px" data-act="newinvite" ${left ? '' : 'disabled'}>${ICON.share}Create an invite link</button>
+    ${left ? `<button class="big-btn primary-btn" style="width:100%;margin:14px 0 18px" data-act="newinvite">${ICON.share}Create an invite link</button>` : `<button class="big-btn sec-btn" style="width:100%;margin:14px 0 18px;opacity:.55" disabled>No invites left</button>`}
     ${d.invites.length ? `<div class="section-label" style="margin-bottom:8px">Your invites</div><div class="settings card">${d.invites.map(i => i.used_at
       ? `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${esc(i.name || 'A friend')} joined</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${fmtDate(Date.parse(i.used_at))}</span></span><span style="color:var(--green)">${ICON.check}</span></div>`
       : `<button class="set-row" data-act="shareinvite" data-code="${esc(i.code)}"><span style="display:flex;flex-direction:column;gap:2px"><span>Waiting to be used</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">Created ${fmtDate(Date.parse(i.created_at))} · tap to send again</span></span><span class="val">${ICON.share}</span></button>`).join('')}</div>` : ''}
