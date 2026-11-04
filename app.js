@@ -724,9 +724,7 @@ function accountView() {
       ${row('Directions open in', db.settings.dirApp === 'apple' ? 'Apple Maps' : 'Google Maps', 'dirapp')}
       ${row('Currency', esc(city().currency) + ' (' + esc(city().name) + ')', 'currency')}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
-      ${row('Back up my spots', 'Save a file', 'backup')}
-      <label class="set-row" style="cursor:pointer"><span>Restore from backup</span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
-      ${row('Import from Google Maps', importQ().length ? importQ().length + ' to add' : '', 'openimport')}
+      ${row('Backup & import', importQ().length ? importQ().length + ' to add' : '', 'backuppage')}
       ${row('Privacy policy', '', 'privacy')}
       ${row('Terms of use', '', 'terms')}
       ${row('Notifications', pushOn ? 'On' : 'Off', 'notifs')}
@@ -741,7 +739,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v0.6.9 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v0.6.10 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1867,6 +1865,7 @@ function render() {
   else if (ui.page && ui.page.friend) h += friendPage(ui.page.friend);
   else if (ui.page === 'levels') h += levelsPage();
   else if (ui.page === 'import') h += importPage();
+  else if (ui.page === 'backup') h += backupPage();
   else if (ui.page && ui.page.list) { const l = listOf(ui.page.list); if (l) h += listPage(l); else ui.page = null; }
   else if (ui.page === 'admin') h += adminPage();
   else if (false) {
@@ -2101,6 +2100,22 @@ async function importFiles(files) {
   items.forEach(it => { if (have(it.name) || q.some(x => x.name.toLowerCase() === it.name.toLowerCase())) { skipped++; return; } q.push(Object.assign({ key: 'i-' + uid() }, it)); added++; });
   setImportQ(q); ui.importMsg = added ? `Found ${added} ${added === 1 ? 'place' : 'places'} to add${skipped ? ` · ${skipped} already in Sitio, skipped` : ''}.` : (items.length ? 'Everything in those files is already in Sitio.' : 'No places found in that file. Pick the CSV files from the Saved folder.');
   render();
+}
+function backupPage() {
+  const row = (label, sub, act) => `<button class="set-row" data-act="${act}"><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span>${label}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span></span><span class="val">${ICON.chevRight}</span></button>`;
+  return `<div class="page" style="z-index:15">
+    <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Backup & import</span></div>
+    <div class="section-label" style="margin-bottom:8px">Backup</div>
+    <div class="settings card">
+      ${row('Back up my spots', 'Save a file with your places, lists and notes', 'backup')}
+      <label class="set-row" style="cursor:pointer"><span style="display:flex;flex-direction:column;gap:2px"><span>Restore from backup</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">Open a Sitio backup file</span></span><span class="val">${ICON.chevRight}</span><input type="file" accept="application/json,.json" hidden data-restore="1"></label>
+    </div>
+    <div class="section-label" style="margin:18px 0 8px">Import</div>
+    <div class="settings card">
+      ${row('Import from Google Maps', importQ().length ? importQ().length + ' places waiting to add' : 'Bring in your saved Google Maps lists', 'openimport')}
+    </div>
+    <p class="page-sub" style="font-size:12px;margin-top:14px;line-height:1.5">${auth ? 'Your spots are already saved to your account. A backup file is an extra copy you keep yourself.' : 'Without an account your spots live only on this phone, so back them up now and then.'} Memory photos aren’t included in the file.</p>
+  </div>`;
 }
 function importPage() {
   const q = importQ(); const lists = [...new Set(q.map(x => x.list))];
@@ -2463,7 +2478,8 @@ uiEl.addEventListener('click', e => {
       break; }
     case 'sharelist': { const l = listOf(id); if (isHidden(l)) return; if (ui.dialog) { ui.dialog = null; render(); } if (l) shareList(l); return; }
     case 'sharedlistsave': { const r = saveSharedList(ui.dialog.data); ui.dialog = null; ui.tab = 'spots'; ui.spotsView = 'lists'; ui.page = { list: r.l.id }; toast(r.l.emoji + ' ' + r.l.name + ' saved' + (r.added ? ' · ' + r.added + ' added to To try' : ''), null); lastMapKey = ''; break; }
-    case 'openimport': ui.page = 'import'; ui.importMsg = ''; break;
+    case 'openimport': if (ui.page === 'backup') ui.prevPage = 'backup'; ui.page = 'import'; ui.importMsg = ''; break;
+    case 'backuppage': ui.prevPage = null; ui.page = 'backup'; break;
     case 'importskip': setImportQ(importQ().filter(x => x.key !== id)); break;
     case 'importclear': setImportQ([]); ui.importMsg = ''; break;
     case 'importadd': { const it = importQ().find(x => x.key === id); if (!it) break; ui.add = newAdd(); ui.add.name = it.name; ui.add.note = it.note || ''; ui.add.importKey = it.key;
