@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.7.3 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.7.4 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -1138,7 +1138,7 @@ function dialogView() {
     return `<div class="dialog-scrim rc-scrim" data-act="closedialog" style="--el:${d.introAt ? Date.now() - d.introAt : 0}ms"></div>${recapBg(d.per, d.introAt ? Date.now() - d.introAt : 0)}<div class="recap open" role="dialog" aria-labelledby="rc-t">${head}
       <div class="rc-strip">${items.map(x => `<div class="rc-slide"><div class="rc-photo"><img src="${x.src}" alt=""></div>${cap(x)}</div>`).join('')}</div>
       ${items.length > 1 ? `<div class="mv-count rc-dots">${items.map((x, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      ${isAdmin && auth && !d.shared ? `<button class="link-btn" style="margin:-4px auto 0;color:rgba(255,255,255,.75)" data-act="recapsend">${ICON.share} Send this recap to friends</button>` : ''}
+      ${!d.shared ? `<button class="link-btn" style="margin:-4px auto 0;color:rgba(255,255,255,.75)" data-act="recapsend">${ICON.share} Share this recap</button>` : ''}
       <button class="big-btn primary-btn" style="width:100%" data-act="closedialog">Done</button></div>`;
   }
   if (d.type === 'levelup') {
@@ -1589,7 +1589,7 @@ async function shareList(l) {
 }
 // One-off: send a recap (with 14-day photo links) to friends as a short link
 async function sendRecap(d) {
-  if (!auth) return;
+  if (!auth) { flash('Log in to share recaps. Your account keeps the photos online.'); return; }
   const ms = recapItems(d.per, d.loc).filter(x => x.m.cloud);
   if (!ms.length) { flash('These photos aren’t online yet. Try again in a minute.'); return; }
   toast('Making the link…', null);
