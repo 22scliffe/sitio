@@ -5,7 +5,13 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.21'; // also in version.txt: bump both
+const APP_VERSION = '0.6.22'; // also in version.txt: bump both
+// One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
+// phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
+const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
+function markOnce(k) { db.settings.seen = Object.assign({}, db.settings.seen, { [k]: 1 }); save(); }
+let syncedOnce = false;
+const popReady = () => !auth || syncedOnce;
 const LOC = () => window.SITIO_LANG === 'es' ? 'es-ES' : 'en-GB';
 const DEFAULT_ME = { lat: 40.4168, lng: -3.7038 }; // Puerta del Sol, used until location is allowed
 
@@ -92,7 +98,11 @@ if (db.v < 12) { db.places.forEach(p => { if (p.photos && p.photos.length) { p.m
 if (db.v < 11) { if (db.tourDone === undefined) db.tourDone = db.places.some(x => !x.sample) || !!localStorage.getItem('sitio.auth'); if (db.v >= 10) { db.v = 11; save(); } }
 if (db.v < 9) { db.places.forEach(p => { if (p.cuisine) p.cuisine = cuisList(p).map(q => q === 'Eastern' ? 'Middle Eastern' : q).join(', '); }); db.v = 9; save(); }
 // Notification types: recaps and friends on, events (promotional) off until switched on
-db.settings = db.settings || {}; if (db.settings.nRecaps === undefined) db.settings.nRecaps = true; if (db.settings.nFriends === undefined) db.settings.nFriends = true; if (db.settings.nEvents === undefined) db.settings.nEvents = false; if (db.settings.shareMems === undefined) db.settings.shareMems = true;
+db.settings = db.settings || {};
+// Carry over what this phone has already shown into the account (so other phones and re-installs know too)
+try { const m = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i) || '';
+  if (k.startsWith('sitio.recap.')) m[k] = 1; else if (k === 'sitio.tourSeen') m.tour = 1; else if (k.startsWith('sitio.pushAsk.')) m.pushAsk = 1; else if (k === 'sitio.askedFriend') m.askedFriend = 1; }
+  if (Object.keys(m).some(k => !(db.settings.seen || {})[k])) db.settings.seen = Object.assign({}, db.settings.seen, m); } catch (e) { } if (db.settings.nRecaps === undefined) db.settings.nRecaps = true; if (db.settings.nFriends === undefined) db.settings.nFriends = true; if (db.settings.nEvents === undefined) db.settings.nEvents = false; if (db.settings.shareMems === undefined) db.settings.shareMems = true;
 // Language: English unless the phone is set to Spanish (until the person picks one in Settings)
 if (db.settings.lang === undefined) { try { const L = (navigator.languages && navigator.languages[0]) || navigator.language || ''; if (/^es\b/i.test(L)) db.settings.lang = 'es'; } catch (e) { } }
 const hasSample = () => db.places.some(x => x.sample);
@@ -902,13 +912,13 @@ function tryRecap(demo, tries = 0) {
     else { const now = new Date(); per = recapPer(now.getFullYear(), Math.floor(now.getMonth() / 2)); for (let n = 0; n < 12 && !recapItems(per).length; n++) per = per.k ? recapPer(per.y, per.k - 1) : recapPer(per.y - 1, 5); }
     if (!per) return;
   }
-  else per = dueRecaps().find(p => { try { if (localStorage.getItem(recapKey(p))) return false; } catch (e) { } return recapItems(p).length; });
+  else { if (!popReady()) { if (tries < 160) setTimeout(() => tryRecap(demo, tries + 1), 500); return; } per = dueRecaps().find(p => { if (seenOnce(recapKey(p))) return false; try { if (localStorage.getItem(recapKey(p))) return false; } catch (e) { } return recapItems(p).length; }); }
   if (!per) return;
   const items = recapItems(per); if (!items.length) return;
   const ready = items.filter(x => photoUrl(x.m.id)).length;
   if ((ready < items.length && tries < 10) || ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 160) setTimeout(() => tryRecap(demo, tries + 1), 500); return; }
   if (!ready) return;
-  if (!demo) { try { localStorage.setItem(recapKey(per), '1'); } catch (e) { } }
+  if (!demo) { try { localStorage.setItem(recapKey(per), '1'); } catch (e) { } markOnce(recapKey(per)); }
   ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
 }
 const releaseAt = per => per.year || per.k === 5 ? new Date(per.y, 11, 30).getTime() : new Date(per.y, per.k * 2 + 2, 0).getTime();
@@ -982,10 +992,11 @@ function showLevelUp(i, demo) {
   setTimeout(() => { if (ui.dialog === d) { const el = uiEl.querySelector('.levelup'); if (el) el.classList.add('out'); setTimeout(() => { if (ui.dialog === d) { ui.dialog = null; render(); } }, 300); } }, 4000);
 }
 function checkLevel() {
-  const i = levelOf(spotCount());
-  if (db.levelSeen === undefined) { db.levelSeen = i; return; }
-  if (i > db.levelSeen) { db.levelSeen = i; save(); setTimeout(() => { if (!ui.dialog) showLevelUp(i); }, 900); }
-  else if (i < db.levelSeen) db.levelSeen = i;
+  if (!popReady()) return;
+  const i = levelOf(spotCount()), s = db.settings;
+  if (s.levelSeen === undefined) { s.levelSeen = Math.max(i, db.levelSeen === undefined ? -9 : db.levelSeen); save(); return; }
+  if (i > s.levelSeen) { s.levelSeen = i; save(); setTimeout(() => { if (!ui.dialog) showLevelUp(i); }, 900); }
+  else if (i < s.levelSeen) { s.levelSeen = i; save(); }
 }
 function levelsPage() {
   const n = spotCount(), i = levelOf(n), next = LEVELS[i + 1];
@@ -1778,7 +1789,7 @@ function friendSheet(f) {
 }
 // Memories became visible to friends (v2.3.6): tell people who already have photos online, once per account
 function maybeMemsNotice(tries = 0) {
-  if (!auth || memberState !== true || db.settings.memsNotice || !memCount(true)) { if (tries < 60 && !db.settings.memsNotice) setTimeout(() => maybeMemsNotice(tries + 1), 1500); return; }
+  if (!auth || memberState !== true || !popReady() || db.settings.memsNotice || !memCount(true)) { if (tries < 60 && !db.settings.memsNotice) setTimeout(() => maybeMemsNotice(tries + 1), 1500); return; }
   if (ui.install || ui.dialog || ui.page || ui.sheet || ui.tour != null || gated()) { if (tries < 200) setTimeout(() => maybeMemsNotice(tries + 1), 1000); return; }
   ui.dialog = { type: 'memsnotice' }; render();
 }
@@ -1819,13 +1830,15 @@ setTimeout(adminToTry, 3000);
 // New members are asked once (per phone) to become friends with whoever invited them
 async function maybeAskInviter(tries = 0) {
   try { if (localStorage.getItem('sitio.askedFriend')) return; } catch (e) { return; }
+  if (!popReady()) { if (tries < 200) setTimeout(() => maybeAskInviter(tries + 1), 800); return; }
+  if (seenOnce('askedFriend')) return;
   if (!auth || memberState !== true) return;
   const made = Date.parse(auth.user.created_at || ''); if (!made || Date.now() - made > 14 * 864e5) return;
   if (!ui.inviter) await loadInviter(); if (!ui.friends) await loadFriends();
   const inv = ui.inviter; if (!inv || !inv.invited || !inv.by || !ui.friends) return;
   if ((ui.friends.friends || []).some(f => (f.name || '').toLowerCase() === inv.by.toLowerCase())) return;
   if (ui.install || ui.dialog || ui.page || ui.sheet || ui.tour != null || gated()) { if (tries < 200) setTimeout(() => maybeAskInviter(tries + 1), 800); return; }
-  try { localStorage.setItem('sitio.askedFriend', '1'); } catch (e) { }
+  try { localStorage.setItem('sitio.askedFriend', '1'); } catch (e) { } markOnce('askedFriend');
   ui.dialog = { type: 'friendinviter', name: inv.by }; render();
 }
 
@@ -2043,12 +2056,15 @@ const TOUR = [
 ];
 const tourForced = /[?&]tour=1/.test(location.search);
 function startTour() { if (ui.install || ui.tour != null) return; ui.tour = 0; ui.tab = 'home'; ui.sheet = null; ui.selected = null; ui.page = null; ui.menu = null; ui.dialog = null; render(); }
-function endTour() { ui.tour = null; ui.sheet = null; ui.selected = null; db.tourDone = true; save(); try { localStorage.setItem('sitio.tourSeen', '1'); } catch (e) { } render(); }
+function endTour() { ui.tour = null; ui.sheet = null; ui.selected = null; db.tourDone = true; markOnce('tour'); try { localStorage.setItem('sitio.tourSeen', '1'); } catch (e) { } render(); }
 // New members get the tour once on each phone they set up (Safari and the home-screen app are separate),
 // as soon as nothing else is in the way. Accounts older than two weeks never see it automatically.
 function maybeFirstTour(tries = 0) {
   try { if (localStorage.getItem('sitio.tourSeen')) return; } catch (e) { return; }
   if (!auth || !auth.user) return;
+  if (!popReady()) { if (tries < 120) setTimeout(() => maybeFirstTour(tries + 1), 700); return; }
+  if (seenOnce('tour')) { try { localStorage.setItem('sitio.tourSeen', '1'); } catch (e) { } return; }
+  if (IS_IOS && !STANDALONE) return; // on iPhone, the tour waits for the home-screen app
   const made = Date.parse(auth.user.created_at || ''); if (!made || Date.now() - made > 14 * 864e5) return;
   if (gated() || memberState === null || ui.install || ui.dialog || ui.page || ui.sheet || ui.tour != null) { if (tries < 120) setTimeout(() => maybeFirstTour(tries + 1), 700); return; }
   startTour();
@@ -2840,7 +2856,7 @@ function mergeData(local, remote) {
   const user = Object.assign({}, lose.user || {}, win.user || {}); if (!user.name && lose.user && lose.user.name) user.name = lose.user.name;
   const lmap = {}; (remote.lists || []).forEach(l => { lmap[l.id] = l; }); (local.lists || []).forEach(l => { const r = lmap[l.id]; if (!r || (l.updatedAt || 0) >= (r.updatedAt || 0)) lmap[l.id] = l; });
   const lists = Object.values(lmap).filter(l => !(del[l.id] && del[l.id] >= (l.updatedAt || 0)));
-  return Object.assign({}, local, { lists, user, settings: Object.assign({}, local.settings, win.settings || {}), cities, currentCityId: cities.some(c => c.id === win.currentCityId) ? win.currentCityId : cities[0].id, places, deleted: del, metaAt: Math.max(lm, rm) });
+  return Object.assign({}, local, { lists, user, settings: Object.assign({}, local.settings, win.settings || {}, { seen: Object.assign({}, (local.settings || {}).seen, (remote.settings || {}).seen) }), cities, currentCityId: cities.some(c => c.id === win.currentCityId) ? win.currentCityId : cities[0].id, places, deleted: del, metaAt: Math.max(lm, rm) });
 }
 function queuePush() { if (!auth || !cloudOn()) return; clearTimeout(pushTimer); pushTimer = setTimeout(sync, 1500); }
 function sync() {
@@ -2855,7 +2871,7 @@ function sync() {
       if (remote && remote.places) { db = mergeData(db, remote); ensureHidden(); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
       await sbFetch('/rest/v1/sitio_data?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ user_id: auth.user.id, data: db, updated_at: new Date().toISOString() }) }, true);
       const changed = JSON.stringify(db) !== before;
-      const was = syncState; syncState = 'ok'; ensureUsername(); setTimeout(uploadMemories, 500);
+      const was = syncState; syncState = 'ok'; if (!syncedOnce) { syncedOnce = true; checkLevel(); } ensureUsername(); setTimeout(uploadMemories, 500);
       if (changed || was !== 'ok') { lastMapKey = ''; render(); }
     } catch (e) { syncState = 'error: ' + (e.status || '') + ' ' + (e.message || '').slice(0, 60); if (e.status === 401) setAuth(null); if (ui.tab === 'account') render(); }
     finally { syncing = null; if (syncAgain) { syncAgain = false; queuePush(); } }
@@ -3079,10 +3095,12 @@ const pushIdle = () => !ui.dialog && !ui.install && !ui.sheet && !ui.page && ui.
 function askPush(key, force, tries = 0) {
   if (!pushSupported() || !auth || Notification.permission === 'denied') return;
   try { if (localStorage.getItem(key)) return; } catch (e) { }
+  if (seenOnce('pushAsk')) return;
+  if (!popReady()) { if (tries < 240) setTimeout(() => askPush(key, force, tries + 1), 600); return; }
   if (pushOn && !force) return;
   if (!pushIdle()) { if (tries < 240) setTimeout(() => askPush(key, force, tries + 1), 600); return; }
   // only ask once the notification setup exists online, so nobody is asked before it can work
-  pushReady().then(ok => { if (!ok || !pushIdle()) return; try { localStorage.setItem(key, '1'); } catch (e) { } ui.dialog = { type: 'pushask' }; render(); });
+  pushReady().then(ok => { if (!ok || !pushIdle()) return; try { localStorage.setItem(key, '1'); } catch (e) { } markOnce('pushAsk'); ui.dialog = { type: 'pushask' }; render(); });
 }
 let pushReadyP = null;
 function pushReady() { return pushReadyP || (pushReadyP = sbFetch('/rest/v1/sitio_push?select=endpoint&limit=1', {}, true).then(() => true, () => { pushReadyP = null; return false; })); }
@@ -3093,7 +3111,6 @@ function openPushAsk() {
   const decide = (tries = 0) => {
     if (!auth) return;
     if (!adminKnown && tries < 30) return setTimeout(() => decide(tries + 1), 500);
-    if (isAdmin) return askPush('sitio.pushAsk.adminOpen4', true);
     if (!auth.user.created_at && tries < 30) {
       if (tries === 0) sbFetch('/auth/v1/user', {}, true).then(u => { if (u && u.created_at && auth) { auth.user.created_at = u.created_at; try { localStorage.setItem('sitio.auth', JSON.stringify(auth)); } catch (e) { } } }).catch(() => { });
       return setTimeout(() => decide(tries + 1), 500);
@@ -3104,9 +3121,10 @@ function openPushAsk() {
   };
   setTimeout(decide, 1200);
 }
-function memoryPushAsk() { if (isAdmin) askPush('sitio.pushAsk.adminMem1', true); else askPush('sitio.pushAsk.mem'); }
+function memoryPushAsk() { askPush('sitio.pushAsk.mem'); }
 setTimeout(() => { refreshPushState(); openPushAsk(); }, 400);
 function adminPushPreview(tries = 0) {
+  return; // retired
   try { if (localStorage.getItem('sitio.pushPreviewND5')) return; } catch (e) { }
   if (!auth || !pushSupported()) return;
   if ((!adminKnown || !pushOn) && tries < 40) return setTimeout(() => adminPushPreview(tries + 1), 500);
@@ -3140,6 +3158,7 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('mess
 
 // One-off showcase for the admin account: the 2025 year recap on Home (or the latest past year with memories)
 function adminShowcase(tries = 0) {
+  return; // retired: the one-off recap showcase is done
   try { if (localStorage.getItem('sitio.previewDemo2')) return; } catch (e) { }
   if (!isAdmin) { if (tries < 120) setTimeout(() => adminShowcase(tries + 1), 500); return; }
   if (ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 240) setTimeout(() => adminShowcase(tries + 1), 500); return; }
