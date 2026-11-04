@@ -35,14 +35,14 @@ Deno.serve(async (req) => {
     const { data: rows } = await db.from("sitio_push").select("endpoint,user_id,sub").eq("user_id", data.user.id);
     // Admin only: preview a recap notification, sent after a short pause so the phone can be locked first
     if (body.preview) {
-      const asUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: "Bearer " + token } } });
-      const { data: admin } = await asUser.rpc("sitio_is_admin");
-      if (admin !== true) return json({ error: "admins only" }, 403);
+      const asUser = createClient(Deno.env.get("SUPABASE_URL")!, req.headers.get("apikey") || Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: "Bearer " + token } } });
+      const { data: admin, error: aerr } = await asUser.rpc("sitio_is_admin");
+      if (admin !== true) return json({ error: "admins only" + (aerr ? ": " + aerr.message : "") }, 403);
       const py = Number(body.preview.y), pk = Number(body.preview.k);
       const msg = pk === -1 ? `✨ Your ${py} in Sitio is ready` : `📸 Your ${MONTHS[pk * 2]} / ${MONTHS[pk * 2 + 1]} recap is ready`;
       await new Promise((r) => setTimeout(r, Math.min(60, Number(body.delay) || 0) * 1000));
       const sent = await send((rows || []) as Sub[], { title: "Sitio", body: msg + ". Open Sitio to watch it.", url: `./#recap=${py}-${pk === -1 ? "y" : pk}` });
-      return json({ sent });
+      return json({ sent, phones: (rows || []).length });
     }
     const sent = await send((rows || []) as Sub[], { title: "Sitio", body: "🔔 You’re all set. We’ll let you know when your next recap is ready.", url: "./" });
     return json({ sent });

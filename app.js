@@ -719,7 +719,7 @@ function accountView() {
 function memCount(online) { let n = 0; db.places.forEach(p => (p.memories || []).forEach(m => { if (!online || m.cloud) n++; })); return n; }
 function diag() {
   let safe = 0; try { const p = document.createElement('div'); p.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom);'; document.body.appendChild(p); safe = Math.round(p.getBoundingClientRect().height); p.remove(); } catch (e) { }
-  return `v1.8.5 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
+  return `v1.8.6 \u00b7 ${STANDALONE ? 'app' : 'browser'} \u00b7 window ${innerWidth}\u00d7${innerHeight} \u00b7 screen ${screen.width}\u00d7${screen.height} \u00b7 frame ${Math.round(root.getBoundingClientRect().height)} \u00b7 safe ${safe} \u00b7 ${auth ? esc(auth.user.email) + ' \u00b7 admin: ' + (isAdmin ? 'yes' : esc(adminErr || 'checking')) + ' \u00b7 sync: ' + (syncState || '–') + ' \u00b7 photos online: ' + memCount(true) + '/' + memCount() + (upErr ? ' \u00b7 photo error: ' + esc(upErr) : '') : 'logged out'}`;
 }
 function citiesPage() {
   return `<div class="page" style="z-index:15">
@@ -2368,12 +2368,14 @@ function openPushAsk() {
 function memoryPushAsk() { if (isAdmin) askPush('sitio.pushAsk.adminMem1', true); else askPush('sitio.pushAsk.mem'); }
 setTimeout(() => { refreshPushState(); openPushAsk(); }, 400);
 function adminPushPreview(tries = 0) {
-  try { if (localStorage.getItem('sitio.pushPreviewND2')) return; } catch (e) { }
+  try { if (localStorage.getItem('sitio.pushPreviewND3')) return; } catch (e) { }
   if (!auth || !pushSupported()) return;
   if ((!adminKnown || !pushOn) && tries < 40) return setTimeout(() => adminPushPreview(tries + 1), 500);
   if (!isAdmin || !pushOn) return;
-  try { localStorage.setItem('sitio.pushPreviewND2', '1'); } catch (e) { }
-  sbFetch('/functions/v1/sitio-push', { method: 'POST', body: JSON.stringify({ test: true, preview: { y: 2026, k: 5 }, delay: 20 }) }, true).catch(() => { });
+  try { localStorage.setItem('sitio.pushPreviewND3', '1'); } catch (e) { }
+  sbFetch('/functions/v1/sitio-push', { method: 'POST', body: JSON.stringify({ test: true, preview: { y: 2026, k: 5 }, delay: 20 }) }, true)
+    .then(r => flash(r && r.sent ? 'Preview notification sent to ' + r.sent + ' phone' + (r.sent === 1 ? '' : 's') + '.' : 'Preview didn’t send: ' + JSON.stringify(r)))
+    .catch(e => flash('Preview failed: ' + friendly(e) + (e.status ? ' (' + e.status + ')' : '')));
   toast('Lock your phone: the Nov / Dec notification arrives in about 20 seconds', null);
 }
 setTimeout(adminPushPreview, 1500);
