@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.26'; // also in version.txt: bump both
+const APP_VERSION = '0.6.27'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -210,7 +210,7 @@ function status(p, now = new Date()) {
 }
 
 /* ---------- geography ---------- */
-let me = Object.assign({}, DEFAULT_ME), haveLocation = false;
+let me = Object.assign({}, DEFAULT_ME), haveLocation = false, liveLocation = false;
 const hasCoords = p => typeof p.lat === 'number' && typeof p.lng === 'number';
 function dist(p) {
   if (!hasCoords(p)) return 1e12;
@@ -222,15 +222,25 @@ function dist(p) {
 const fmtDist = (m) => m >= 1e11 ? '' : m < 1000 ? Math.round(m / 10) * 10 + '\u00a0m' : (m / 1000).toFixed(1) + '\u00a0km';
 const AT = (() => { const m = (location.search.match(/[?&]at=(-?[\d.]+),(-?[\d.]+)/) || []); return m[1] ? { lat: +m[1], lng: +m[2] } : null; })();
 function locate(center) {
-  if (AT) { const first = !haveLocation; me = Object.assign({}, AT); haveLocation = true; if (center || (first && nearCity())) mapApi.center(me); if (first) whereAmI(); render(); return; }
+  if (AT) { const first = !haveLocation; me = Object.assign({}, AT); haveLocation = true; liveLocation = true; if (center || (first && nearCity())) mapApi.center(me); if (first) whereAmI(); render(); return; }
   if (!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(pos => {
-    const first = !haveLocation;
-    me = { lat: pos.coords.latitude, lng: pos.coords.longitude }; haveLocation = true;
+    const first = !liveLocation;
+    me = { lat: pos.coords.latitude, lng: pos.coords.longitude }; haveLocation = true; liveLocation = true;
+    try { localStorage.setItem('sitio.lastLoc', JSON.stringify({ lat: me.lat, lng: me.lng, at: Date.now() })); localStorage.setItem('sitio.locAsked', '1'); } catch (e) { }
     if (center || (first && nearCity())) mapApi.center(me);
     if (first) whereAmI();
     render();
   }, () => { if (center) flash('Location is off. Allow it in Settings to see spots near you.'); }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+}
+// On launch, never pop the phone's location question again: use where you were last time, and only ask the phone
+// quietly if it already says yes. The ask happens the very first time, and whenever you tap the locate button.
+function startLocation() {
+  if (AT) { locate(false); return; }
+  try { const L = JSON.parse(localStorage.getItem('sitio.lastLoc')); if (L && typeof L.lat === 'number' && Date.now() - L.at < 30 * 864e5) { me = { lat: L.lat, lng: L.lng }; haveLocation = true; } } catch (e) { }
+  let asked = false; try { asked = localStorage.getItem('sitio.locAsked') === '1' || !!localStorage.getItem('sitio.lastLoc'); } catch (e) { }
+  if (!asked) { try { localStorage.setItem('sitio.locAsked', '1'); } catch (e) { } locate(false); return; }
+  try { navigator.permissions.query({ name: 'geolocation' }).then(r => { if (r.state === 'granted') locate(false); }).catch(() => { }); } catch (e) { }
 }
 
 /* ---------- install (add to home screen) ---------- */
@@ -627,7 +637,7 @@ async function photoDate(file) {
 }
 // Small hint on Home when you're standing at one of your places
 function hereMemoryChip() {
-  if (!haveLocation || ui.sheet || ui.menu) return '';
+  if (!liveLocation || ui.sheet || ui.menu) return '';
   const near = cityPlaces().filter(p => p.status === 'spot' && dist(p) < 80).sort((a, b) => dist(a) - dist(b))[0];
   if (!near) return '';
   const key = 'sitio.memAsk.' + near.id + '.' + new Date().toDateString(); try { if (localStorage.getItem(key)) return ''; } catch (e) { }
@@ -3391,7 +3401,7 @@ document.addEventListener('visibilitychange', () => {
   sync(); setTimeout(takeShares, 1500); checkVersion();
   if (hiddenAt && Date.now() - hiddenAt > 10 * 60000) setTimeout(() => maybeNudge('open'), 800);
 });
-locate(false);
+startLocation();
 refreshHours();
 setInterval(() => { lastMapKey = ''; render(); }, 60000);
 window.addEventListener('resize', () => { if (ui.tour != null) placeTour(); });
