@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.27'; // also in version.txt: bump both
+const APP_VERSION = '0.6.28'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -452,6 +452,7 @@ const mapApi = (() => {
   pinsEl.addEventListener('click', e => {
     const r = e.target.closest('.ring'); if (!r) return;
     e.stopPropagation(); pinClickAt = Date.now();
+    if (gated()) return;
     if (ui.world) { ui.wSel = r.dataset.id; ui.menu = null; const wp = pinMap.get(ui.wSel); if (wp) api.focus(wp); render(); return; }
     const fp = pinMap.get(r.dataset.id); if (fp && fp._friend) { ui.fspot = fp._friend; ui.sheet = 'friendspot'; ui.selected = null; ui.menu = null; render(); return; }
     ui.selected = r.dataset.id; ui.sheet = 'spot'; ui.menu = null; const sp = byId(ui.selected); if (sp) api.focus(sp); render();
@@ -1634,7 +1635,10 @@ function dialogView() {
       <div class="meta" style="margin:0">${esc([catOf(s.c).name, s.q, s.a].filter(Boolean).join(' · '))}</div>
       ${s.p ? `<div class="price-line">${priceHtml(s.p)}${PRICE_WORDS[s.p]}, says ${esc(s.f || 'your friend')}</div>` : ''}
       ${s.o ? `<div class="note card" style="margin:10px 0"><b>${esc(s.f || 'Note')}:</b> ${esc(s.o)}</div>` : ''}
-      <div class="stack" style="margin-top:10px"><button class="big-btn primary-btn" data-act="sharedspot">Add to Spots</button><button class="big-btn coral-btn" data-act="sharedtry">Add to To try</button><button class="big-btn" style="background:none;border:0;height:40px;color:var(--text-soft)" data-act="closedialog">Not now</button></div>${reportLink('Shared spot "' + s.n + '" from ' + (s.f || 'someone'))}</div></div>`;
+      ${gated() ? `<div style="margin-top:12px">${mapDirButtons(guestPlace(s), 'guestmap')}</div>
+      <p class="page-sub guest-inv">${ICON.lock}<span>Sitio is invite-only. To save it to your own map, ask ${esc(s.f || 'your friend')} for an invite.</span></p>
+      <div class="stack"><button class="big-btn" style="background:none;border:0;height:40px;color:var(--text-soft)" data-act="closedialog">Not now</button></div>${reportLink('Shared spot "' + s.n + '" from ' + (s.f || 'someone'))}</div></div>` : ''}
+      ${gated() ? '' : `<div class="stack" style="margin-top:10px"><button class="big-btn primary-btn" data-act="sharedspot">Add to Spots</button><button class="big-btn coral-btn" data-act="sharedtry">Add to To try</button><button class="big-btn" style="background:none;border:0;height:40px;color:var(--text-soft)" data-act="closedialog">Not now</button></div>${reportLink('Shared spot "' + s.n + '" from ' + (s.f || 'someone'))}</div></div>`}`;
   }
   return '';
 }
@@ -1989,6 +1993,20 @@ async function checkMember() {
   } catch (e) { memberState = true; } // invite system not set up or offline: never lock people out
   render(); if (memberState) { sync(); if (!ui.invData) loadInvites(); loadFriends(); setTimeout(maybeAskInviter, 1500); setTimeout(takeShares, 2500); }
 }
+// A spot shared by link can be looked at on the map without an account (Sitio itself stays invite-only)
+const guestPlace = s => ({ id: 'guest', name: s.n, cat: s.c, cats: s.cs && s.cs.length ? s.cs : [s.c], cuisine: s.q, area: s.a, lat: s.la, lng: s.ln, googleId: s.g || null, status: 'spot', photos: [], hours: null });
+function guestView() {
+  const s = ui.guest, p = guestPlace(s);
+  return `<button class="round glass guest-back" data-act="guestback" aria-label="Back">${ICON.back}</button>
+    <div class="sheet guest-card" role="dialog" aria-label="${esc(s.n)}">
+      <div class="section-label">${esc(s.f || 'A friend')}’s spot</div><h2 class="big-name" style="margin:4px 0 2px">${esc(s.n)}</h2>
+      <div class="meta">${esc([catOf(s.c).name, s.q, s.a, haveLocation ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · '))}</div>
+      ${s.o ? `<div class="note card" style="margin:10px 0"><b>${esc(s.f || 'Note')}:</b> ${esc(s.o)}</div>` : ''}
+      <div class="btn-grid" style="margin-top:12px"><a class="big-btn primary-btn" href="${gLink(p)}" target="_blank" rel="noopener">${ICON.nav}Google Maps</a><a class="big-btn sec-btn" href="${aLink(p)}" target="_blank" rel="noopener">${ICON.nav}Apple Maps</a></div>
+      <p class="page-sub guest-inv">${ICON.lock}<span>Sitio is invite-only. Ask ${esc(s.f || 'your friend')} for an invite to save spots to your own map.</span></p>
+      ${auth ? '' : '<button class="link-btn" style="margin:2px auto 0" data-act="gatelogin">I have an account · Log in</button>'}
+    </div>`;
+}
 function gateView() {
   const code = pendingInvite();
   if (auth) return `<div class="gate"><div class="gate-in">
@@ -2082,10 +2100,12 @@ function render() {
   const selStart = focus ? document.activeElement.selectionStart : null;
   let h = '';
   if (gated()) {
-    if (ui.page === 'auth') h += authPage(); else if (ui.page === 'privacy') h += privacyPage(); else if (ui.page === 'terms') h += termsPage(); else h += gateView();
+    const gm = ui.guest && !ui.page && !ui.dialog;
+    if (ui.page === 'auth') h += authPage(); else if (ui.page === 'privacy') h += privacyPage(); else if (ui.page === 'terms') h += termsPage(); else h += gm ? guestView() : gateView();
     if (ui.dialog && ['shared', 'sharedlist', 'recap', 'logout'].includes(ui.dialog.type)) h += dialogView();
     if (ui.flash) h += `<div class="banner glass">${esc(ui.flash)}</div>`;
-    uiEl.innerHTML = h; mapApi.el.style.visibility = 'hidden';
+    uiEl.innerHTML = h; mapApi.el.style.visibility = gm ? 'visible' : 'hidden';
+    if (gm) { const gp = guestPlace(ui.guest); mapApi.update([gp], 'guest'); if (mapApi.google !== ui.guestCentred) { ui.guestCentred = mapApi.google; mapApi.focus(gp); } lastMapKey = ''; }
     if (focus) { const el = uiEl.querySelector(`[data-input="${focus}"]`); if (el) { el.focus(); try { el.setSelectionRange(selStart, selStart); } catch (e) { } } }
     return;
   }
@@ -2918,6 +2938,8 @@ uiEl.addEventListener('click', e => {
     case 'invite': { const text = 'This is Sitio, my map of the best spots. Add it to your home screen:'; (navigator.share ? navigator.share({ title: 'Sitio', text, url: appUrl() }) : Promise.reject()).catch(err => { if (err && err.name === 'AbortError') return; navigator.clipboard.writeText(text + ' ' + appUrl()).then(() => toast('Invite link copied', null)).catch(() => flash(appUrl())); }); return; }
     case 'hours': ui.dialog = { type: 'text', title: 'Opening hours for ' + p.name, text: 'Same every day, e.g. 13:00-23:30. Or per day, e.g. Mo-Fr 09:00-20:00; Sa,Su 10:00-01:00.', fields: [{ ph: '13:00-23:30' }], ok: v => { const w = parseOH(v[0]); if (!w) { flash('Couldn’t read those hours.'); return; } p.hours = w; p.hoursSrc = 'manual'; save(); lastMapKey = ''; } }; break;
     case 'dlgok': { const vals = [...uiEl.querySelectorAll('[data-dlgfield]')].map(i => i.value); const fn = ui.dialog.ok; ui.dialog = null; fn(vals); break; }
+    case 'guestmap': { const s = ui.dialog && ui.dialog.data; if (!s) return; ui.guest = s; ui.guestCentred = null; ui.dialog = null; break; }
+    case 'guestback': ui.dialog = { type: 'shared', data: ui.guest }; ui.guest = null; break;
     case 'sharedspot': { const s = ui.dialog.data; openPrice({ name: s.n }, { mode: 'shared', data: s, value: s.p || 0, hint: s.p ? (s.f || 'Your friend') + ' says ' + PRICE_WORDS[s.p] + '. Change it if you disagree.' : '' }); return; }
     case 'sharedtry': { const s = ui.dialog.data; const np = sharedToPlace(s, 'totry', 0); np.note = s.o ? (s.f || 'Friend') + ': ' + s.o : ''; db.places.push(np); save(); ui.dialog = null; toast(np.name + ' added to To try', () => { db.places = db.places.filter(x => x.id !== np.id); save(); }); afterSave(np); return; }
   }

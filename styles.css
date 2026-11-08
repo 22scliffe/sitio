@@ -900,3 +900,7 @@ html[lang=es] .page-title { font-size: 27px; letter-spacing: -0.6px; }
 .lk-seg { margin: 4px 0 6px; }
 .lk-sub { font-size: 12.5px; line-height: 1.45; margin: 0 2px 10px; min-height: 36px; }
 .fr-list summary { display: flex; align-items: center; gap: 6px; font-size: 15px; color: var(--text); }
+/* Shared spot for people without an account: look at it on the map */
+.guest-back { position: absolute; top: calc(var(--safe-top) + 12px); left: 16px; z-index: 30; width: 46px; height: 46px; }
+.guest-inv { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; margin: 12px 2px 4px; text-align: left; }
+.guest-inv svg { width: 15px; height: 15px; flex: none; margin-top: 1px; opacity: .8; }
