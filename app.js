@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.29'; // also in version.txt: bump both
+const APP_VERSION = '0.6.30'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -335,6 +335,11 @@ function detailChips(cats, picked, act) {
 function pickCat(cur, v, multi) { const n = !multi ? [v] : cur.includes(v) ? (cur.length > 1 ? cur.filter(x => x !== v) : cur) : cur.concat(v); return n; }
 const keepDetail = (cats, list) => list.filter(x => detailOpts(cats).includes(x) || !Object.values(DETAIL).some(d => d.opts.includes(x)));
 const STATUS_F = ['everything', 'totry', 'spots'];
+// Favourites: one polished gold star used everywhere (map pins, menu, buttons); the gradient lives once in the page
+const GOLD_STAR = '<svg class="gstar" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.4l2.86 5.8 6.4.93-4.63 4.51 1.09 6.37L12 17.02l-5.72 3 1.09-6.37-4.63-4.51 6.4-.93z" fill="url(#sitioGold)" stroke="url(#sitioGoldEdge)" stroke-width="1.1" stroke-linejoin="round"/><path d="M12 4.9l1.9 3.86" stroke="rgba(255,255,255,.55)" stroke-width=".9" stroke-linecap="round" fill="none"/></svg>';
+(function goldDefs() { const d = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); d.setAttribute('width', '0'); d.setAttribute('height', '0'); d.setAttribute('aria-hidden', 'true'); d.style.position = 'absolute';
+  d.innerHTML = '<defs><linearGradient id="sitioGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF4C8"/><stop offset=".32" stop-color="#F3D27A"/><stop offset=".62" stop-color="#D2A13C"/><stop offset="1" stop-color="#9A6B17"/></linearGradient><linearGradient id="sitioGoldEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C9973A"/><stop offset="1" stop-color="#6E4A0C"/></linearGradient></defs>';
+  document.body.appendChild(d); })();
 function cuisList(p) { return (p.cuisine || '').split(',').map(s => s.trim()).filter(Boolean); }
 function catMatch(p, cats) {
   const lt = cats.filter(f => f.startsWith('list:'));
@@ -433,7 +438,7 @@ const mapApi = (() => {
       const st = status(p); const closed = p.status === 'spot' && st && !st.open;
       if (p._friend) return `<div class="pin friend" data-pin="${p.id}"><button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}, ${esc(p._friend.ownerName || 'a friend')}’s spot"><span class="fr-pin">${esc(((p._friend.ownerName || '?')[0] || '?').toUpperCase())}</span></button><div class="label">${esc(p.name)}</div></div>`;
       return `<div class="pin ${p.status === 'totry' ? 'totry' : ''} ${closed ? 'closed' : ''} ${selected === p.id ? 'selected' : ''}" data-pin="${p.id}">
-        ${p.fav ? `<span class="pin-star" aria-hidden="true">${ICON.star}</span>` : ''}<button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}${p.fav ? ', favourite' : ''}">${p.status === 'totry' && !(p.photos && p.photos.length) ? ART.totry : art(p)}</button>
+        ${p.fav ? `<span class="pin-star">${GOLD_STAR}</span>` : ''}<button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}${p.fav ? ', favourite' : ''}">${p.status === 'totry' && !(p.photos && p.photos.length) ? ART.totry : art(p)}</button>
         <div class="label">${esc(p.name)}</div>${closed && selected === p.id ? `<div class="sub">${esc(st.text)}</div>` : ''}</div>`;
     }).join('');
     positionPins();
@@ -560,7 +565,7 @@ function filterMenu() {
   h += `<button class="${sAll ? 'on' : ''}" data-act="filt" data-f="everything">All${sAll ? ICON.check : ''}</button>`;
   h += `<button class="${sSpots ? 'on' : ''}" data-act="filt" data-f="spots" style="font-weight:800;color:var(--text)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--text)"></span>My spots</span>${sSpots ? ICON.check : ''}</button>`;
   h += `<button class="${sTry ? 'on' : ''}" data-act="filt" data-f="totry" style="color:var(--coral-soft)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--coral)"></span>To try</span>${sTry ? ICON.check : ''}</button>`;
-  if (!isList) { const fv = f.includes('favs'); h += `<button class="${fv ? 'on' : ''} menu-fav" data-act="filt" data-f="favs"><span style="display:flex;align-items:center;gap:8px"><span class="mf-star">${ICON.star}</span>Favourites only</span>${fv ? ICON.check : ''}</button>`; }
+  if (!isList) { const fv = f.includes('favs'); h += `<button class="${fv ? 'on' : ''} menu-fav" data-act="filt" data-f="favs"><span style="display:flex;align-items:center;gap:8px"><span class="mf-star">${GOLD_STAR}</span>Favourites</span>${fv ? ICON.check : ''}</button>`; }
   h += `<div class="sep"></div>`;
   }
   CATS.forEach(c => {
@@ -668,11 +673,11 @@ function spotSheet(p) {
   const tryBtns = isTry && (ui.tab !== 'home' || ui.page);
   const first = tryBtns ? '<span></span>' : isTry
     ? `<button class="act act-save" data-act="savetry" data-id="${p.id}">${ICON.plus}<span>Save to Spots</span></button>`
-    : `<button class="act ${p.fav ? 'fav-on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}">${ICON.star}<span>Favourite</span></button>`;
+    : `<button class="act ${p.fav ? 'fav-on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}">${p.fav ? GOLD_STAR : ICON.star}<span>Favourite</span></button>`;
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
     ${isTry ? tryCover(p) : memoryStrip(p)}
-    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}${isTry ? `<span style="margin-left:auto;flex:none;display:flex;gap:8px;align-items:center"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" style="width:40px;height:40px" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button>${more}</span>` : ''}</div>
+    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}${isTry ? `<span style="margin-left:auto;flex:none;display:flex;gap:8px;align-items:center"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" style="width:40px;height:40px" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${p.fav ? GOLD_STAR : ICON.star}</button>${more}</span>` : ''}</div>
     ${isTry ? '' : `<div class="act-row">${first}${more}</div>`}
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${p.via ? `<div class="via-line">${ICON.friends}<span>via <b>${esc(p.via.name)}</b></span>${reportLink('Spot from ' + p.via.name + ': ' + p.name)}</div>` : ''}
@@ -710,7 +715,7 @@ function spotsView() {
     <div class="page-head head2"><div><h1 class="page-title">Spots</h1><div class="page-sub">${cityPlaces().filter(p => p.status === 'spot').length} ${cityPlaces().filter(p => p.status === 'spot').length === 1 ? 'spot' : 'spots'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(cityLabel())}${ICON.chevDown}</button><button class="pill primary-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
     <div class="seg" role="tablist"><button class="${!ui.spotsView || ui.spotsView === 'places' ? 'on' : ''}" data-act="spview" data-v="places" role="tab">Places</button><button class="${ui.spotsView === 'lists' ? 'on' : ''}" data-act="spview" data-v="lists" role="tab">Lists${myLists().length + myGroups().length ? ` <span class="seg-n">${myLists().length + myGroups().length}</span>` : ''}</button><button class="${ui.spotsView === 'friends' ? 'on' : ''}" data-act="spview" data-v="friends" role="tab">Friends${friendsTodo() && ui.spotsView !== 'friends' ? ' <span class="seg-dot"></span>' : ''}</button></div>
     ${ui.spotsView === 'friends' ? friendsBody() : ui.spotsView === 'lists' ? listsBody() : `<label class="search card">${ICON.search}<input type="search" placeholder="Search your spots" aria-label="Search your spots" value="${esc(ui.spotsSearch)}" data-input="spotsSearch"></label>
-    <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats, true))}${ICON.chevDown}</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ICON.star}Favourites</button></div>
+    <div class="row-btns" style="position:relative"><button class="pill sec-btn" data-act="menu" data-menu="spots">${ICON.filter}${esc(filterLabel(cats, true))}${ICON.chevDown}</button><button class="pill ${ui.spotsFav ? 'fav-on' : 'sec-btn'}" data-act="favfilter" aria-pressed="${!!ui.spotsFav}">${ui.spotsFav ? GOLD_STAR : ICON.star}Favourites</button></div>
     ${body}`}
   </div>${ui.menu === 'spots' && (!ui.spotsView || ui.spotsView === 'places') ? filterMenu() : ''}`;
 }
@@ -810,7 +815,7 @@ function rowSpot(p) {
     <div class="fg"><div class="thumb" data-act="open" data-id="${p.id}">${art(p)}</div>
       <div class="row-main" data-act="open" data-id="${p.id}"><span class="row-name">${esc(p.name)}${p.status === 'totry' ? ' <span class="tag" style="font-size:9px;padding:2px 6px;vertical-align:middle">TO TRY</span>' : ''}</span><span class="row-meta">${esc([p.cuisine || '', p.area, ui.globe && cityOf(p) ? cityOf(p).name : '', fmtDist(dist(p))].filter(Boolean).join(' · '))}</span>
         <span class="row-line ${s && !s.open ? 'closed' : ''}">${s ? `<span class="dot"></span>${esc(s.text.replace('Open · until', 'Until').replace('Closed · opens', 'Opens'))}<span style="color:#6A6A72">·</span>` : ''}${priceHtml(p.price, p)}</span></div>
-      <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a></div></div></div>`;
+      <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${p.fav ? GOLD_STAR : ICON.star}</button><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a></div></div></div>`;
 }
 
 function tryView() {
@@ -822,11 +827,11 @@ function tryView() {
   const rows = list.map(p => `<div class="swipe" data-swipe="${p.id}" data-try="1"><div class="acts"><div class="save">${ICON.check}Save</div><div class="del">Delete${ICON.bin}</div></div>
     <div class="fg"><div class="thumb" data-act="showtry" data-id="${p.id}" style="width:58px;height:58px">${p.photos && p.photos.length ? art(p) : ART.totry}</div>
       <div class="row-main" data-act="showtry" data-id="${p.id}"><span class="row-name">${esc(p.name)}${isNew(p) && p.via ? ` <span class="new-pill">From ${esc(p.via.name)}</span>` : ''}</span><span class="row-meta">${esc(metaLine(p))}</span>${p.note ? `<span class="row-note">${esc(p.note)}</span>` : ''}</div>
-      <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
+      <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${p.fav ? GOLD_STAR : ICON.star}</button><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
   return `<div class="page">
     <div class="page-head head2"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div>
       <div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(cityLabel())}${ICON.chevDown}</button><button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
-    <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats, true))}${ICON.chevDown}</button><button class="pill ${ui.tryFav ? 'fav-on' : 'sec-btn'}" data-act="tryfav" aria-pressed="${!!ui.tryFav}" aria-label="Favourites only">${ICON.star}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest' : 'Nearest'}${ICON.chevDown}</button><button class="pill sec-btn" style="flex:none" data-act="trymap">${ICON.map}Map</button></div>
+    <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats, true))}${ICON.chevDown}</button><button class="pill ${ui.tryFav ? 'fav-on' : 'sec-btn'}" data-act="tryfav" aria-pressed="${!!ui.tryFav}" aria-label="Favourites">${ui.tryFav ? GOLD_STAR : ICON.star}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest' : 'Nearest'}${ICON.chevDown}</button><button class="pill sec-btn" style="flex:none" data-act="trymap">${ICON.map}Map</button></div>
     ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">${ui.tryFav && cityPlaces().some(p => p.status === 'totry') ? 'No favourites here yet.<br>Tap the star on a place to add it.' : tcats.length && cityPlaces().some(p => p.status === 'totry') ? 'Nothing to try in ' + esc(filterLabel(tcats, true)) + '.' : 'Nothing to try yet.<br>Found somewhere that looks good? Tap Add.'}</div>`}
   </div>${ui.menu === 'try' ? filterMenu() : ''}`;
 }
