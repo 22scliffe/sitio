@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.31'; // also in version.txt: bump both
+const APP_VERSION = '0.6.32'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -855,7 +855,6 @@ function accountView() {
       ${auth ? tog('Share memories with friends', 'Your photos at spots friends can see. Never ones in Hidden from friends', 'shareMems') : ''}
       ${tog('Dark mode', 'Turn off for a light app and map', 'darkMap')}
       ${row('Directions open in', db.settings.dirApp === 'apple' ? 'Apple Maps' : 'Google Maps', 'dirapp')}
-      ${row('Currency', esc(city().currency) + ' (' + esc(city().name) + ')', 'currency')}
       ${STANDALONE ? '' : row('Add Sitio to your home screen', '', 'openinstall')}
       ${row('Backup & import', importQ().length ? importQ().length + ' to add' : '', 'backuppage')}
       ${row('Privacy policy', '', 'privacy')}
@@ -1105,45 +1104,13 @@ function levelsPage() {
 }
 const EURO = 'AT BE HR CY EE FI FR DE GR IE IT LV LT LU MT NL PT SK SI ES AD MC SM VA ME XK BG'.split(' ');
 const CUR_BY_CC = { GB: '£', GI: '£', IM: '£', JE: '£', GG: '£', US: '$', CA: '$', AU: 'A$', NZ: '$', MX: '$', AR: '$', CL: '$', CO: '$', SG: '$', HK: '$', CH: 'CHF', LI: 'CHF', SE: 'kr', NO: 'kr', DK: 'kr', IS: 'kr', PL: 'zł', CZ: 'Kč', HU: 'Ft', JP: '¥', CN: '¥', KR: '₩', TH: '฿', IN: '₹', BR: 'R$', TR: '₺', AE: 'د.إ', ZA: 'R', MA: 'DH', RO: 'lei', IL: '₪', ID: 'Rp', VN: '₫', PH: '₱', MY: 'RM', EG: 'E£', PE: 'S/', UA: '₴', RS: 'din', GE: '₾' };
-// Every official currency (from the phone's own currency data), with a short symbol and English name
-const ALL_CUR = (() => {
-  try {
-    const dn = new Intl.DisplayNames(['en'], { type: 'currency' });
-    const sym = c => { try { return new Intl.NumberFormat('en', { style: 'currency', currency: c, currencyDisplay: 'narrowSymbol' }).formatToParts(1).find(p => p.type === 'currency').value; } catch (e) { return c; } };
-    return Intl.supportedValuesOf('currency').filter(c => !/^X(AU|AG|PT|PD|DR|SU|UA|TS|XX|BA|BB|BC|BD|FO|FU|RE)$/.test(c) && !/\(|Fund|Unit|Equivalent|Bond/.test(dn.of(c)))
-      .map(code => ({ code, name: dn.of(code), sym: sym(code) }));
-  } catch (e) { return null; }
-})();
-function curResults(d, c) { const res = curSearch(d.q || ''); if (res && !res.length) return '<p style="margin:6px 0 4px">No currency found. Check the spelling.</p>';
-        const items = res || CURRENCIES.map(([sym, name]) => ({ sym, name, code: '' }));
-        return `<div class="cur-grid">${items.map(x => `<button class="cur ${c.currency === x.sym ? 'on' : ''}" data-act="pickcur" data-v="${esc(x.sym)}"><b>${esc(x.sym)}</b><span>${esc(x.name)}</span>${res && x.code !== x.sym ? `<span class="cur-code">${esc(x.code)}</span>` : ''}</button>`).join('')}</div>${res ? '' : `<p style="margin:10px 0 0;font-size:12px">${ALL_CUR ? ALL_CUR.length : CURRENCIES.length} currencies. Search to see them all.</p>`}`; }
-function lev(a, b) { // edit distance where swapping two letters counts as one typo
-  const m = a.length, n = b.length, d = []; for (let i = 0; i <= m; i++) { d[i] = [i]; } for (let j = 0; j <= n; j++) d[0][j] = j;
-  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) { const c = a[i - 1] === b[j - 1] ? 0 : 1; d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c); if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1); }
-  return d[m][n];
-}
-const POPULAR_CUR = ['EUR', 'GBP', 'USD', 'CHF', 'JPY', 'AUD', 'CAD', 'MXN', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'TRY', 'MAD', 'BRL', 'INR', 'THB', 'AED', 'ZAR'];
-// Search currencies by name, code or symbol, forgiving typos ("uero" finds Euro)
-function curSearch(q) {
-  q = q.trim().toLowerCase(); const list = ALL_CUR || CURRENCIES.map(([sym, name]) => ({ code: sym, name, sym }));
-  if (!q) return null;
-  return list.map(c => {
-    const words = (c.name + ' ' + c.code).toLowerCase().split(/[\s-]+/);
-    let s = 99;
-    if (c.code.toLowerCase() === q || c.sym.toLowerCase() === q) s = 0;
-    else if (c.name.toLowerCase().includes(q)) s = 1;
-    else if (q.length >= 3) words.forEach(w => { const d = Math.min(lev(q, w), lev(q, w.slice(0, q.length))); const tol = q.length <= 4 ? 1 : 2; if (d <= tol) s = Math.min(s, 2 + d); });
-    return { c, s, pop: POPULAR_CUR.indexOf(c.code) < 0 ? 99 : POPULAR_CUR.indexOf(c.code) };
-  }).filter(x => x.s < 99).sort((a, b) => a.s - b.s || a.pop - b.pop || a.c.name.localeCompare(b.c.name)).slice(0, 16).map(x => x.c);
-}
 // Every other country's currency by ISO code; the phone gives us its short symbol (US$ → $, Ecuador → $, Peru → S/)
 const ISO_BY_CC = Object.fromEntries('AF:AFN AL:ALL DZ:DZD AO:AOA AG:XCD AM:AMD AW:AWG AZ:AZN BS:BSD BH:BHD BD:BDT BB:BBD BY:BYN BZ:BZD BJ:XOF BM:BMD BT:BTN BO:BOB BA:BAM BW:BWP BN:BND BF:XOF BI:BIF KH:KHR CM:XAF CV:CVE KY:KYD CF:XAF TD:XAF KM:KMF CG:XAF CD:CDF CR:CRC CI:XOF CU:CUP DJ:DJF DM:XCD DO:DOP EC:USD SV:USD GQ:XAF ER:ERN SZ:SZL ET:ETB FJ:FJD GA:XAF GM:GMD GH:GHS GD:XCD GT:GTQ GN:GNF GW:XOF GY:GYD HT:HTG HN:HNL IQ:IQD IR:IRR JM:JMD JO:JOD KZ:KZT KE:KES KW:KWD KG:KGS LA:LAK LB:LBP LS:LSL LR:LRD LY:LYD MO:MOP MG:MGA MW:MWK MV:MVR ML:XOF MR:MRU MU:MUR MD:MDL MN:MNT MZ:MZN MM:MMK NA:NAD NP:NPR NI:NIO NE:XOF NG:NGN MK:MKD OM:OMR PK:PKR PA:PAB PG:PGK PY:PYG QA:QAR RU:RUB RW:RWF KN:XCD LC:XCD VC:XCD WS:WST ST:STN SA:SAR SN:XOF SC:SCR SL:SLE SB:SBD SO:SOS SS:SSP LK:LKR SD:SDG SR:SRD SY:SYP TW:TWD TJ:TJS TZ:TZS TL:USD TG:XOF TO:TOP TT:TTD TN:TND TM:TMT UG:UGX UY:UYU UZ:UZS VU:VUV VE:VES YE:YER ZM:ZMW ZW:ZWG PR:USD GU:USD VI:USD PF:XPF NC:XPF CW:ANG SX:ANG FO:DKK GL:DKK'.split(' ').map(x => x.split(':')));
 function isoSymbol(code) { try { return new Intl.NumberFormat('en', { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' }).formatToParts(1).find(p => p.type === 'currency').value; } catch (e) { return code; } }
 const currencyFor = cc => !cc ? '€' : EURO.includes(cc) ? '€' : CUR_BY_CC[cc] || (ISO_BY_CC[cc] ? isoSymbol(ISO_BY_CC[cc]) : '€');
-// Cities saved before the full table existed got € by mistake: fix them once, unless you picked the currency yourself
-function fixCityCurrencies() { let ch = false; (db.cities || []).forEach(c => { if (c.cc && !c.curManual && c.currency === '€' && currencyFor(c.cc) !== '€') { c.currency = currencyFor(c.cc); ch = true; } }); if (ch) save(); }
+// Prices always use the currency of the city's country (no setting): keep every city in line
+function fixCityCurrencies() { let ch = false; (db.cities || []).forEach(c => { if (c.cc && c.currency !== currencyFor(c.cc)) { c.currency = currencyFor(c.cc); ch = true; } }); if (ch) save(); }
 fixCityCurrencies();
-const CURRENCIES = [['€', 'Euro'], ['£', 'Pound'], ['$', 'Dollar'], ['A$', 'Aus dollar'], ['DH', 'Dirham (MA)'], ['lei', 'Leu'], ['₪', 'Shekel'], ['Rp', 'Rupiah'], ['CHF', 'Swiss franc'], ['kr', 'Krona / krone'], ['zł', 'Złoty'], ['Kč', 'Koruna'], ['Ft', 'Forint'], ['¥', 'Yen / yuan'], ['₩', 'Won'], ['฿', 'Baht'], ['₹', 'Rupee'], ['R$', 'Real'], ['₺', 'Lira'], ['د.إ', 'Dirham'], ['R', 'Rand']];
 function notifsPage() {
   const sw = (label, sub, key, dis) => `<div class="set-row" ${dis ? 'style="opacity:.45"' : ''}><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span></span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}" ${dis ? 'disabled' : ''}></button></div>`;
   const blocked = 'Notification' in window && Notification.permission === 'denied';
@@ -1399,14 +1366,6 @@ function dialogView() {
       <p style="margin:0 0 8px;color:var(--text)">To confirm, type <b>${esc(delWord())}</b> below.</p>
       <input class="input card" style="margin-bottom:12px;text-align:center" data-input="delConfirm" autocomplete="off" autocapitalize="off" placeholder="${esc(delWord())}">
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn coral-btn" data-act="dodelacct">Yes, delete</button></div></div>`;
-  }
-  if (d.type === 'currency') {
-    const c = db.cities.find(x => x.id === d.cityId) || city();
-    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t">
-      <h3 id="dlg-t">Currency for ${esc(c.name)}</h3><p>Used for prices in this city.</p>
-      <label class="search card" style="margin-bottom:10px">${ICON.search}<input type="search" placeholder="Search, e.g. euro, peso, JPY" data-input="curQ" value="${esc(d.q || '')}" autocomplete="off" autocapitalize="off"></label>
-      <div id="curres">${curResults(d, c)}</div>
-      <button class="big-btn sec-btn" style="width:100%;margin-top:12px" data-act="closedialog">Cancel</button></div>`;
   }
   if (d.type === 'addcity') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left;top:calc(var(--safe-top) + 24px);transform:translateX(-50%)">
@@ -2717,7 +2676,7 @@ uiEl.addEventListener('click', e => {
     case 'pickcity': { ui.globe = false; db.currentCityId = id; { const pc = db.cities.find(x => x.id === id); if (pc) pc.usedAt = Date.now(); } save(); ui.page = null; ui.filter = []; ui.selected = null; ui.tab = 'home'; const cc = cityCentre(); if (cc) { if (haveLocation && dist(cc) < 50000) mapApi.view(me, 15); else mapApi.view(cc, 13); } lastMapKey = ''; break; }
     case 'addcity': ui.dialog = { type: 'addcity' }; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="cityQ"]'); if (i) i.focus(); }, 60); return;
     case 'citypick': cityPick(+t.dataset.i); return;
-    case 'citymanual': { const v = (uiEl.querySelector('[data-input="cityQ"]') || {}).value || ''; const name = v.trim().slice(0, 40); if (!name) { flash('Type the name first.'); return; } const c = { id: 'c-' + uid(), name, country: '', currency: '€' }; db.cities.push(c); db.currentCityId = c.id; c.usedAt = Date.now(); ui.globe = false; save(); ui.page = null; ui.tab = 'home'; ui.dialog = { type: 'currency', cityId: c.id }; break; }
+    case 'citymanual': { const v = (uiEl.querySelector('[data-input="cityQ"]') || {}).value || ''; const name = v.trim().slice(0, 40); if (!name) { flash('Type the name first.'); return; } const rg = (() => { try { return new Intl.Locale(navigator.language).maximize().region || ''; } catch (e) { return ''; } })(); const c = { id: 'c-' + uid(), name, country: '', currency: currencyFor(rg) }; db.cities.push(c); db.currentCityId = c.id; c.usedAt = Date.now(); ui.globe = false; save(); ui.page = null; ui.tab = 'home'; ui.dialog = null; break; }
     case 'search': ui.tab = 'spots'; ui.spotsOpenNow = false; render(); setTimeout(() => { const i = uiEl.querySelector('[data-input="spotsSearch"]'); if (i) i.focus(); }, 50); return;
     case 'add': ui.add = newAdd(); ui.sheet = 'add'; ui.selected = null; break;
     case 'closesheet': ui.sheet = null; ui.selected = null; ui.add = null; ui.pinMode = false; break;
@@ -2760,8 +2719,6 @@ uiEl.addEventListener('click', e => {
     case 'undo': if (ui.toast && ui.toast.undo) ui.toast.undo(); ui.toast = null; break;
     case 'toggle': db.settings[t.dataset.key] = !db.settings[t.dataset.key]; save(); if (t.dataset.key === 'darkMap') mapApi.setStyle(); lastMapKey = ''; break;
     case 'dirapp': db.settings.dirApp = db.settings.dirApp === 'apple' ? 'google' : 'apple'; save(); break;
-    case 'currency': ui.dialog = { type: 'currency', cityId: city().id }; break;
-    case 'pickcur': { const c = db.cities.find(x => x.id === ui.dialog.cityId); if (c) { c.currency = t.dataset.v; c.curManual = true; save(); } ui.dialog = null; break; }
     case 'backup': backup(); return;
     case 'clearsample': db.places = db.places.filter(x => !x.sample); db.sample = false; save(); toast('Starter spots removed', null); return;
     case 'profile': loadInviter(); ui.page = 'profile'; break;
@@ -2967,7 +2924,6 @@ uiEl.addEventListener('input', e => {
   if (k === 'addNote') ui.add.note = v;
   if (k === 'userName') { db.user.name = v; save(); }
   if (k === 'unameDraft') ui.unameDraft = v;
-  if (k === 'curQ' && ui.dialog && ui.dialog.type === 'currency') { ui.dialog.q = v; const box = $('#curres'); if (box) box.innerHTML = curResults(ui.dialog, db.cities.find(x => x.id === ui.dialog.cityId) || city()); }
   if (k === 'groupAddQ' && ui.dialog && ui.dialog.type === 'groupadd') { ui.dialog.q = v; const box = $('#groupaddres'), g = groupOf(ui.dialog.groupId); if (box && g) box.innerHTML = groupAddRows(g, v.trim().toLowerCase()); }
   if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
