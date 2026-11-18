@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.30'; // also in version.txt: bump both
+const APP_VERSION = '0.6.31'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -336,10 +336,7 @@ function pickCat(cur, v, multi) { const n = !multi ? [v] : cur.includes(v) ? (cu
 const keepDetail = (cats, list) => list.filter(x => detailOpts(cats).includes(x) || !Object.values(DETAIL).some(d => d.opts.includes(x)));
 const STATUS_F = ['everything', 'totry', 'spots'];
 // Favourites: one polished gold star used everywhere (map pins, menu, buttons); the gradient lives once in the page
-const GOLD_STAR = '<svg class="gstar" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.4l2.86 5.8 6.4.93-4.63 4.51 1.09 6.37L12 17.02l-5.72 3 1.09-6.37-4.63-4.51 6.4-.93z" fill="url(#sitioGold)" stroke="url(#sitioGoldEdge)" stroke-width="1.1" stroke-linejoin="round"/><path d="M12 4.9l1.9 3.86" stroke="rgba(255,255,255,.55)" stroke-width=".9" stroke-linecap="round" fill="none"/></svg>';
-(function goldDefs() { const d = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); d.setAttribute('width', '0'); d.setAttribute('height', '0'); d.setAttribute('aria-hidden', 'true'); d.style.position = 'absolute';
-  d.innerHTML = '<defs><linearGradient id="sitioGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF4C8"/><stop offset=".32" stop-color="#F3D27A"/><stop offset=".62" stop-color="#D2A13C"/><stop offset="1" stop-color="#9A6B17"/></linearGradient><linearGradient id="sitioGoldEdge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#C9973A"/><stop offset="1" stop-color="#6E4A0C"/></linearGradient></defs>';
-  document.body.appendChild(d); })();
+const GOLD_STAR = '<svg class="gstar" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.5l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
 function cuisList(p) { return (p.cuisine || '').split(',').map(s => s.trim()).filter(Boolean); }
 function catMatch(p, cats) {
   const lt = cats.filter(f => f.startsWith('list:'));
@@ -438,8 +435,8 @@ const mapApi = (() => {
       const st = status(p); const closed = p.status === 'spot' && st && !st.open;
       if (p._friend) return `<div class="pin friend" data-pin="${p.id}"><button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}, ${esc(p._friend.ownerName || 'a friend')}’s spot"><span class="fr-pin">${esc(((p._friend.ownerName || '?')[0] || '?').toUpperCase())}</span></button><div class="label">${esc(p.name)}</div></div>`;
       return `<div class="pin ${p.status === 'totry' ? 'totry' : ''} ${closed ? 'closed' : ''} ${selected === p.id ? 'selected' : ''}" data-pin="${p.id}">
-        ${p.fav ? `<span class="pin-star">${GOLD_STAR}</span>` : ''}<button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}${p.fav ? ', favourite' : ''}">${p.status === 'totry' && !(p.photos && p.photos.length) ? ART.totry : art(p)}</button>
-        <div class="label">${esc(p.name)}</div>${closed && selected === p.id ? `<div class="sub">${esc(st.text)}</div>` : ''}</div>`;
+        <button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}${p.fav ? ', favourite' : ''}">${p.status === 'totry' && !(p.photos && p.photos.length) ? ART.totry : art(p)}</button>
+        <div class="label">${p.fav ? `<span class="lbl-star">${GOLD_STAR}</span>` : ''}${esc(p.name)}</div>${closed && selected === p.id ? `<div class="sub">${esc(st.text)}</div>` : ''}</div>`;
     }).join('');
     positionPins();
   }
@@ -844,7 +841,7 @@ function accountView() {
   return `<div class="page">
     <div style="display:flex;align-items:center;gap:14px"><button class="avatar acct-av" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div>${(() => { const li = levelOf(spotCount()); return li >= 0 ? `<button class="lvl-chip" data-act="levels"><span class="lvl-ico">${LEVELS[li].badge}</span><span class="lvl-txt"><span class="lvl-lv">Level ${li + 1}</span><span class="lvl-nm">${LEVELS[li].name}</span></span>${ICON.chevRight}</button>` : `<button class="lvl-chip start" data-act="levels"><span class="lvl-ico">🌱</span><span class="lvl-txt"><span class="lvl-lv">Level 0</span><span class="lvl-nm">Add a spot to level up</span></span>${ICON.chevRight}</button>`; })()}</div></div>
     ${cloudOn() && !auth ? `<button class="card acct-cta glow" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
-    <div class="stats"><div class="stat card"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></div><div class="stat card"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></div><div class="stat card"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></div></div>
+    <div class="stats"><button class="stat card" data-act="gostat" data-v="spots"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></button><button class="stat card" data-act="gostat" data-v="totry"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></button><button class="stat card" data-act="cities"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></button></div>
     <div class="section-label" style="margin-bottom:8px">Current city</div>
     <div class="settings card city-muted" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
     ${auth ? `<div class="settings card" style="margin:-6px 0 18px">${row('Invite friends', ui.invData ? (ui.invData.allowance >= 1000 ? 'Unlimited' : Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left') : 'Invite-only', 'invites')}</div>` : ''}
@@ -864,7 +861,7 @@ function accountView() {
       ${row('Privacy policy', '', 'privacy')}
       ${row('Terms of use', '', 'terms')}
       ${row('Notifications', pushOn ? 'On' : 'Off', 'notifs')}
-      ${row('Report a problem', 'Content or a person', 'report')}
+      ${row('Report a problem', '', 'report')}
       ${row('Language / Idioma', db.settings.lang === 'es' ? 'Español' : 'English', 'langpage')}
     </div>
     ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
@@ -1139,7 +1136,13 @@ function curSearch(q) {
     return { c, s, pop: POPULAR_CUR.indexOf(c.code) < 0 ? 99 : POPULAR_CUR.indexOf(c.code) };
   }).filter(x => x.s < 99).sort((a, b) => a.s - b.s || a.pop - b.pop || a.c.name.localeCompare(b.c.name)).slice(0, 16).map(x => x.c);
 }
-const currencyFor = cc => cc ? (EURO.includes(cc) ? '€' : (CUR_BY_CC[cc] || '€')) : '€';
+// Every other country's currency by ISO code; the phone gives us its short symbol (US$ → $, Ecuador → $, Peru → S/)
+const ISO_BY_CC = Object.fromEntries('AF:AFN AL:ALL DZ:DZD AO:AOA AG:XCD AM:AMD AW:AWG AZ:AZN BS:BSD BH:BHD BD:BDT BB:BBD BY:BYN BZ:BZD BJ:XOF BM:BMD BT:BTN BO:BOB BA:BAM BW:BWP BN:BND BF:XOF BI:BIF KH:KHR CM:XAF CV:CVE KY:KYD CF:XAF TD:XAF KM:KMF CG:XAF CD:CDF CR:CRC CI:XOF CU:CUP DJ:DJF DM:XCD DO:DOP EC:USD SV:USD GQ:XAF ER:ERN SZ:SZL ET:ETB FJ:FJD GA:XAF GM:GMD GH:GHS GD:XCD GT:GTQ GN:GNF GW:XOF GY:GYD HT:HTG HN:HNL IQ:IQD IR:IRR JM:JMD JO:JOD KZ:KZT KE:KES KW:KWD KG:KGS LA:LAK LB:LBP LS:LSL LR:LRD LY:LYD MO:MOP MG:MGA MW:MWK MV:MVR ML:XOF MR:MRU MU:MUR MD:MDL MN:MNT MZ:MZN MM:MMK NA:NAD NP:NPR NI:NIO NE:XOF NG:NGN MK:MKD OM:OMR PK:PKR PA:PAB PG:PGK PY:PYG QA:QAR RU:RUB RW:RWF KN:XCD LC:XCD VC:XCD WS:WST ST:STN SA:SAR SN:XOF SC:SCR SL:SLE SB:SBD SO:SOS SS:SSP LK:LKR SD:SDG SR:SRD SY:SYP TW:TWD TJ:TJS TZ:TZS TL:USD TG:XOF TO:TOP TT:TTD TN:TND TM:TMT UG:UGX UY:UYU UZ:UZS VU:VUV VE:VES YE:YER ZM:ZMW ZW:ZWG PR:USD GU:USD VI:USD PF:XPF NC:XPF CW:ANG SX:ANG FO:DKK GL:DKK'.split(' ').map(x => x.split(':')));
+function isoSymbol(code) { try { return new Intl.NumberFormat('en', { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' }).formatToParts(1).find(p => p.type === 'currency').value; } catch (e) { return code; } }
+const currencyFor = cc => !cc ? '€' : EURO.includes(cc) ? '€' : CUR_BY_CC[cc] || (ISO_BY_CC[cc] ? isoSymbol(ISO_BY_CC[cc]) : '€');
+// Cities saved before the full table existed got € by mistake: fix them once, unless you picked the currency yourself
+function fixCityCurrencies() { let ch = false; (db.cities || []).forEach(c => { if (c.cc && !c.curManual && c.currency === '€' && currencyFor(c.cc) !== '€') { c.currency = currencyFor(c.cc); ch = true; } }); if (ch) save(); }
+fixCityCurrencies();
 const CURRENCIES = [['€', 'Euro'], ['£', 'Pound'], ['$', 'Dollar'], ['A$', 'Aus dollar'], ['DH', 'Dirham (MA)'], ['lei', 'Leu'], ['₪', 'Shekel'], ['Rp', 'Rupiah'], ['CHF', 'Swiss franc'], ['kr', 'Krona / krone'], ['zł', 'Złoty'], ['Kč', 'Koruna'], ['Ft', 'Forint'], ['¥', 'Yen / yuan'], ['₩', 'Won'], ['฿', 'Baht'], ['₹', 'Rupee'], ['R$', 'Real'], ['₺', 'Lira'], ['د.إ', 'Dirham'], ['R', 'Rand']];
 function notifsPage() {
   const sw = (label, sub, key, dis) => `<div class="set-row" ${dis ? 'style="opacity:.45"' : ''}><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span></span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}" ${dis ? 'disabled' : ''}></button></div>`;
@@ -2751,13 +2754,14 @@ uiEl.addEventListener('click', e => {
     case 'opennow': ui.spotsOpenNow = !ui.spotsOpenNow; break;
     case 'favfilter': ui.spotsFav = !ui.spotsFav; break;
     case 'tryfav': ui.tryFav = !ui.tryFav; break;
+    case 'gostat': ui.tab = t.dataset.v; ui.page = null; ui.sheet = null; ui.selected = null; ui.menu = null; if (ui.tab === 'spots') ui.spotsView = 'places'; break;
     case 'fav': if (p) { p.fav = !p.fav; save(); lastMapKey = ''; } break;
     case 'expand': ui.expand[t.dataset.cat] = !ui.expand[t.dataset.cat]; break;
     case 'undo': if (ui.toast && ui.toast.undo) ui.toast.undo(); ui.toast = null; break;
     case 'toggle': db.settings[t.dataset.key] = !db.settings[t.dataset.key]; save(); if (t.dataset.key === 'darkMap') mapApi.setStyle(); lastMapKey = ''; break;
     case 'dirapp': db.settings.dirApp = db.settings.dirApp === 'apple' ? 'google' : 'apple'; save(); break;
     case 'currency': ui.dialog = { type: 'currency', cityId: city().id }; break;
-    case 'pickcur': { const c = db.cities.find(x => x.id === ui.dialog.cityId); if (c) { c.currency = t.dataset.v; save(); } ui.dialog = null; break; }
+    case 'pickcur': { const c = db.cities.find(x => x.id === ui.dialog.cityId); if (c) { c.currency = t.dataset.v; c.curManual = true; save(); } ui.dialog = null; break; }
     case 'backup': backup(); return;
     case 'clearsample': db.places = db.places.filter(x => !x.sample); db.sample = false; save(); toast('Starter spots removed', null); return;
     case 'profile': loadInviter(); ui.page = 'profile'; break;
@@ -3082,7 +3086,7 @@ function sync() {
       const rows = await sbFetch('/rest/v1/sitio_data?select=data&user_id=eq.' + auth.user.id, {}, true);
       const remote = rows && rows[0] && rows[0].data;
       const before = JSON.stringify(db);
-      if (remote && remote.places) { db = mergeData(db, remote); ensureHidden(); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
+      if (remote && remote.places) { db = mergeData(db, remote); ensureHidden(); fixCityCurrencies(); resnap(); try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); } catch (e) { } }
       await sbFetch('/rest/v1/sitio_data?on_conflict=user_id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ user_id: auth.user.id, data: db, updated_at: new Date().toISOString() }) }, true);
       const changed = JSON.stringify(db) !== before;
       const was = syncState; syncState = 'ok'; if (!syncedOnce) { syncedOnce = true; checkLevel(); } ensureUsername(); setTimeout(uploadMemories, 500);
