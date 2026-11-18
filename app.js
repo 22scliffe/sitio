@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.37'; // also in version.txt: bump both
+const APP_VERSION = '0.6.38'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1885,7 +1885,7 @@ function openFriendsTab() { ui.tab = 'friends'; ui.newFriendsShown = newFriendId
 function friendsTabView() {
   if (!auth) return `<div class="page"><div class="page-head head2"><div><h1 class="page-title">Friends</h1></div><button class="round sec-btn" style="width:44px;height:44px" data-act="settingspage" aria-label="Settings">${ICON.cog}</button></div>${youCard()}<div class="empty card" style="border-radius:20px">Log in to see your friends’ spots.</div></div>`;
   if (!ui.friends && !ui.friendsErr) setTimeout(loadFriends, 0);
-  return `<div class="page"><div class="page-head head2"><div><h1 class="page-title">Friends</h1></div><button class="round sec-btn" style="width:44px;height:44px" data-act="settingspage" aria-label="Settings">${ICON.cog}</button></div>${youCard()}${friendsBody()}</div>`;
+  return `<div class="page"><div class="page-head head2"><div><h1 class="page-title">Friends</h1></div><div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn fr-invite" data-act="invites">${ICON.share}Invite</button><button class="round sec-btn" style="width:44px;height:44px" data-act="settingspage" aria-label="Settings">${ICON.cog}</button></div></div>${youCard()}${friendsBody()}</div>`;
 }
 const DEMO_SUGG = /[?&]demo=suggest/.test(location.search);
 function suggestedInviter() {
@@ -1911,7 +1911,7 @@ function friendsBody() {
     ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}${friendTag(f)}</b><span>${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
       : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Find a friend by their username, or invite someone below.</div>`}
     ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">You added</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>friends once they add you back</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Undo</button></div>`).join('')}</div>` : ''}
-    <div class="settings card" style="margin-top:14px">${mates.length ? `<button class="set-row" data-act="friendsmap"><span style="display:flex;align-items:center;gap:10px">${ICON.map}See their spots on the map</span><span class="val">${ICON.chevRight}</span></button>` : ''}<button class="set-row" data-act="invites"><span style="display:flex;align-items:center;gap:10px">${ICON.share}Invite friends</span><span class="val">${inv}${ICON.chevRight}</span></button></div>
+    ${mates.length ? `<div class="settings card" style="margin-top:14px"><button class="set-row" data-act="friendsmap"><span style="display:flex;align-items:center;gap:10px">${ICON.map}See their spots on the map</span><span class="val">${ICON.chevRight}</span></button></div>` : ''}
     ${!F.unlocked ? `<div class="card note fr-lock" style="margin-top:12px">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
     <p class="page-sub fr-foot">You’re friends once you’ve both added each other. Friends see your Spots, what you want to try and your memories there, never your hidden spots or private notes.</p>`
 }
@@ -1954,7 +1954,8 @@ function friendPage(id) {
 function friendSheet(f) {
   const p = f.p, who = fname(f.ownerName), cur = (f.city && f.city.currency) || '€', isTry = p.status === 'totry';
   const mine = db.places.find(x => (p.googleId && x.googleId === p.googleId) || (x.name === p.name && Math.abs((x.lat || 0) - p.lat) < 0.0005));
-  return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="closesheet"><div class="grab"></div>
+  return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="${ui.fprof ? 'closeall' : 'closesheet'}"><div class="grab"></div>
+    ${ui.fprof ? `<button class="link-btn fr-back" data-act="fprofback">${ICON.back}${esc(fname(((ui.friends && ui.friends.friends || []).find(x => x.id === ui.fprof) || {}).name || who))}</button>` : ''}
     <div class="fr-cover">${ART[p.cat] || ART.restaurant}${f.owner && f.owner !== meId() ? `<button class="fr-tag" data-act="openfriend" data-id="${esc(f.owner)}">${f.group ? 'Added by ' + esc(f.group.by) : isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'} ›</button>` : `<span class="fr-tag">${f.group ? 'Added by ' + esc(f.group.by) : isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'}</span>`}</div>
     <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${!f.group && recentSpot(p) ? '<span class="new-pill recent-pill">Recently added</span>' : ''}</div>
     ${!f.group && isTry && p.addedAt ? `<div class="fr-ago" style="margin:-2px 0 4px">${esc(addedAgo(p.addedAt))}</div>` : ''}
@@ -2211,8 +2212,8 @@ function render() {
   if (ui.sheet === 'add' && ui.add && ui.pinMode) h += `<div class="pin-mode"><div class="pm-top glass">Move the map to put the pin exactly on the spot</div><div class="pm-pin" aria-hidden="true"><div class="pm-head">${ICON.pin}</div><div class="pm-dot"></div></div><div class="pm-bar"><button class="big-btn sec-btn glass" data-act="pincancel">Cancel</button><button class="big-btn primary-btn" data-act="pinok">Use this spot</button></div><button class="locate round glass pm-loc" data-act="locate" aria-label="Go to my location" style="color:var(--blue)">${ICON.nav}</button></div>`;
   else if (ui.sheet === 'add' && ui.add) h += '<div class="scrim" data-act="closesheet"></div>' + addSheet();
   tag(m2, 'sheet', 's:' + (ui.sheet || '') + ':' + (ui.selected || ''));
-  if (ui.fprof) h += '<div class="scrim" data-act="closefprof"></div>' + friendPage(ui.fprof);
-  if (ui.fprof && ui.sheet === 'friendspot' && ui.fspot) h += '<div class="scrim" data-act="closesheet"></div>' + friendSheet(ui.fspot);
+  if (ui.fprof && ui.sheet === 'friendspot' && ui.fspot) h += '<div class="scrim" data-act="closeall"></div>' + friendSheet(ui.fspot);
+  else if (ui.fprof) h += '<div class="scrim" data-act="closefprof"></div>' + friendPage(ui.fprof);
   // One-time note about Google Maps storage, shown on first open
   let mapsNoted = true; try { mapsNoted = !!localStorage.getItem('sitio.mapsNote'); } catch (e) { }
   if (ui.memsBanner && !ui.install && ui.tour == null) h += `<div class="maps-note mems-note" role="note" data-act="memsbannerx"><span>📸 Your memories can be seen by your friends, at spots they can already see. You can turn this off any time in Settings.</span></div>`;
@@ -2987,6 +2988,8 @@ uiEl.addEventListener('click', e => {
     case 'memshare': db.settings.shareMems = t.dataset.v === '1'; db.settings.memsNotice = 1; save(); ui.dialog = null; toast(db.settings.shareMems ? 'Friends can see your memories' : 'Your memories stay just yours', null); break;
     case 'openfriend': if (!auth || !id) return; if (ui.page && ui.page.friend) ui.page = null; ui.fprof = id; ui.frTryAll = null; if (ui.sheet === 'friendspot') { ui.sheet = null; ui.fspot = null; } if (!ui.friends) loadFriends(); loadFriendMap(id); break;
     case 'closefprof': ui.fprof = null; break;
+    case 'closeall': ui.fprof = null; ui.sheet = null; ui.fspot = null; break;
+    case 'fprofback': ui.sheet = null; ui.fspot = null; break;
     case 'frinvdemo': toast('Demo: this would add lucia as your friend', null); break;
     case 'friendspot': { const M = (ui.friendMaps || {})[t.dataset.owner]; const p = M && (M.places || []).find(x => x.id === t.dataset.pid); if (!p) return; const F = (ui.friends.friends || []).find(x => x.id === t.dataset.owner); ui.fspot = { p, owner: t.dataset.owner, ownerName: (M && M.name) || (F && F.name), city: (M.cities || []).find(c => c.id === p.cityId) || null }; ui.sheet = 'friendspot'; break; }
     case 'frsave': if (ui.fspot) { saveFriendSpot(ui.fspot); } break;
@@ -3352,7 +3355,7 @@ const sdEnd = () => {
   if (dy > 90) {
     sh.style.transition = 'transform .2s ease'; sh.style.transform = 'translateY(100%)';
     const close = sh.dataset.swipeclose;
-    setTimeout(() => { if (close === 'closefprof') { ui.fprof = null; } else if (close === 'closeadmin') { ui.adminSheet = null; ui.wSel = null; } else { ui.sheet = null; ui.selected = null; ui.add = null; ui.pinMode = false; } render(); }, 180);
+    setTimeout(() => { if (close === 'closeall') { ui.fprof = null; ui.sheet = null; ui.fspot = null; } else if (close === 'closefprof') { ui.fprof = null; } else if (close === 'closeadmin') { ui.adminSheet = null; ui.wSel = null; } else { ui.sheet = null; ui.selected = null; ui.add = null; ui.pinMode = false; } render(); }, 180);
   } else { sh.style.transition = 'transform .2s ease'; sh.style.transform = ''; }
   const block = ev => { ev.stopPropagation(); ev.preventDefault(); uiEl.removeEventListener('click', block, true); }; uiEl.addEventListener('click', block, true); setTimeout(() => uiEl.removeEventListener('click', block, true), 50);
 };
