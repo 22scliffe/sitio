@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.34'; // also in version.txt: bump both
+const APP_VERSION = '0.6.35'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1879,14 +1879,21 @@ function friendsTabView() {
   if (!ui.friends && !ui.friendsErr) setTimeout(loadFriends, 0);
   return `<div class="page"><div class="page-head head2"><div><h1 class="page-title">Friends</h1><div class="page-sub">People whose taste you trust</div></div></div>${friendsBody()}</div>`;
 }
+function suggestedInviter() {
+  const inv = ui.inviter, F = ui.friends; if (!auth || !inv || !inv.invited || !inv.by || !F) return '';
+  const by = inv.by.toLowerCase(), all = F.friends || [];
+  if (all.some(f => (f.name || '').toLowerCase() === by && (f.status === 'accepted' || !f.incoming))) return '';
+  return `<div class="section-label" style="margin:2px 0 8px">Suggested</div><div class="settings card" style="margin-bottom:12px"><div class="set-row" style="min-height:62px"><span class="fr-who"><span class="avatar fr-av">${esc((inv.by[0] || '?').toUpperCase())}</span><span><b>${esc(inv.by)}</b><span>invited you to Sitio</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="frinviter">${ICON.plus}Add</button></div></div>`;
+}
 function friendsBody() {
-  const F = ui.friends;
+  const F = ui.friends; if (auth && !ui.inviter) setTimeout(loadInviter, 0);
   if (ui.friendsErr) return `<div class="card note">${esc(ui.friendsErr)}</div>`;
   if (!F) return '<p class="page-sub">Loading…</p>';
   const list = F.friends || [], incoming = list.filter(f => f.incoming), sent = list.filter(f => f.status === 'pending' && !f.incoming), mates = list.filter(f => f.status === 'accepted');
   const av = f => `<span class="avatar fr-av">${f.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc((fname(f.name)[0] || '?').toUpperCase())}</span>`;
   const need = Math.max(0, 5 - spotCount());
   return `<div class="fr-head card"><div><b>${(F.cap || 25) >= 1000 ? plural(F.count, 'friend') + ' · no limit' : F.count + ' of ' + (F.cap || 25) + ' friends'}</b><span>You’re friends once you’ve both added each other. Friends see your Spots, what you want to try and your memories there, never your hidden spots or private notes.</span></div><button class="pill primary-btn" style="height:38px;font-weight:800;flex:none" data-act="addfriend">${ICON.plus}Add</button></div>
+    ${suggestedInviter()}
     ${mates.length ? `<button class="big-btn sec-btn fr-mapbtn" data-act="friendsmap">${ICON.map}See their spots on the map</button>` : ''}
     ${!F.unlocked ? `<div class="card note fr-lock">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
     ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Added you · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>added you</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="fryes" data-id="${esc(f.id)}">${ICON.plus}Add back</button></div>`).join('')}</div>` : ''}
@@ -1955,7 +1962,7 @@ function maybeMemsNotice(tries = 0) {
   if (db.settings.shareMems === false && !db.settings.memsNotice) { db.settings.memsNotice = 1; save(); return; }
   if (!auth || memberState !== true || !popReady() || db.settings.memsNotice || !memCount(true)) { if (tries < 60 && !db.settings.memsNotice) setTimeout(() => maybeMemsNotice(tries + 1), 1500); return; }
   if (ui.install || ui.dialog || ui.page || ui.sheet || ui.tour != null || gated()) { if (tries < 200) setTimeout(() => maybeMemsNotice(tries + 1), 1000); return; }
-  ui.dialog = { type: 'memsnotice' }; render();
+  db.settings.memsNotice = 1; save(); ui.memsBanner = true; render(); setTimeout(() => { ui.memsBanner = false; render(); }, 9000);
 }
 setTimeout(maybeMemsNotice, 4000);
 // One-off for the admin account: places Sam collected from TikTok / Instagram, added to To try once
@@ -1992,7 +1999,9 @@ async function adminToTry(tries = 0) {
 }
 setTimeout(adminToTry, 3000);
 // New members are asked once (per phone) to become friends with whoever invited them
-async function maybeAskInviter(tries = 0) {
+async function maybeAskInviter(tries = 0) { return; // retired: the person who invited you now shows as a suggestion at the top of Friends
+}
+async function maybeAskInviterOld(tries = 0) {
   try { if (localStorage.getItem('sitio.askedFriend')) return; } catch (e) { return; }
   if (!popReady()) { if (tries < 200) setTimeout(() => maybeAskInviter(tries + 1), 800); return; }
   if (seenOnce('askedFriend')) return;
@@ -2192,7 +2201,8 @@ function render() {
   tag(m2, 'sheet', 's:' + (ui.sheet || '') + ':' + (ui.selected || ''));
   // One-time note about Google Maps storage, shown on first open
   let mapsNoted = true; try { mapsNoted = !!localStorage.getItem('sitio.mapsNote'); } catch (e) { }
-  if (!mapsNoted && !ui.install && ui.tour == null && !ui.dialog && !ui.page && !ui.toast) h += `<div class="maps-note" role="note"><span>Sitio uses Google Maps to show places. Google may store a small amount of data on your device.</span><span class="mn-btns"><button class="link-btn" data-act="mapsmore">Learn more</button><button class="mn-ok" data-act="mapsok">OK</button></span></div>`;
+  if (ui.memsBanner && !ui.install && ui.tour == null) h += `<div class="maps-note mems-note" role="note" data-act="memsbannerx"><span>📸 Your memories can be seen by your friends, at spots they can already see. You can turn this off any time in Settings.</span></div>`;
+  else if (!mapsNoted && !ui.install && ui.tour == null && !ui.dialog && !ui.page && !ui.toast) h += `<div class="maps-note" role="note"><span>Sitio uses Google Maps to show places. Google may store a small amount of data on your device.</span><span class="mn-btns"><button class="link-btn" data-act="mapsmore">Learn more</button><button class="mn-ok" data-act="mapsok">OK</button></span></div>`;
   if (ui.toast) h += `<div class="toast" role="status"><span>${ui.toast.ok ? `<span style="color:var(--green);display:flex">${ICON.check}</span>` : ''}${esc(ui.toast.text)}</span>${ui.toast.undo ? '<button data-act="undo">Undo</button>' : ''}</div>`;
   h += dialogView();
   if (ui.install) h += installView();
@@ -2947,7 +2957,7 @@ uiEl.addEventListener('click', e => {
     case 'frsend': { const n = (ui.dialog.v || '').trim().replace(/^@/, ''); if (!n) { flash('Type their username.'); return; } ui.dialog = null; render();
       sbFetch('/rest/v1/rpc/sitio_friend_request', { method: 'POST', body: JSON.stringify({ name: n }) }, true).then(r => { toast(r === 'accepted' ? 'You’re now friends with ' + n : r === 'already' ? 'You’re already friends' : r === 'pending' ? 'You’ve already added ' + n : 'Added ' + n + '. You’ll be friends once they add you back', null); loadFriends(); }).catch(e => flash(friendly(e))); return; }
     case 'fryes': case 'frno': sbFetch('/rest/v1/rpc/sitio_friend_respond', { method: 'POST', body: JSON.stringify({ other: id, accept: act === 'fryes' }) }, true).then(() => { if (act === 'fryes') toast('You’re now friends', null); ui.friendLayerData = null; loadFriends(); if (ui.dialog && ui.dialog.type === 'addfriend') searchFriends(); }).catch(e => flash(friendly(e))); return;
-    case 'frinviter': ui.dialog = null; render(); sbFetch('/rest/v1/rpc/sitio_friend_inviter', { method: 'POST', body: '{}' }, true).then(() => { toast('Friend added', null); loadFriends(); }).catch(e => flash(friendly(e))); return;
+    case 'frinviter': ui.dialog = null; render(); sbFetch('/rest/v1/rpc/sitio_friend_inviter', { method: 'POST', body: '{}' }, true).then(r => { toast(r === 'accepted' ? 'You’re now friends with ' + ((ui.inviter || {}).by || '') : 'Added ' + ((ui.inviter || {}).by || '') + '. You’ll be friends once they add you back', null); loadFriends(); }).catch(e => flash(friendly(e))); return;
     case 'sendpick': { const d = ui.dialog; if (!d || d.type !== 'sendspot') return; d.sel = d.sel.includes(id) ? d.sel.filter(x => x !== id) : d.sel.concat(id); break; }
     case 'sendgo': sendSpot(); return;
     case 'shareother': { const q = db.places.find(x => x.id === id); ui.dialog = null; render(); if (q) share(q, true); return; }
@@ -2957,6 +2967,7 @@ uiEl.addEventListener('click', e => {
         .catch(e => flash(e.status === 404 ? 'Run sitio-friend-tags.sql in Supabase first' : 'Couldn’t remove it: ' + friendly(e))); return; }
     case 'frphoto': { const r = t.getBoundingClientRect(); ui.dialog = { type: 'frphoto', src: t.dataset.src, letter: t.dataset.letter, round: !!t.dataset.round, from: { x: r.left, y: r.top, w: r.width, h: r.height } }; render(); zoomPhoto(true); return; }
     case 'unamepick': ui.authF = ui.authF || {}; ui.authF.name = t.dataset.v; { const i = uiEl.querySelector('[data-input="authName"]'); if (i) i.value = t.dataset.v; } checkUnameLive(); return;
+    case 'memsbannerx': ui.memsBanner = false; break;
     case 'memsok': db.settings.memsNotice = 1; save(); ui.dialog = null; break;
     case 'memshare': db.settings.shareMems = t.dataset.v === '1'; db.settings.memsNotice = 1; save(); ui.dialog = null; toast(db.settings.shareMems ? 'Friends can see your memories' : 'Your memories stay just yours', null); break;
     case 'openfriend': ui.prevPage = ui.page; ui.page = { friend: id }; loadFriendMap(id); break;

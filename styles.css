@@ -937,3 +937,4 @@ body.light { --gold: #A7802E; --gold-rgb: 167,128,46; }
 .pf-sec { display: flex; align-items: baseline; justify-content: space-between; scroll-margin-top: 80px; }
 .pf-sec span { font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--text-3, var(--text-2)); }
 html[lang=es] .tabbar button { font-size: 10px; letter-spacing: -.2px; white-space: nowrap; }
+.mems-note { cursor: pointer; animation: up .3s ease; }
