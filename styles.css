@@ -907,7 +907,7 @@ body.light { --gold: #A7802E; --gold-rgb: 167,128,46; }
 .star-btn .gstar, .act .gstar { width: 18px; height: 18px; }
 .pill .gstar { width: 15px; height: 15px; }
 .pin .label { display: inline-flex; align-items: center; gap: 3px; }
-.lbl-star .gstar { width: 10px; height: 10px; filter: drop-shadow(0 0 2px var(--bg)) drop-shadow(0 0 1px var(--bg)); }
+.lbl-star .gstar { width: 13px; height: 13px; filter: drop-shadow(0 0 2px var(--bg)) drop-shadow(0 0 1px var(--bg)); }
 .menu-fav .mf-star .gstar { width: 15px; height: 15px; }
 /* Friends: when a To try place was added, and new Spots */
 .fr-ago { font-size: 12px; font-weight: 700; color: var(--coral-soft) !important; }
@@ -973,8 +973,37 @@ button.fr-tag { border: 0; cursor: pointer; font-family: inherit; }
 .fr-invite { height: 44px; font-weight: 800; gap: 6px; }
 .fr-invite .icon { width: 16px; height: 16px; }
 /* Close button that stays at the top of tall pop-ups */
-.sheet-x { position: sticky; top: 4px; float: left; z-index: 4; width: 36px; height: 36px; margin: -2px 0 -36px -4px; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
-.sheet-x.right { float: right; margin: -2px -4px -36px 0; }
-.sheet-x .icon { width: 16px; height: 16px; }
+.sheet-x { position: sticky; top: 2px; float: right; z-index: 4; width: 44px; height: 44px; margin: 0 -4px -44px 0; }
+.sheet-x.right { float: right; margin: 0 -4px -44px 0; }
 .pf-sheet .pf-hero { clear: both; }
-.sheet-x { background: var(--surface) !important; color: var(--text); border: 1px solid rgba(var(--fg),0.14); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.sheet-x { box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+/* Tab switches ease in like pages do */
+@keyframes tabIn { from { opacity: 0; transform: translateY(10px) scale(.995); } to { opacity: 1; transform: none; } }
+@keyframes mapIn { from { opacity: .3; } to { opacity: 1; } }
+.page.tab-in, .top.tab-in, .map-bottom.tab-in { animation: tabIn .28s cubic-bezier(.2,.85,.25,1); }
+.map.tab-in { animation: mapIn .3s ease; }
+.sheet-x { -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+@media (prefers-reduced-motion: reduce) { .tab-in { animation: none !important; } }
+/* Calmer, more solid "smoked glass" (closer to the Claude app): darker fill, hairline edge, soft shadow, no shiny highlights */
+:root {
+  --glass-bg: rgba(30,30,33,0.80);
+  --glass: blur(26px) saturate(150%);
+  --glass-border: 1px solid rgba(255,255,255,0.09);
+  --glass-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  --sheet-bg: rgba(24,24,27,0.90);
+  --sheet-blur: blur(30px) saturate(150%);
+  --dialog-bg: rgba(32,32,36,0.94);
+  --card-bg: rgba(255,255,255,0.05);
+  --card-border: 1px solid rgba(255,255,255,0.08);
+  --card-shadow: none;
+}
+body.light {
+  --glass-bg: rgba(252,251,248,0.84);
+  --glass: blur(24px) saturate(150%);
+  --glass-border: 1px solid rgba(0,0,0,0.07);
+  --glass-shadow: 0 8px 24px rgba(0,0,0,0.10);
+  --card-shadow: none;
+}
+.sec-btn { background: rgba(var(--fg),0.07); border: 1px solid rgba(var(--fg),0.10); box-shadow: none; }
+.tabbar button.on { background: rgba(var(--fg),0.13); box-shadow: none; }
+.sheet { border-top: 1px solid rgba(var(--fg),0.10); box-shadow: 0 -10px 40px rgba(0,0,0,0.35); }

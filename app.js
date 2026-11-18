@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.39'; // also in version.txt: bump both
+const APP_VERSION = '0.6.40'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -663,7 +663,7 @@ function roSheet(p, ro) {
     ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:14px"></div>'}
     <div class="btn-grid" style="margin-bottom:8px"><button class="big-btn primary-btn" data-act="copyspot">${ICON.check}Add to my Spots</button><button class="big-btn coral-btn" data-act="copytry">${ICON.plus}Add to my To try</button></div>
     ${dirButtons(p)}
-    <p class="page-sub" style="font-size:12px;margin:10px 0 0">Saved by ${esc(ro.who)}${p.addedAt ? ' · ' + esc(addedAgo(p.addedAt, true)) : ''}. Their photos are private.</p>
+    <p class="page-sub" style="font-size:12px;margin:10px 0 0">Saved by ${esc(ro.who)}${agoOf(p, true) ? ' · ' + esc(agoOf(p, true)) : ''}. Their photos are private.</p>
   </div>`;
 }
 function spotSheet(p) {
@@ -1286,7 +1286,7 @@ function adminUserPage(id, cityId) {
   const c = cities.find(x => x.id === cityId) || { name: 'City' }, cur = c.currency || '€';
   const ps = places.filter(p => p.cityId === cityId), sp = ps.filter(p => p.status === 'spot'), tt = ps.filter(p => p.status === 'totry');
   const catName = k => (CATS.find(x => x.id === k) || {}).name || k;
-  const line = p => `<button class="set-row" data-act="adminplace" data-id="${esc(u.user_id)}" data-city="${esc(cityId)}" data-place="${esc(p.id)}" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span style="font-weight:800">${esc(p.name)}${p.fav ? ' ★' : ''}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catNames(p), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span>${p.addedAt ? `<span class="adm-ago">${esc(addedAgo(p.addedAt, true))}</span>` : ''}</span><span class="val">${p.price ? esc(cur.repeat(p.price)) : ''}${ICON.chevRight}</span></button>`;
+  const line = p => `<button class="set-row" data-act="adminplace" data-id="${esc(u.user_id)}" data-city="${esc(cityId)}" data-place="${esc(p.id)}" style="min-height:56px"><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span style="font-weight:800">${esc(p.name)}${p.fav ? ' ★' : ''}${p.sample ? ' <span style="font-size:11px;font-weight:700;color:var(--text-2)">starter</span>' : ''}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${esc([catNames(p), p.cuisine, p.area].filter(Boolean).join(' · '))}${p.note ? ' — ' + esc(p.note) : ''}</span>${agoOf(p, true) ? `<span class="adm-ago">${esc(agoOf(p, true))}</span>` : ''}</span><span class="val">${p.price ? esc(cur.repeat(p.price)) : ''}${ICON.chevRight}</span></button>`;
   return `<div class="page" style="z-index:17">
     <div class="page-head" style="justify-content:flex-start">${back}<span style="display:flex;flex-direction:column;min-width:0"><span style="font-size:22px;font-weight:800">${esc(c.name)}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(name)} · ${esc(u.email || '')}</span></span></div>
     <div class="section-label" style="margin:10px 0 8px">Spots (${sp.length})</div>${sp.length ? `<div class="settings card">${sp.map(line).join('')}</div>` : '<div class="card note" style="margin:0">No spots here yet.</div>'}
@@ -1304,7 +1304,7 @@ function spotPage(p, ro) {
       ${p.status === 'spot' && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(ro.cur.repeat(p.price))}</span><span class="off">${esc(ro.cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
       ${p.note ? `<div class="note card">${esc(p.note)}</div>` : '<div style="height:16px"></div>'}
       <div class="btn-grid" style="margin-bottom:10px"><button class="big-btn primary-btn" data-act="copyspot">${ICON.check}Add to my Spots</button><button class="big-btn coral-btn" data-act="copytry">${ICON.plus}Add to my To try</button></div>
-      <p class="page-sub" style="font-size:12px;margin:0 0 14px">Saved by ${esc(ro.who)}${p.addedAt ? ' · ' + esc(addedAgo(p.addedAt, true)) : ''}. Their photos stay on their phone.</p>
+      <p class="page-sub" style="font-size:12px;margin:0 0 14px">Saved by ${esc(ro.who)}${agoOf(p, true) ? ' · ' + esc(agoOf(p, true)) : ''}. Their photos stay on their phone.</p>
       ${dirButtons(p)}
     </div></div>`;
   const photos = (p.photos || []);
@@ -1790,7 +1790,9 @@ function addedAgo(ts, exact) {
   if (mo < 12) return 'Added ' + mo + (mo === 1 ? ' month ago' : ' months ago');
   const y = Math.floor(mo / 12); return 'Added ' + y + (y === 1 ? ' year ago' : ' years ago');
 }
-const recentSpot = p => p.status === 'spot' && daysSince(p.addedAt) != null && daysSince(p.addedAt) <= 7;
+const STARTER_IDS = SAMPLE.places.map(x => x.id), isStarter = p => !!p && (p.sample || STARTER_IDS.includes(p.id) || (p._src && p._src.sample));
+const recentSpot = p => !isStarter(p) && p.status === 'spot' && daysSince(p.addedAt) != null && daysSince(p.addedAt) <= 7;
+const agoOf = (p, exact) => !p || isStarter(p) || !p.addedAt ? '' : addedAgo(p.addedAt, exact);
 async function loadFriends() {
   if (!auth || !cloudOn()) return;
   try { ui.friends = await sbFetch('/rest/v1/rpc/sitio_my_friends', { method: 'POST', body: '{}' }, true); ui.friendsErr = null; if (!seenFriends()) markFriendsSeen(); if (ui.tab === 'friends') { ui.newFriendsShown = [...new Set([...(ui.newFriendsShown || []), ...newFriendIds()])]; markFriendsSeen(); } }
@@ -1911,7 +1913,7 @@ function friendsBody() {
     ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}${friendTag(f)}</b><span>${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
       : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Find a friend by their username, or invite someone below.</div>`}
     ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">You added</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>friends once they add you back</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Undo</button></div>`).join('')}</div>` : ''}
-    ${mates.length ? `<div class="settings card" style="margin-top:14px"><button class="set-row" data-act="friendsmap"><span style="display:flex;align-items:center;gap:10px">${ICON.map}See their spots on the map</span><span class="val">${ICON.chevRight}</span></button></div>` : ''}
+    ${mates.length ? `<div class="settings card" style="margin-top:14px"><button class="set-row" data-act="friendsmap"><span style="display:flex;align-items:center;gap:10px">${ICON.map}See all friends’ spots on the map</span><span class="val">${ICON.chevRight}</span></button></div>` : ''}
     ${!F.unlocked ? `<div class="card note fr-lock" style="margin-top:12px">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
     <p class="page-sub fr-foot">You’re friends once you’ve both added each other. Friends see your Spots, what you want to try and your memories there, never your hidden spots or private notes.</p>`
 }
@@ -1920,12 +1922,12 @@ function friendPage(id) {
   const who = fname((M && M.name) || (F && F.name));
 
   const hero = `<div class="pf-hero">${zoomAv(F && F.avatar, who, 92)}<h1 class="pf-name">${esc(who)}</h1>${friendTag(F) || (friendTagText(F) ? `<span class="fr-tag-sub">${esc(friendTagText(F))}</span>` : '')}</div>`;
-  const wrap = inner => `<div class="sheet pf-sheet" role="dialog" aria-label="${esc(who)}" data-swipeclose="closefprof"><div class="grab"></div><button class="round sec-btn sheet-x" data-act="closefprof" aria-label="Close">${ICON.close}</button>${hero}${inner}</div>`;
+  const wrap = inner => `<div class="sheet pf-sheet" role="dialog" aria-label="${esc(who)}" data-swipeclose="closefprof"><div class="grab"></div><button class="round sec-btn sheet-x right" data-act="closefprof" aria-label="Close">${ICON.close}</button>${hero}${inner}</div>`;
   if (!M) return wrap('<p class="page-sub" style="text-align:center">Loading…</p>');
   if (M.error) return wrap(`<div class="card note">${esc(M.error)}</div>`);
   const cityOfF = p => (M.cities || []).find(c => c.id === p.cityId);
   const row = p => { const top = (p.mems || [])[0], u = top && friendPhoto(id, top.id);
-    return `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}">${top ? `<span class="fr-thumb">${u ? `<img src="${u}" alt="">` : '📸'}</span>` : ''}<span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>${esc(p.name)}${recentSpot(p) ? ' <span class="new-pill recent-pill">Recently added</span>' : ''}</b>${p.status === 'totry' && p.addedAt ? `<span class="fr-ago">${esc(addedAgo(p.addedAt))}</span>` : ''}<span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.lastMem ? ' · 📸 ' + esc(new Date(p.lastMem).toLocaleDateString(LOC(), { month: 'short', year: 'numeric' })) : p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`; };
+    return `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}">${top ? `<span class="fr-thumb">${u ? `<img src="${u}" alt="">` : '📸'}</span>` : ''}<span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>${esc(p.name)}${recentSpot(p) ? ' <span class="new-pill recent-pill">Recently added</span>' : ''}</b>${p.status === 'totry' && agoOf(p) ? `<span class="fr-ago">${esc(agoOf(p))}</span>` : ''}<span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.lastMem ? ' · 📸 ' + esc(new Date(p.lastMem).toLocaleDateString(LOC(), { month: 'short', year: 'numeric' })) : p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`; };
   const byRecent = ps => ps.slice().sort((x, y) => (y.lastMem || 0) - (x.lastMem || 0) || (y.addedAt || 0) - (x.addedAt || 0));
   const remove = `<button class="link-btn" style="margin:26px auto 0;color:var(--coral-soft)" data-act="unfriendask" data-id="${esc(id)}">Remove ${esc(who)} as a friend</button>`;
   if (M.locked) return wrap(`<div class="card fr-teaser"><div class="inv-n">${M.spots}</div><div><b>${esc(who)} has ${plural(M.spots, 'spot')}</b><span>Save ${Math.max(0, 5 - spotCount())} more of your own to unlock their full map.</span></div></div>
@@ -1958,7 +1960,7 @@ function friendSheet(f) {
     ${ui.fprof ? `<button class="round sec-btn sheet-x right" data-act="closeall" aria-label="Close">${ICON.close}</button><button class="link-btn fr-back" data-act="fprofback">${ICON.back}${esc(fname(((ui.friends && ui.friends.friends || []).find(x => x.id === ui.fprof) || {}).name || who))}</button>` : ''}
     <div class="fr-cover">${ART[p.cat] || ART.restaurant}${f.owner && f.owner !== meId() ? `<button class="fr-tag" data-act="openfriend" data-id="${esc(f.owner)}">${f.group ? 'Added by ' + esc(f.group.by) : isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'} ›</button>` : `<span class="fr-tag">${f.group ? 'Added by ' + esc(f.group.by) : isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'}</span>`}</div>
     <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${!f.group && recentSpot(p) ? '<span class="new-pill recent-pill">Recently added</span>' : ''}</div>
-    ${!f.group && isTry && p.addedAt ? `<div class="fr-ago" style="margin:-2px 0 4px">${esc(addedAgo(p.addedAt))}</div>` : ''}
+    ${!f.group && isTry && agoOf(p) ? `<div class="fr-ago" style="margin:-2px 0 4px">${esc(agoOf(p))}</div>` : ''}
     <div class="meta">${esc([catNames(p), p.cuisine, p.area, f.city && f.city.name, typeof p.lat === 'number' ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · '))}</div>
     ${!isTry && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(cur.repeat(p.price))}</span><span class="off">${esc(cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
     ${p.note ? `<div class="note card"><b>${esc(who)}:</b> ${esc(p.note)}</div>` : ''}
@@ -2141,6 +2143,7 @@ window.SITIO_LANG = db.settings.lang === 'es' ? 'es' : 'en'; document.documentEl
 if (window.MutationObserver && window.SITIO_I18N) new MutationObserver(() => { if (window.SITIO_LANG === 'es') window.SITIO_I18N.apply(uiEl); }).observe(uiEl, { childList: true, subtree: true });
 let lastMapKey = ''; const scrollMem = {};
 const REDUCED_MOTION = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
+let lastTabShown = null;
 function render() {
   window.SITIO_LANG = db.settings.lang === 'es' ? 'es' : 'en';
   document.body.classList.toggle('light', !db.settings.darkMap);
@@ -2236,6 +2239,9 @@ function render() {
   const newPage = uiEl.querySelector(':scope > [data-sk^="p:"]'), newPageKey = newPage ? newPage.dataset.sk : '';
   if (newPage && newPageKey !== 'p:null' && newPageKey !== oldPageKey && !REDUCED_MOTION) newPage.classList.add('page-in');
   else if (oldPage && oldPageKey !== 'p:null' && (!newPage || newPageKey === 'p:null') && !REDUCED_MOTION) { if (oldPage.style.transform) { oldPage.style.transition = 'transform .2s ease-out'; requestAnimationFrame(() => { oldPage.style.transform = 'translateX(100%)'; }); } else oldPage.classList.add('page-out'); oldPage.style.pointerEvents = 'none'; uiEl.appendChild(oldPage); setTimeout(() => oldPage.remove(), 240); }
+  // Switching tabs (or Search jumping to Spots) eases the new screen in instead of jumping
+  if (lastTabShown && lastTabShown !== ui.tab && !REDUCED_MOTION) { (ui.tab === 'home' ? uiEl.querySelectorAll(':scope > .top, :scope > .map-bottom') : uiEl.querySelectorAll(':scope > .page[data-sk^="t:"]')).forEach(e => e.classList.add('tab-in')); if (ui.tab === 'home') mapApi.el.classList.add('tab-in'); setTimeout(() => mapApi.el.classList.remove('tab-in'), 400); }
+  lastTabShown = ui.tab;
   const newMenu = uiEl.querySelector('.menu'); if (oldMenu && newMenu) { newMenu.style.animation = 'none'; newMenu.scrollTop = menuTop; } // a menu that stays open doesn't flash or jump
   const live = new Set(); uiEl.querySelectorAll('[data-sk]').forEach(e => { live.add(e.dataset.sk); const y = scrollMem[e.dataset.sk]; if (y) e.scrollTop = y; });
   Object.keys(scrollMem).forEach(k => { if (!k.startsWith('t:') && !live.has(k)) delete scrollMem[k]; });
