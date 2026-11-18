@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.38'; // also in version.txt: bump both
+const APP_VERSION = '0.6.39'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1920,7 +1920,7 @@ function friendPage(id) {
   const who = fname((M && M.name) || (F && F.name));
 
   const hero = `<div class="pf-hero">${zoomAv(F && F.avatar, who, 92)}<h1 class="pf-name">${esc(who)}</h1>${friendTag(F) || (friendTagText(F) ? `<span class="fr-tag-sub">${esc(friendTagText(F))}</span>` : '')}</div>`;
-  const wrap = inner => `<div class="sheet pf-sheet" role="dialog" aria-label="${esc(who)}" data-swipeclose="closefprof"><div class="grab"></div>${hero}${inner}</div>`;
+  const wrap = inner => `<div class="sheet pf-sheet" role="dialog" aria-label="${esc(who)}" data-swipeclose="closefprof"><div class="grab"></div><button class="round sec-btn sheet-x" data-act="closefprof" aria-label="Close">${ICON.close}</button>${hero}${inner}</div>`;
   if (!M) return wrap('<p class="page-sub" style="text-align:center">Loading…</p>');
   if (M.error) return wrap(`<div class="card note">${esc(M.error)}</div>`);
   const cityOfF = p => (M.cities || []).find(c => c.id === p.cityId);
@@ -1955,7 +1955,7 @@ function friendSheet(f) {
   const p = f.p, who = fname(f.ownerName), cur = (f.city && f.city.currency) || '€', isTry = p.status === 'totry';
   const mine = db.places.find(x => (p.googleId && x.googleId === p.googleId) || (x.name === p.name && Math.abs((x.lat || 0) - p.lat) < 0.0005));
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="${ui.fprof ? 'closeall' : 'closesheet'}"><div class="grab"></div>
-    ${ui.fprof ? `<button class="link-btn fr-back" data-act="fprofback">${ICON.back}${esc(fname(((ui.friends && ui.friends.friends || []).find(x => x.id === ui.fprof) || {}).name || who))}</button>` : ''}
+    ${ui.fprof ? `<button class="round sec-btn sheet-x right" data-act="closeall" aria-label="Close">${ICON.close}</button><button class="link-btn fr-back" data-act="fprofback">${ICON.back}${esc(fname(((ui.friends && ui.friends.friends || []).find(x => x.id === ui.fprof) || {}).name || who))}</button>` : ''}
     <div class="fr-cover">${ART[p.cat] || ART.restaurant}${f.owner && f.owner !== meId() ? `<button class="fr-tag" data-act="openfriend" data-id="${esc(f.owner)}">${f.group ? 'Added by ' + esc(f.group.by) : isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'} ›</button>` : `<span class="fr-tag">${f.group ? 'Added by ' + esc(f.group.by) : isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'}</span>`}</div>
     <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${!f.group && recentSpot(p) ? '<span class="new-pill recent-pill">Recently added</span>' : ''}</div>
     ${!f.group && isTry && p.addedAt ? `<div class="fr-ago" style="margin:-2px 0 4px">${esc(addedAgo(p.addedAt))}</div>` : ''}
@@ -3340,7 +3340,23 @@ document.addEventListener('touchend', () => {
   if (dx > Math.min(110, innerWidth * 0.28)) { const b = pg.querySelector('[data-act="closepage"]'); if (b) b.click(); }
   else { pg.style.transition = 'transform .22s cubic-bezier(.2,.85,.25,1)'; pg.style.transform = ''; setTimeout(() => { pg.style.boxShadow = ''; }, 220); }
 });
+// Phones: pull a pop-up down to close it, from anywhere on it (rows included) once it's scrolled to the top
+let st = null;
+uiEl.addEventListener('touchstart', e => {
+  const sh = e.target.closest('.sheet'); if (!sh || e.touches.length > 1 || e.target.closest('input,textarea,.mem-strip,.ms-row,.pf-chips')) { st = null; return; }
+  const t = e.touches[0]; st = { sh, x: t.clientX, y: t.clientY, top: sh.scrollTop <= 0, on: false, dy: 0 };
+}, { passive: true });
+uiEl.addEventListener('touchmove', e => {
+  if (!st) return; const t = e.touches[0], dy = t.clientY - st.y, dx = t.clientX - st.x;
+  if (!st.on) {
+    if (!st.top || st.sh.scrollTop > 0 || dy < -4 || Math.abs(dx) > Math.abs(dy) + 4) { st = null; return; }
+    if (dy < 8) return; st.on = true; st.y = t.clientY - 8;
+  }
+  e.preventDefault(); st.dy = Math.max(0, t.clientY - st.y); st.sh.style.transition = 'none'; st.sh.style.transform = `translateY(${st.dy}px)`;
+}, { passive: false });
+uiEl.addEventListener('touchend', () => { if (!st) return; const s = st; st = null; if (!s.on) return; sd = { sh: s.sh, dy: s.dy, on: true }; sdEnd(); });
 uiEl.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch') return;
   const sh = e.target.closest('.sheet'); if (!sh || e.target.closest('input,textarea,button,a,label')) return;
   if (sh.scrollTop > 0 && !e.target.closest('.grab')) return;
   sd = { sh, y: e.clientY, dy: 0, id: e.pointerId };

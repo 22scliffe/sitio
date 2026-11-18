@@ -972,3 +972,9 @@ button.fr-tag { border: 0; cursor: pointer; font-family: inherit; }
 .fr-back .icon { width: 18px; height: 18px; }
 .fr-invite { height: 44px; font-weight: 800; gap: 6px; }
 .fr-invite .icon { width: 16px; height: 16px; }
+/* Close button that stays at the top of tall pop-ups */
+.sheet-x { position: sticky; top: 4px; float: left; z-index: 4; width: 36px; height: 36px; margin: -2px 0 -36px -4px; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+.sheet-x.right { float: right; margin: -2px -4px -36px 0; }
+.sheet-x .icon { width: 16px; height: 16px; }
+.pf-sheet .pf-hero { clear: both; }
+.sheet-x { background: var(--surface) !important; color: var(--text); border: 1px solid rgba(var(--fg),0.14); -webkit-backdrop-filter: none; backdrop-filter: none; }
