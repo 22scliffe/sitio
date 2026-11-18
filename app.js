@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.28'; // also in version.txt: bump both
+const APP_VERSION = '0.6.29'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -293,7 +293,8 @@ function matches(p, filter) {
   // Which places: My spots (default), To try, or All (both); categories and cuisines then narrow them down
   const st = filter.includes('everything') ? 'all' : filter.includes('totry') ? 'totry' : 'spot';
   if (st !== 'all' && p.status !== st) return false;
-  const cats = filter.filter(f => !f.startsWith('cuisine:') && !STATUS_F.includes(f));
+  if (filter.includes('favs') && !p.fav) return false;
+  const cats = filter.filter(f => !f.startsWith('cuisine:') && !STATUS_F.includes(f) && f !== 'favs');
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   if (!cats.length && !cuis.length) return true;
   if (cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
@@ -338,17 +339,18 @@ function cuisList(p) { return (p.cuisine || '').split(',').map(s => s.trim()).fi
 function catMatch(p, cats) {
   const lt = cats.filter(f => f.startsWith('list:'));
   if (lt.length && !lt.some(t => { const l = listOf(t.slice(5)); return l && l.ids.includes(p.id); })) return false;
-  cats = cats.filter(f => !STATUS_F.includes(f) && !f.startsWith('list:')); if (!cats.length) return true;
+  cats = cats.filter(f => !STATUS_F.includes(f) && f !== 'favs' && !f.startsWith('list:')); if (!cats.length) return true;
   const cuis = cats.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   if (cuis.length && cuis.some(q => cuisList(p).includes(q))) return true;
   return catsOf(p).some(c => cats.includes(c));
 }
 function filterLabel(filter, inTab) {
-  if (inTab) { filter = filter.filter(f => !STATUS_F.includes(f)); if (!filter.length) return 'All'; }
+  if (inTab) { filter = filter.filter(f => !STATUS_F.includes(f) && f !== 'favs'); if (!filter.length) return 'All'; }
   if (!filter.length) return 'My spots';
   const cuis = filter.filter(f => f.startsWith('cuisine:')).map(f => f.slice(8));
   const parts = [];
   if (!inTab && !filter.some(f => f.startsWith('list:'))) parts.push(filter.includes('everything') ? 'All' : filter.includes('totry') ? 'To try' : 'My spots');
+  if (!inTab && filter.includes('favs')) parts.push('Favourites');
   CATS.forEach(c => {
     if (c.id === 'restaurant' && cuis.length) parts.push(cuis.length === 1 ? 'Restaurants · ' + cuis[0] : 'Restaurants · ' + cuis.length + ' cuisines');
     else if (filter.includes(c.id)) parts.push(c.plural);
@@ -359,7 +361,7 @@ function filterLabel(filter, inTab) {
 function toggleFilter(token) {
   let f = ui.filter.slice();
   if (token === 'reset') f = [];
-  else if (token === 'cats-all') f = f.filter(x => STATUS_F.includes(x));
+  else if (token === 'cats-all') f = f.filter(x => STATUS_F.includes(x) || x === 'favs');
   else if (STATUS_F.includes(token)) { f = f.filter(x => !STATUS_F.includes(x) && !x.startsWith('list:')); if (token !== 'spots') f.push(token); return (ui.filter = f); }
   else if (f.includes(token)) f = f.filter(x => x !== token);
   else f.push(token);
@@ -431,7 +433,7 @@ const mapApi = (() => {
       const st = status(p); const closed = p.status === 'spot' && st && !st.open;
       if (p._friend) return `<div class="pin friend" data-pin="${p.id}"><button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}, ${esc(p._friend.ownerName || 'a friend')}’s spot"><span class="fr-pin">${esc(((p._friend.ownerName || '?')[0] || '?').toUpperCase())}</span></button><div class="label">${esc(p.name)}</div></div>`;
       return `<div class="pin ${p.status === 'totry' ? 'totry' : ''} ${closed ? 'closed' : ''} ${selected === p.id ? 'selected' : ''}" data-pin="${p.id}">
-        <button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}">${p.status === 'totry' && !(p.photos && p.photos.length) ? ART.totry : art(p)}</button>
+        ${p.fav ? `<span class="pin-star" aria-hidden="true">${ICON.star}</span>` : ''}<button class="ring" data-act="pin" data-id="${p.id}" aria-label="${esc(p.name)}${p.fav ? ', favourite' : ''}">${p.status === 'totry' && !(p.photos && p.photos.length) ? ART.totry : art(p)}</button>
         <div class="label">${esc(p.name)}</div>${closed && selected === p.id ? `<div class="sub">${esc(st.text)}</div>` : ''}</div>`;
     }).join('');
     positionPins();
@@ -553,11 +555,13 @@ function filterMenu() {
   let h = `<div class="menu" role="menu" aria-label="Show on map">`;
   const isList = f.some(x => x.startsWith('list:')), sAll = !isList && f.includes('everything'), sTry = !isList && f.includes('totry'), sSpots = !isList && !sAll && !sTry;
   const inTab = ui.menu === 'spots' || ui.menu === 'try';
-  if (inTab) { const none = !f.some(x => !STATUS_F.includes(x)); h += `<button class="${none ? 'on' : ''}" data-act="filt" data-f="cats-all">All${none ? ICON.check : ''}</button><div class="sep"></div>`; }
+  if (inTab) { const none = !f.some(x => !STATUS_F.includes(x) && x !== 'favs'); h += `<button class="${none ? 'on' : ''}" data-act="filt" data-f="cats-all">All${none ? ICON.check : ''}</button><div class="sep"></div>`; }
   else {
   h += `<button class="${sAll ? 'on' : ''}" data-act="filt" data-f="everything">All${sAll ? ICON.check : ''}</button>`;
   h += `<button class="${sSpots ? 'on' : ''}" data-act="filt" data-f="spots" style="font-weight:800;color:var(--text)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--text)"></span>My spots</span>${sSpots ? ICON.check : ''}</button>`;
-  h += `<button class="${sTry ? 'on' : ''}" data-act="filt" data-f="totry" style="color:var(--coral-soft)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--coral)"></span>To try</span>${sTry ? ICON.check : ''}</button><div class="sep"></div>`;
+  h += `<button class="${sTry ? 'on' : ''}" data-act="filt" data-f="totry" style="color:var(--coral-soft)"><span style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--coral)"></span>To try</span>${sTry ? ICON.check : ''}</button>`;
+  if (!isList) { const fv = f.includes('favs'); h += `<button class="${fv ? 'on' : ''} menu-fav" data-act="filt" data-f="favs"><span style="display:flex;align-items:center;gap:8px"><span class="mf-star">${ICON.star}</span>Favourites only</span>${fv ? ICON.check : ''}</button>`; }
+  h += `<div class="sep"></div>`;
   }
   CATS.forEach(c => {
     const on = f.includes(c.id) || (c.id === 'restaurant' && cuis.length);
@@ -668,7 +672,7 @@ function spotSheet(p) {
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}">
     <div class="grab"></div>
     ${isTry ? tryCover(p) : memoryStrip(p)}
-    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}${isTry ? `<span style="margin-left:auto;flex:none">${more}</span>` : ''}</div>
+    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}${isTry ? `<span style="margin-left:auto;flex:none;display:flex;gap:8px;align-items:center"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" style="width:40px;height:40px" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button>${more}</span>` : ''}</div>
     ${isTry ? '' : `<div class="act-row">${first}${more}</div>`}
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
     ${p.via ? `<div class="via-line">${ICON.friends}<span>via <b>${esc(p.via.name)}</b></span>${reportLink('Spot from ' + p.via.name + ': ' + p.name)}</div>` : ''}
@@ -811,19 +815,19 @@ function rowSpot(p) {
 
 function tryView() {
   const tcats = ui.filter.filter(f => !STATUS_F.includes(f) && !f.startsWith('list:'));
-  let list = cityPlaces().filter(p => p.status === 'totry' && catMatch(p, tcats));
+  let list = cityPlaces().filter(p => p.status === 'totry' && catMatch(p, tcats) && (!ui.tryFav || p.fav));
   const isNew = p => p.sentNew && Date.now() - p.sentNew < 7 * 864e5;
   list.sort(ui.tryNewest ? (a, b) => b.addedAt - a.addedAt : (a, b) => dist(a) - dist(b));
   list.sort((a, b) => (isNew(b) ? b.sentNew : 0) - (isNew(a) ? a.sentNew : 0));
   const rows = list.map(p => `<div class="swipe" data-swipe="${p.id}" data-try="1"><div class="acts"><div class="save">${ICON.check}Save</div><div class="del">Delete${ICON.bin}</div></div>
     <div class="fg"><div class="thumb" data-act="showtry" data-id="${p.id}" style="width:58px;height:58px">${p.photos && p.photos.length ? art(p) : ART.totry}</div>
       <div class="row-main" data-act="showtry" data-id="${p.id}"><span class="row-name">${esc(p.name)}${isNew(p) && p.via ? ` <span class="new-pill">From ${esc(p.via.name)}</span>` : ''}</span><span class="row-meta">${esc(metaLine(p))}</span>${p.note ? `<span class="row-note">${esc(p.note)}</span>` : ''}</div>
-      <div class="mini-btns"><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
+      <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${ICON.star}</button><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
   return `<div class="page">
     <div class="page-head head2"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div>
       <div style="display:flex;gap:8px;align-items:center"><button class="pill sec-btn" style="height:44px" data-act="cities">${esc(cityLabel())}${ICON.chevDown}</button><button class="pill coral-btn" style="height:44px;font-weight:800" data-act="add">${ICON.plus}Add</button></div></div>
-    <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats, true))}${ICON.chevDown}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest' : 'Nearest'}${ICON.chevDown}</button><button class="pill sec-btn" style="flex:none" data-act="trymap">${ICON.map}Show on map</button></div>
-    ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">${tcats.length && cityPlaces().some(p => p.status === 'totry') ? 'Nothing to try in ' + esc(filterLabel(tcats, true)) + '.' : 'Nothing to try yet.<br>Found somewhere that looks good? Tap Add.'}</div>`}
+    <div class="row-btns" style="position:relative;flex-wrap:nowrap;align-items:center"><button class="pill sec-btn" data-act="menu" data-menu="try">${ICON.filter}${esc(filterLabel(tcats, true))}${ICON.chevDown}</button><button class="pill ${ui.tryFav ? 'fav-on' : 'sec-btn'}" data-act="tryfav" aria-pressed="${!!ui.tryFav}" aria-label="Favourites only">${ICON.star}</button><button class="pill sec-btn" data-act="trysort">${ui.tryNewest ? 'Newest' : 'Nearest'}${ICON.chevDown}</button><button class="pill sec-btn" style="flex:none" data-act="trymap">${ICON.map}Map</button></div>
+    ${list.length ? `<div class="list card">${rows}</div>` : `<div class="empty card" style="border-radius:20px">${ui.tryFav && cityPlaces().some(p => p.status === 'totry') ? 'No favourites here yet.<br>Tap the star on a place to add it.' : tcats.length && cityPlaces().some(p => p.status === 'totry') ? 'Nothing to try in ' + esc(filterLabel(tcats, true)) + '.' : 'Nothing to try yet.<br>Found somewhere that looks good? Tap Add.'}</div>`}
   </div>${ui.menu === 'try' ? filterMenu() : ''}`;
 }
 
@@ -2092,7 +2096,7 @@ function render() {
   if (ui.focusF && !(ui.sheet === 'friendspot' && ui.fspot === ui.focusF && ui.tab === 'home')) ui.focusF = null;
   const list = (onlyFriends ? [] : (ui.world ? worldList() : cityPlaces()).filter(p => hasCoords(p) && matches(p, ui.filter))).concat(onlyFriends ? friendPins() : []);
   if (ui.focusF && !ui.world) { const f = ui.focusF, pid = 'f:' + f.owner + ':' + f.p.id; if (!list.some(x => x.id === pid)) list.push({ id: pid, name: f.p.name, lat: f.p.lat, lng: f.p.lng, cat: f.p.cat, cats: f.p.cats, status: 'friend', _friend: f }); }
-  const key = JSON.stringify([ui.world ? 'w' : 'c', ui.friendsLayer ? (ui.friendLayerAt || 1) : 0, list.map(p => p.id + p.status + p.price + coverOf(p) + (photoUrls[coverOf(p)] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
+  const key = JSON.stringify([ui.world ? 'w' : 'c', ui.friendsLayer ? (ui.friendLayerAt || 1) : 0, list.map(p => p.id + p.status + p.price + (p.fav ? 'f' : '') + coverOf(p) + (photoUrls[coverOf(p)] ? 1 : 0)), ui.selected, db.settings.hours, Math.floor(Date.now() / 60000)]);
   if (key !== lastMapKey) { mapApi.update(list, ui.selected); lastMapKey = key; }
   mapApi.el.style.visibility = ui.tab === 'home' || ui.world ? 'visible' : 'hidden';
 
@@ -2741,7 +2745,8 @@ uiEl.addEventListener('click', e => {
     case 'trysort': ui.tryNewest = !ui.tryNewest; break;
     case 'opennow': ui.spotsOpenNow = !ui.spotsOpenNow; break;
     case 'favfilter': ui.spotsFav = !ui.spotsFav; break;
-    case 'fav': if (p) { p.fav = !p.fav; save(); } break;
+    case 'tryfav': ui.tryFav = !ui.tryFav; break;
+    case 'fav': if (p) { p.fav = !p.fav; save(); lastMapKey = ''; } break;
     case 'expand': ui.expand[t.dataset.cat] = !ui.expand[t.dataset.cat]; break;
     case 'undo': if (ui.toast && ui.toast.undo) ui.toast.undo(); ui.toast = null; break;
     case 'toggle': db.settings[t.dataset.key] = !db.settings[t.dataset.key]; save(); if (t.dataset.key === 'darkMap') mapApi.setStyle(); lastMapKey = ''; break;

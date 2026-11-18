@@ -319,6 +319,7 @@
     'Shared and group lists:': 'Listas compartidas y de grupo:',
     'a list you mark Shared is shown to your friends with only the places they can already see. A group list is shared by you and the friends in it: each person in it sees the list, who is in it and, for each place, who added it and a copy of its basics (name, category, area, location, price, city and the note, never private notes, photos or memories). Leaving a group list removes the places you added.': 'una lista que marcas como Compartida se muestra a tus amigos solo con los lugares que ya pueden ver. Una lista de grupo la compartes con los amigos que están en ella: cada persona ve la lista, quién está y, de cada lugar, quién lo añadió y una copia de lo básico (nombre, categoría, zona, ubicación, precio, ciudad y la nota, nunca notas privadas, fotos ni recuerdos). Al salir de una lista de grupo se quitan los lugares que añadiste.'
   });
+  Object.assign(ES, { 'Favourites only': 'Solo favoritos', 'Map': 'Mapa', 'No favourites here yet.': 'Aún no hay favoritos aquí.', 'Tap the star on a place to add it.': 'Toca la estrella de un lugar para añadirlo.' });
   Object.assign(ES, { 'Google Maps': 'Google Maps', 'Apple Maps': 'Apple Maps', 'I have an account · Log in': 'Ya tengo cuenta · Iniciar sesión' });
   P.push(
     [/^Sitio is invite-only\. To save it to your own map, ask (.+) for an invite\.$/, (m, a) => 'Sitio es solo por invitación. Para guardarlo en tu propio mapa, pide una invitación a ' + a + '.'],

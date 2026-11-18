@@ -904,3 +904,9 @@ html[lang=es] .page-title { font-size: 27px; letter-spacing: -0.6px; }
 .guest-back { position: absolute; top: calc(var(--safe-top) + 12px); left: 16px; z-index: 30; width: 46px; height: 46px; }
 .guest-inv { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; margin: 12px 2px 4px; text-align: left; }
 .guest-inv svg { width: 15px; height: 15px; flex: none; margin-top: 1px; opacity: .8; }
+/* Favourites on the map: a gold star badge on the pin */
+.pin-star { position: absolute; top: -8px; left: calc(50% + 6px); width: 19px; height: 19px; border-radius: 50%; background: #F5B83D; color: #141418; border: 1.5px solid #141418; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 1px 5px rgba(0,0,0,.6); }
+.pin-star svg { width: 11px; height: 11px; fill: #141418; stroke: #141418; }
+.pin.selected .pin-star { top: -12px; left: calc(50% + 13px); width: 22px; height: 22px; }
+.pin.selected .pin-star svg { width: 13px; height: 13px; }
+.menu-fav .mf-star { color: #F5B83D; } .menu-fav .mf-star svg { width: 15px; height: 15px; fill: #F5B83D; display: block; }
