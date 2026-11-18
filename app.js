@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.36'; // also in version.txt: bump both
+const APP_VERSION = '0.6.37'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -853,9 +853,6 @@ function settingsPage() {
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page" style="z-index:14">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Settings</span></div>
-    <div class="section-label" style="margin-bottom:8px">Current city</div>
-    <div class="settings card city-muted" style="margin-bottom:18px">${row(`<span style="display:flex;align-items:center;gap:10px"><span class="dot"></span>${esc(city().name)}</span>`, `${plural(cityPlaces().filter(p => p.status === 'spot').length, 'spot')} · ${cityPlaces().filter(p => p.status === 'totry').length} to try`, 'cities')}</div>
-    ${auth ? `<div class="settings card" style="margin:-6px 0 18px">${row('Invite friends', ui.invData ? (ui.invData.allowance >= 1000 ? 'Unlimited' : Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left') : 'Invite-only', 'invites')}</div>` : ''}
     <div class="section-label" style="margin-bottom:8px">Memory recaps</div>
     <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
     <div class="section-label" style="margin-bottom:8px">Settings</div>
@@ -1905,15 +1902,18 @@ function friendsBody() {
   const list = F.friends || [], incoming = list.filter(f => f.incoming), sent = list.filter(f => f.status === 'pending' && !f.incoming), mates = list.filter(f => f.status === 'accepted');
   const av = f => `<span class="avatar fr-av">${f.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc((fname(f.name)[0] || '?').toUpperCase())}</span>`;
   const need = Math.max(0, 5 - spotCount());
-  return `<div class="fr-head card"><div><b>${(F.cap || 25) >= 1000 ? plural(F.count, 'friend') + ' · no limit' : F.count + ' of ' + (F.cap || 25) + ' friends'}</b><span>You’re friends once you’ve both added each other. Friends see your Spots, what you want to try and your memories there, never your hidden spots or private notes.</span></div><button class="pill primary-btn" style="height:38px;font-weight:800;flex:none" data-act="addfriend">${ICON.plus}Add</button></div>
-    ${suggestedInviter()}
-    ${mates.length ? `<button class="big-btn sec-btn fr-mapbtn" data-act="friendsmap">${ICON.map}See their spots on the map</button>` : ''}
-    ${!F.unlocked ? `<div class="card note fr-lock">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
+  const capTxt = (F.cap || 25) >= 1000 ? '' : ' of ' + (F.cap || 25);
+  const inv = ui.invData ? (ui.invData.allowance >= 1000 ? 'Unlimited' : Math.max(0, ui.invData.allowance - ui.invData.invites.length) + ' left') : '';
+  if (auth && !ui.invData && !DEMO_INV) setTimeout(loadInvites, 0);
+  return `    ${suggestedInviter()}
     ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Added you · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>added you</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="fryes" data-id="${esc(f.id)}">${ICON.plus}Add back</button></div>`).join('')}</div>` : ''}
-    <div class="section-label" style="margin:14px 0 8px">Friends${mates.length ? ' · ' + mates.length : ''}</div>
+    <div class="fr-sechead"><span class="section-label">Friends · ${mates.length}${capTxt}</span><button class="link-btn fr-addlink" data-act="addfriend">${ICON.search}Find by username</button></div>
     ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}${friendTag(f)}</b><span>${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
-      : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Tap Add and type a friend’s username, or invite someone from Account.</div>`}
-    ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">You added</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>friends once they add you back</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Undo</button></div>`).join('')}</div>` : ''}`;
+      : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Find a friend by their username, or invite someone below.</div>`}
+    ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">You added</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>friends once they add you back</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Undo</button></div>`).join('')}</div>` : ''}
+    <div class="settings card" style="margin-top:14px">${mates.length ? `<button class="set-row" data-act="friendsmap"><span style="display:flex;align-items:center;gap:10px">${ICON.map}See their spots on the map</span><span class="val">${ICON.chevRight}</span></button>` : ''}<button class="set-row" data-act="invites"><span style="display:flex;align-items:center;gap:10px">${ICON.share}Invite friends</span><span class="val">${inv}${ICON.chevRight}</span></button></div>
+    ${!F.unlocked ? `<div class="card note fr-lock" style="margin-top:12px">${ICON.lock}<span>Save <b>${need} more ${need === 1 ? 'spot' : 'spots'}</b> of your own to unlock your friends’ full maps. Until then you’ll see a few of their spots.</span></div>` : ''}
+    <p class="page-sub fr-foot">You’re friends once you’ve both added each other. Friends see your Spots, what you want to try and your memories there, never your hidden spots or private notes.</p>`
 }
 function friendPage(id) {
   const F = (ui.friends && ui.friends.friends || []).find(x => x.id === id), M = (ui.friendMaps || {})[id];
