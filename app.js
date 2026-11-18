@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.32'; // also in version.txt: bump both
+const APP_VERSION = '0.6.33'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1134,7 +1134,7 @@ function notifsPage() {
   </div>`;
 }
 // Legal pages: plain-language privacy policy and terms of use (UK and EU)
-const LEGAL_UPDATED = '4 November 2026';
+const LEGAL_UPDATED = '18 November 2026';
 function legalPage(title, intro, parts) {
   const s = ([h, t]) => `<div class="section-label" style="margin:18px 0 6px">${h}</div>${(Array.isArray(t) ? t : [t]).map(x => `<p class="page-sub" style="line-height:1.55;font-size:14px;margin:0 0 8px">${x}</p>`).join('')}`;
   return `<div class="page" style="z-index:16">
@@ -1153,7 +1153,7 @@ function privacyPage() {
       '<b>Account:</b> your email, username, display name and optional profile photo. Your password is stored encrypted and nobody can read it.',
       '<b>Your places and lists:</b> the places you save (names, locations, notes, prices, categories, cities), your lists and your settings.',
       '<b>Memories:</b> the photos you add and the date you give them, stored privately in your account and shown to your friends unless you turn off Share memories with friends in Settings.',
-      '<b>Friends:</b> who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices) and your memory photos there with their dates. They never see spots in Hidden from friends or notes you mark private, and you can stop sharing memories any time in Settings.',
+      '<b>Friends:</b> who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices), roughly when you added them (for example “added 2 weeks ago”, or “recently added” for a new spot) and your memory photos there with their dates. They never see spots in Hidden from friends or notes you mark private, and you can stop sharing memories any time in Settings.',
       '<b>Shared and group lists:</b> a list you mark Shared is shown to your friends with only the places they can already see. A group list is shared by you and the friends in it: each person in it sees the list, who is in it and, for each place, who added it and a copy of its basics (name, category, area, location, price, city and the note, never private notes, photos or memories). Leaving a group list removes the places you added.',
       '<b>Spots friends send you:</b> when a friend sends you a spot in Sitio, we briefly keep who sent it, to whom and the place (name, category, area, location, city, never notes or photos) so it can reach your To try. It is deleted 2 days after it arrives on your phone, or after 30 days if it never does. Each person can send a friend up to 3 spots a day.',
       '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose (memory recaps; when a friend adds you, you become friends or sends you a spot; group lists; events).',
@@ -1741,6 +1741,17 @@ setTimeout(takeHandoff, 0);
 // Mutual friends (max 50). You see their Spots (and what they want to try) once you have 5 spots yourself.
 // Their spots never join your map: saving one puts it in your To try with "via …".
 const fname = n => n || 'A friend';
+// When a friend added a place, in calendar days: To try gets "Added 3 weeks ago", Spots only "Recently added" (7 days)
+function daysSince(ts) { if (!ts) return null; const a = new Date(ts), b = new Date(); a.setHours(0, 0, 0, 0); b.setHours(0, 0, 0, 0); return Math.max(0, Math.round((b - a) / 864e5)); }
+function addedAgo(ts) {
+  const d = daysSince(ts); if (d == null) return '';
+  if (d === 0) return 'Added today'; if (d === 1) return 'Added yesterday'; if (d < 7) return 'Added ' + d + ' days ago';
+  const a = new Date(ts), b = new Date(); let mo = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth() - (b.getDate() < a.getDate() ? 1 : 0);
+  if (mo < 1) { const w = Math.min(3, Math.floor(d / 7)); return 'Added ' + w + (w === 1 ? ' week ago' : ' weeks ago'); }
+  if (mo < 12) return 'Added ' + mo + (mo === 1 ? ' month ago' : ' months ago');
+  const y = Math.floor(mo / 12); return 'Added ' + y + (y === 1 ? ' year ago' : ' years ago');
+}
+const recentSpot = p => p.status === 'spot' && daysSince(p.addedAt) != null && daysSince(p.addedAt) <= 7;
 async function loadFriends() {
   if (!auth || !cloudOn()) return;
   try { ui.friends = await sbFetch('/rest/v1/rpc/sitio_my_friends', { method: 'POST', body: '{}' }, true); ui.friendsErr = null; if (!seenFriends()) markFriendsSeen(); if (ui.tab === 'spots' && ui.spotsView === 'friends') { ui.newFriendsShown = [...new Set([...(ui.newFriendsShown || []), ...newFriendIds()])]; markFriendsSeen(); } }
@@ -1855,7 +1866,7 @@ function friendPage(id) {
   if (M.error) return `<div class="page" style="z-index:15">${head}<div class="card note">${esc(M.error)}</div></div>`;
   const who = fname(M.name), cityOfF = p => (M.cities || []).find(c => c.id === p.cityId);
   const row = p => { const top = (p.mems || [])[0], u = top && friendPhoto(id, top.id);
-    return `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}">${top ? `<span class="fr-thumb">${u ? `<img src="${u}" alt="">` : '📸'}</span>` : ''}<span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>${esc(p.name)}</b><span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.lastMem ? ' · 📸 ' + esc(new Date(p.lastMem).toLocaleDateString(LOC(), { month: 'short', year: 'numeric' })) : p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`; };
+    return `<button class="set-row fr-spot" data-act="friendspot" data-owner="${esc(id)}" data-pid="${esc(p.id)}">${top ? `<span class="fr-thumb">${u ? `<img src="${u}" alt="">` : '📸'}</span>` : ''}<span style="display:flex;flex-direction:column;gap:2px;text-align:left;min-width:0;flex:1"><b>${esc(p.name)}${recentSpot(p) ? ' <span class="new-pill recent-pill">Recently added</span>' : ''}</b>${p.status === 'totry' && p.addedAt ? `<span class="fr-ago">${esc(addedAgo(p.addedAt))}</span>` : ''}<span>${esc([catNames(p), p.area].filter(Boolean).join(' · '))}${p.lastMem ? ' · 📸 ' + esc(new Date(p.lastMem).toLocaleDateString(LOC(), { month: 'short', year: 'numeric' })) : p.mem ? ' · 📸' : ''}</span>${p.note ? `<span class="fr-note">“${esc(p.note)}”</span>` : ''}</span>${ICON.chevRight}</button>`; };
   const byRecent = ps => ps.slice().sort((x, y) => (y.lastMem || 0) - (x.lastMem || 0) || (y.addedAt || 0) - (x.addedAt || 0));
   const group = ps => { const by = {}; ps.forEach(p => { const c = cityOfF(p); const k = c ? c.name : 'Other'; (by[k] = by[k] || []).push(p); }); return Object.keys(by).map(k => `<div class="section-label" style="margin:14px 0 8px">${esc(k)} · ${by[k].length}</div><div class="settings card">${by[k].map(row).join('')}</div>`).join(''); };
   if (M.locked) return `<div class="page" style="z-index:15">${head}
@@ -1875,7 +1886,8 @@ function friendSheet(f) {
   const mine = db.places.find(x => (p.googleId && x.googleId === p.googleId) || (x.name === p.name && Math.abs((x.lat || 0) - p.lat) < 0.0005));
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="closesheet"><div class="grab"></div>
     <div class="fr-cover">${ART[p.cat] || ART.restaurant}<span class="fr-tag">${f.group ? 'Added by ' + esc(f.group.by) : isTry ? esc(who) + ' wants to try' : esc(who) + '’s spot'}</span></div>
-    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2></div>
+    <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${!f.group && recentSpot(p) ? '<span class="new-pill recent-pill">Recently added</span>' : ''}</div>
+    ${!f.group && isTry && p.addedAt ? `<div class="fr-ago" style="margin:-2px 0 4px">${esc(addedAgo(p.addedAt))}</div>` : ''}
     <div class="meta">${esc([catNames(p), p.cuisine, p.area, f.city && f.city.name, typeof p.lat === 'number' ? fmtDist(dist(p)) : ''].filter(Boolean).join(' · '))}</div>
     ${!isTry && p.price ? `<div class="price-line"><span class="price"><span class="on">${esc(cur.repeat(p.price))}</span><span class="off">${esc(cur.repeat(3 - p.price))}</span></span>${PRICE_WORDS[p.price] || ''}</div>` : ''}
     ${p.note ? `<div class="note card"><b>${esc(who)}:</b> ${esc(p.note)}</div>` : ''}

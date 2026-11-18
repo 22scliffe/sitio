@@ -909,3 +909,6 @@ body.light { --gold: #A7802E; --gold-rgb: 167,128,46; }
 .pin .label { display: inline-flex; align-items: center; gap: 3px; }
 .lbl-star .gstar { width: 10px; height: 10px; filter: drop-shadow(0 0 2px var(--bg)) drop-shadow(0 0 1px var(--bg)); }
 .menu-fav .mf-star .gstar { width: 15px; height: 15px; }
+/* Friends: when a To try place was added, and new Spots */
+.fr-ago { font-size: 12px; font-weight: 700; color: var(--coral-soft) !important; }
+.recent-pill { margin-left: 6px; white-space: nowrap; }
