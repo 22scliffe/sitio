@@ -88,7 +88,7 @@ a { color: inherit; }
 .locate { width: 44px; height: 44px; }
 
 /* Tab bar */
-.tabbar { position: absolute; z-index: 20; left: 14px; right: 14px; bottom: var(--tab-bottom); height: 66px; border-radius: 33px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px; max-width: 420px; margin: 0 auto; }
+.tabbar { position: absolute; z-index: 20; left: 30px; right: 30px; bottom: var(--tab-bottom); height: 66px; border-radius: 33px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 6px; max-width: 420px; margin: 0 auto; }
 .tabbar button { border: 0; background: transparent; border-radius: 27px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-mid); font-size: 11px; font-weight: 700; position: relative; }
 .tabbar button.on { background: rgba(var(--fg),0.17); box-shadow: inset 0 1px 1px rgba(var(--fg),0.40), inset 0 0 10px rgba(var(--fg),0.06); color: var(--text); font-weight: 800; }
 .badge { position: absolute; top: 4px; right: 14px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--coral); color: var(--bg); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
@@ -938,3 +938,15 @@ body.light { --gold: #A7802E; --gold-rgb: 167,128,46; }
 .pf-sec span { font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--text-3, var(--text-2)); }
 html[lang=es] .tabbar button { font-size: 10px; letter-spacing: -.2px; white-space: nowrap; }
 .mems-note { cursor: pointer; animation: up .3s ease; }
+/* You card at the top of Friends */
+.you-card { padding: 16px; border-radius: 22px; margin-bottom: 14px; }
+.you-top { cursor: pointer; }
+.you-card .stats { margin: 14px 0 0; }
+.you-card .stat { background: rgba(var(--fg),0.06); box-shadow: none; border: 0; }
+.you-card .acct-cta { margin-top: 12px; }
+/* Friend profile as a pop-up */
+.pf-sheet { max-height: 90%; overflow-y: auto; padding-top: 8px; }
+.pf-sheet .pf-hero { margin: 6px 0 14px; }
+.via-btn { display: inline-flex; align-items: center; gap: 2px; border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.via-btn .icon { width: 14px; height: 14px; }
+button.fr-tag { border: 0; cursor: pointer; font-family: inherit; }
