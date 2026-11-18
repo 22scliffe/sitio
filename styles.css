@@ -88,7 +88,7 @@ a { color: inherit; }
 .locate { width: 44px; height: 44px; }
 
 /* Tab bar */
-.tabbar { position: absolute; z-index: 20; left: 30px; right: 30px; bottom: var(--tab-bottom); height: 66px; border-radius: 33px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 6px; max-width: 420px; margin: 0 auto; }
+.tabbar { position: absolute; z-index: 20; left: 14px; right: 14px; bottom: var(--tab-bottom); height: 66px; border-radius: 33px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px; max-width: 420px; margin: 0 auto; }
 .tabbar button { border: 0; background: transparent; border-radius: 27px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--text-mid); font-size: 11px; font-weight: 700; position: relative; }
 .tabbar button.on { background: rgba(var(--fg),0.17); box-shadow: inset 0 1px 1px rgba(var(--fg),0.40), inset 0 0 10px rgba(var(--fg),0.06); color: var(--text); font-weight: 800; }
 .badge { position: absolute; top: 4px; right: 14px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--coral); color: var(--bg); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
@@ -714,7 +714,7 @@ body.light .settings.rc-glow::after { background: #FFFFFF; }
 .maps-note { position: absolute; z-index: 24; left: 16px; right: 16px; bottom: calc(var(--tab-bottom) + 78px); max-width: 520px; margin: 0 auto; padding: 12px 14px; border-radius: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--text); background: var(--dialog-bg); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 1px solid rgba(var(--fg),0.2); box-shadow: inset 0 1.5px 1px rgba(var(--fg),0.3), 0 8px 24px rgba(0,0,0,0.45); animation: up .3s; }
 .mn-btns { display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
 .mn-btns .link-btn { font-size: 13px; color: var(--text-2); text-decoration: underline; }
-.mn-ok { height: 32px; padding: 0 18px; border-radius: 16px; border: 0; font-size: 13px; font-weight: 800; color: #141418; background: var(--text); }
+.mn-ok { height: 32px; padding: 0 18px; border-radius: 16px; border: 0; font-size: 13px; font-weight: 800; color: var(--bg); background: var(--text); }
 
 .list-card.lc-hidden { background: linear-gradient(160deg, rgba(var(--fg),0.10), rgba(var(--fg),0.03)); }
 .lc-lock { width: 46px; height: 46px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; color: #FFD66B; background: rgba(255,214,107,0.12); border: 1px solid rgba(255,214,107,0.3); }
@@ -912,3 +912,28 @@ body.light { --gold: #A7802E; --gold-rgb: 167,128,46; }
 /* Friends: when a To try place was added, and new Spots */
 .fr-ago { font-size: 12px; font-weight: 700; color: var(--coral-soft) !important; }
 .recent-pill { margin-left: 6px; white-space: nowrap; }
+.adm-ago { font-size: 11.5px; font-weight: 700; color: var(--text-3, var(--text-2)); }
+/* Sign-up username check */
+.uname-bad { margin-top: 6px; font-size: 12.5px; font-weight: 700; color: var(--coral-soft); }
+.uname-ok { margin-top: 6px; display: flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700; color: #4CC38A; }
+.uname-ok svg { width: 14px; height: 14px; }
+.uname-sugg { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.uname-sugg span { font-size: 12px; font-weight: 700; color: var(--text-2); }
+.uname-sugg .pill { height: 30px; padding: 0 12px; font-size: 13px; font-weight: 800; }
+/* Friend profile */
+.pf-page .page-head { padding-bottom: 0; }
+.pf-hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; margin: -6px 0 14px; }
+.pf-hero .fr-av { font-size: 36px; box-shadow: 0 6px 24px rgba(0,0,0,.35); }
+.pf-name { font-size: 26px; font-weight: 800; margin: 6px 0 0; line-height: 1.1; }
+.pf-hero .fr-tag-pill { margin-left: 0; }
+.pf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pf-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 6px; border-radius: 18px; color: var(--text); font: inherit; cursor: pointer; }
+.pf-stat[disabled] { cursor: default; opacity: 1; }
+.pf-stat b { font-size: 22px; font-weight: 800; }
+.pf-stat span { font-size: 12px; font-weight: 700; color: var(--text-2); }
+.pf-chips { display: flex; gap: 6px; overflow-x: auto; margin: 14px -2px 0; padding: 2px; scrollbar-width: none; }
+.pf-chips::-webkit-scrollbar { display: none; }
+.pf-chips .pill { height: 34px; flex: none; font-weight: 800; font-size: 13px; }
+.pf-sec { display: flex; align-items: baseline; justify-content: space-between; scroll-margin-top: 80px; }
+.pf-sec span { font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--text-3, var(--text-2)); }
+html[lang=es] .tabbar button { font-size: 10px; letter-spacing: -.2px; white-space: nowrap; }
