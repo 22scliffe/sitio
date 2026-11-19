@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.43'; // also in version.txt: bump both
+const APP_VERSION = '0.6.44'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -849,13 +849,14 @@ function youCard() {
   </div>`;
 }
 // Memory recaps live on your card: what's ready, what's next, "New" until you've watched it
+function inDays(d) { const n = Math.max(0, Math.ceil((new Date(d).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 864e5)); return n === 0 ? 'today' : n === 1 ? 'tomorrow' : 'in ' + n + ' days'; }
 function recapNew() { if (!auth) return false; try { return recapList().some(p => !recapSeen(p) && Date.now() - releaseAt(p) < 30 * 864e5); } catch (e) { return false; } }
 function recapLine() {
   if (!auth) return '';
   const ready = recapList(), now = new Date(), cur = recapPer(now.getFullYear(), Math.floor(now.getMonth() / 2)), next = releaseAt(cur) > Date.now() ? cur : null;
   const unseen = ready.filter(p => !recapSeen(p) && Date.now() - releaseAt(p) < 30 * 864e5)[0];
   const r = next && new Date(releaseAt(next));
-  const sub = unseen ? recapName(unseen) + ' is ready' : ready.length ? (next ? 'New recap coming ' + ordinal(r.getDate()) + ' ' + MONTH_NAMES[r.getMonth()] : plural(ready.length, 'recap') + ' to watch again') : next ? 'Your first recap is coming ' + ordinal(r.getDate()) + ' ' + MONTH_NAMES[r.getMonth()] : 'Add photo memories to get one';
+  const sub = unseen ? recapName(unseen) + ' is ready' : ready.length ? (next ? 'New recap ' + inDays(r) : plural(ready.length, 'recap') + ' to watch again') : next ? 'Your first recap ' + inDays(r) : 'Add photo memories to get one';
   return `<button class="you-recap ${unseen ? 'new' : ''}" data-act="${unseen ? 'recapshow' : 'allrecaps'}" ${unseen ? `data-y="${unseen.y}" data-k="${unseen.k}" data-loc=""` : ''}><span class="yr-ic">📸</span><span class="yr-txt"><b>Memory recaps</b><span>${esc(sub)}</span></span>${unseen ? '<span class="yr-new">New</span>' : ''}${ICON.chevRight}</button>`;
 }
 function settingsPage() {
@@ -1141,13 +1142,13 @@ function levelsPage() {
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Your level</span></div>
     <div class="card lvl-hero"><div class="lvl-badge big">${i >= 0 ? LEVELS[i].badge : '🌱'}</div>
-      <div style="font-size:24px;font-weight:800;margin-top:10px">${i >= 0 ? LEVELS[i].name : 'Just getting started'}</div>
+      <div class="${i >= 0 ? 'lvl-shine' : ''}" style="font-size:24px;font-weight:800;margin-top:10px">${i >= 0 ? LEVELS[i].name : 'Just getting started'}</div>
       <div class="page-sub" style="margin-top:4px">${n} ${n === 1 ? 'spot' : 'spots'} saved</div>
       ${next ? `<div class="lvl-bar"><span style="width:${pct}%"></span></div><div class="lvl-count">${n} / ${next.min} spots</div><div class="page-sub" style="font-size:13px">${next.min - n} more ${next.min - n === 1 ? 'spot' : 'spots'} to <b style="color:var(--text)">${next.name}</b> ${next.badge}</div>` : '<div class="page-sub" style="margin-top:12px;font-size:13px">Top level reached. You know every spot worth knowing.</div>'}
     </div>
     <div class="section-label" style="margin:20px 0 8px">All levels</div>
     <div class="settings card lvl-list">${LEVELS.map((l, k) => { const done = k <= i; const to = LEVELS[k + 1] ? LEVELS[k + 1].min - 1 : null;
-      return `<div class="set-row" style="min-height:66px;${k === i ? 'background:rgba(var(--fg),0.06)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="lvl-badge ${done ? '' : 'locked'}">${l.badge}</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-weight:800">${l.name}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${to ? l.min + '–' + to : l.min + '+'} spots</span>${l.perk ? `<span class="lvl-perk">🎟️ ${l.perk}</span>` : ''}</span></span><span class="tl ${k === 0 ? 'first' : ''} ${k === LEVELS.length - 1 ? 'last' : ''} ${k < i ? 'past' : ''} ${k === i ? 'here' : ''} ${k > i ? 'future' : ''} ${k <= i ? 'up-gold' : ''}" aria-label="${k === i ? 'You are here' : done ? 'Reached' : 'Not reached yet'}"><i class="tl-up"></i><i class="tl-dot"></i><i class="tl-down"></i></span></div>`; }).join('')}</div>
+      return `<div class="set-row" style="min-height:66px;${k === i ? 'background:rgba(var(--fg),0.06)' : ''}"><span style="display:flex;align-items:center;gap:14px"><span class="lvl-badge ${done ? '' : 'locked'}">${l.badge}</span><span style="display:flex;flex-direction:column;gap:2px"><span class="${k === i ? 'lvl-shine' : ''}" style="font-weight:800">${l.name}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${to ? l.min + '–' + to : l.min + '+'} spots</span>${l.perk ? `<span class="lvl-perk">🎟️ ${l.perk}</span>` : ''}</span></span><span class="tl ${k === 0 ? 'first' : ''} ${k === LEVELS.length - 1 ? 'last' : ''} ${k < i ? 'past' : ''} ${k === i ? 'here' : ''} ${k > i ? 'future' : ''} ${k <= i ? 'up-gold' : ''}" aria-label="${k === i ? 'You are here' : done ? 'Reached' : 'Not reached yet'}"><i class="tl-up"></i><i class="tl-dot"></i><i class="tl-down"></i></span></div>`; }).join('')}</div>
     <p class="page-sub" style="font-size:12px;margin-top:10px">Every place in Spots counts, in every city.</p>
   </div>`;
 }
@@ -1288,7 +1289,8 @@ function adminActPage() {
     : e.kind === 'joined' ? ['🎉', `${nm(e.a_name)} joined from ${nm(e.b_name)}’s invite`]
     : ['📨', `${nm(e.a_name)} sent ${nm(e.b_name)} ${esc(e.place || 'a spot')}`];
   return `<div class="page" style="z-index:15">${head}
-    <div class="pf-chips" style="margin:0 -2px 12px">${ACT_KINDS.map(([k, l]) => `<button class="pill ${f === k ? 'primary-btn' : 'sec-btn'}" data-act="actfilter" data-v="${k}">${l}${k !== 'all' ? ' · ' + ev.filter(e => e.kind === k).length : ''}</button>`).join('')}</div>
+    <div class="row-btns" style="position:relative;margin-bottom:12px"><button class="pill sec-btn ${ui.actMenu ? 'active' : ''}" data-act="actmenu">${ICON.filter}${esc((ACT_KINDS.find(x => x[0] === f) || ACT_KINDS[0])[1])}${ICON.chevDown}</button>
+      ${ui.actMenu ? `<div class="menu rc-menu" role="menu">${ACT_KINDS.map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="actfilter" data-v="${k}"><span>${l}${k !== 'all' ? ` <span class="sub">${ev.filter(e => e.kind === k).length}</span>` : ''}</span>${f === k ? ICON.check : ''}</button>`).join('')}</div>` : ''}</div>
     ${shown.length ? `<div class="settings card">${shown.map(e => { const [ic, txt] = line(e); return `<div class="set-row act-row"><span class="act-ic">${ic}</span><span class="act-txt"><span>${txt}</span><span class="act-at">${esc(relAgo(e.t))}</span></span></div>`; }).join('')}</div>` : '<div class="empty card" style="border-radius:20px">Nothing here yet.</div>'}
   </div>`;
 }
@@ -2811,6 +2813,7 @@ uiEl.addEventListener('click', e => {
   const t = e.target.closest('[data-act]'); if (!t) { if (ui.menu && !e.target.closest('.menu')) { ui.menu = null; render(); } return; }
   const act = t.dataset.act, id = t.dataset.id, p = id ? byId(id) : null;
   if (ui.rcMenu && act !== 'rcmenu' && act !== 'rcpick') ui.rcMenu = null;
+  if (ui.actMenu && act !== 'actmenu' && act !== 'actfilter') ui.actMenu = false;
   const pageBefore = ui.page;
   if (ui.menu && !t.closest('.menu') && act !== 'menu') ui.menu = null;
   switch (act) {
@@ -2992,7 +2995,8 @@ uiEl.addEventListener('click', e => {
     case 'notifs': ui.prevPage = ui.page; ui.page = 'notifs'; refreshPushState(); break;
     case 'adminhub': ui.prevPage = null; ui.page = 'adminhub'; break;
     case 'adminact': ui.prevPage = 'adminhub'; ui.page = 'adminact'; ui.actData = null; ui.actErr = null; loadActivity(); break;
-    case 'actfilter': ui.actF = t.dataset.v; break;
+    case 'actfilter': ui.actF = t.dataset.v; ui.actMenu = false; break;
+    case 'actmenu': ui.actMenu = !ui.actMenu; break;
     case 'adminworld': if (!ui.adminData) { loadAdmin().then(() => { if (ui.adminData) { ui.world = true; ui.savedFilter = ui.filter; ui.filter = []; ui.menu = null; ui.wSel = null; lastMapKey = ''; render(); setTimeout(() => mapApi.fit(worldList().filter(p => matches(p, ui.filter))), 80); } }); flash('Loading everyone’s places…'); return; } ui.world = true; ui.savedFilter = ui.filter; ui.filter = []; ui.menu = null; ui.wSel = null; lastMapKey = ''; render(); setTimeout(() => mapApi.fit(worldList().filter(p => matches(p, ui.filter))), 80); return;
     case 'admin': if (ui.page === 'adminhub') ui.prevPage = 'adminhub'; ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': loadAdminInv(id); ui.page = { adminUser: id }; ui.adminCityQ = ''; break;

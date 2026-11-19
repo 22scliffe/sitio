@@ -334,6 +334,8 @@
     [/^(.+) is ready$/, (m, a) => tr(a) + ' ya está listo'], [/^(.+) out (\d+)(?:st|nd|rd|th) ([A-Z][a-z]{2})$/, (m, a, d, mo) => tr(a) + ' sale el ' + d + ' ' + months(mo)],
     [/^Your first one: (.+), out (\d+)(?:st|nd|rd|th) ([A-Z][a-z]{2})$/, (m, a, d, mo) => 'El primero: ' + tr(a) + ', sale el ' + d + ' ' + months(mo)], [/^(\d+) recaps? to watch again$/, (m, a) => a + ' ' + n(a, 'resumen', 'resúmenes') + ' para volver a ver'],
     [/^New recap coming (\d+)(?:st|nd|rd|th) (\w+)$/, (m, d, mo) => 'Nuevo resumen el ' + d + ' de ' + months(mo).toLowerCase()], [/^Your first recap is coming (\d+)(?:st|nd|rd|th) (\w+)$/, (m, d, mo) => 'Tu primer resumen llega el ' + d + ' de ' + months(mo).toLowerCase()],
+    [/^New recap (today|tomorrow|in (\d+) days)$/, (m, a, d) => 'Nuevo resumen ' + (a === 'today' ? 'hoy' : a === 'tomorrow' ? 'mañana' : 'en ' + d + ' días')],
+    [/^Your first recap (today|tomorrow|in (\d+) days)$/, (m, a, d) => 'Tu primer resumen ' + (a === 'today' ? 'hoy' : a === 'tomorrow' ? 'mañana' : 'en ' + d + ' días')],
     [/^Added (\d+) days ago$/, (m, a) => 'Añadido hace ' + a + ' días'],
     [/^Added (\d+) weeks? ago$/, (m, a) => 'Añadido hace ' + a + ' ' + n(a, 'semana', 'semanas')],
     [/^Added (\d+) months? ago$/, (m, a) => 'Añadido hace ' + a + ' ' + n(a, 'mes', 'meses')],
