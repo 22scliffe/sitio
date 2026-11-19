@@ -1144,3 +1144,7 @@ body.light { --glass-bg: rgba(255,255,255,0.56); --glass: blur(11px) saturate(17
 .mv-del .icon { width: 16px; height: 16px; }
 .mv-thumb { right: auto; left: 12px; }
 .mw-tagbtn .icon { width: 14px; height: 14px; vertical-align: -2px; margin-left: 2px; }
+
+/* glass 20% less cloudy (0.6.53) */
+:root { --glass-bg: rgba(44,44,46,0.45); --glass: blur(9px) saturate(170%); }
+body.light { --glass-bg: rgba(255,255,255,0.45); --glass: blur(9px) saturate(170%); }

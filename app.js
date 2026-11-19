@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.52'; // also in version.txt: bump both
+const APP_VERSION = '0.6.53'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1532,7 +1532,7 @@ function dialogView() {
   if (d.type === 'addfriend') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
       <h3 id="dlg-t">Add a friend</h3><p>Search their Sitio username. They’ll see that you added them, and you’re friends once they add you back.</p>
-      <label class="search card" style="margin:4px 0 0">${ICON.search}<input type="search" name="sitio-friend-search" data-input="frName" placeholder="Search usernames" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" enterkeyhint="search" value="${esc(d.v || '')}"></label>
+      <label class="search card" style="margin:4px 0 0">${ICON.search}<input type="search" name="sitio-friend-search" data-input="frName" placeholder="Search friends" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other" enterkeyhint="search" value="${esc(d.v || '')}"></label>
       <div id="frres">${frResults(d)}</div>
       <button class="big-btn sec-btn" style="width:100%;margin-top:12px" data-act="closedialog">Done</button></div>`;
   }
@@ -2039,7 +2039,7 @@ function friendsBody() {
   if (auth && !ui.invData && !DEMO_INV) setTimeout(loadInvites, 0);
   return `    ${suggestedInviter()}
     ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Added you · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>added you</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="fryes" data-id="${esc(f.id)}">${ICON.plus}Add back</button></div>`).join('')}</div>` : ''}
-    <div class="fr-sechead"><span class="section-label">Friends · ${mates.length}${capTxt}</span><button class="link-btn fr-addlink" data-act="addfriend">${ICON.search}Find by username</button></div>
+    <div class="fr-sechead"><span class="section-label">Friends · ${mates.length}${capTxt}</span><button class="link-btn fr-addlink" data-act="addfriend">${ICON.plus}Add friends</button></div>
     ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(f.first || fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}${friendTag(f)}</b><span>${f.first ? '@' + esc(f.name) + ' · ' : ''}${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
       : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Find a friend by their username, or invite someone below.</div>`}
     ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">You added</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>friends once they add you back</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Undo</button></div>`).join('')}</div>` : ''}

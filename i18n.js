@@ -362,6 +362,7 @@
     [/^(.+) created$/, (m, a) => a + ' creada'], [/^Delete “(.+)”\?$/, (m, a) => '¿Eliminar «' + a + '»?']
   );
   Object.assign(ES, { 'Add your photos': 'Añade tus fotos' });
+  Object.assign(ES, { 'Add friends': 'Añadir amigos', 'Search friends': 'Buscar amigos' });
   let tr;
   tr = function (s) {
     if (!s) return s;
