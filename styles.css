@@ -1183,3 +1183,9 @@ body.light { --glass-bg: rgba(255,255,255,0.45); --glass: blur(9px) saturate(170
 .gx .rc-card.front img { filter: none; transform: none; }
 .gx.year .rc-card.front img { filter: blur(.3px); transform: scale(1.02); }
 .gx.soon .rc-card.front img { filter: grayscale(1) brightness(.45) blur(1.5px); transform: scale(1.04); }
+
+/* Tab icons with a selected / not-selected version (0.6.61) */
+.tabbar button .on-only { display: none; }
+.tabbar button.on .on-only { display: inline; }
+.tabbar button.on .off-only { display: none; }
+.tabbar .cut { fill: var(--bg); }
