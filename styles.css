@@ -1089,3 +1089,6 @@ body.light .pf-lvl { background-image: linear-gradient(100deg, var(--gold) 0%, v
 .lvl-shine { background: linear-gradient(100deg, var(--gold) 0%, var(--gold) 40%, #FFF3C9 50%, var(--gold) 60%, var(--gold) 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: lvlShine 4.5s ease-in-out infinite, lvlGlow 3s ease-in-out infinite; }
 body.light .lvl-shine { background-image: linear-gradient(100deg, var(--gold) 0%, var(--gold) 40%, #E8C46A 50%, var(--gold) 60%, var(--gold) 100%); }
 @media (prefers-reduced-motion: reduce) { .lvl-shine { animation: none !important; } }
+/* Slightly clearer glass: same smoky tint, less blur */
+:root { --glass-bg: rgba(44,44,46,0.56); --glass: blur(11px) saturate(170%); }
+body.light { --glass-bg: rgba(255,255,255,0.56); --glass: blur(11px) saturate(170%); }

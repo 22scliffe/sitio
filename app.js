@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.46'; // also in version.txt: bump both
+const APP_VERSION = '0.6.47'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -952,7 +952,7 @@ function profilePage() {
     <div style="display:flex;gap:8px"><input id="nm" class="input card" style="flex:1" value="${esc(ui.unameDraft != null ? ui.unameDraft : (u.name || ''))}" data-input="unameDraft" maxlength="20" autocapitalize="off" autocomplete="username" spellcheck="false"><button class="big-btn primary-btn" style="width:auto;padding:0 18px;height:52px" data-act="saveuname">Save</button></div>
     <div class="page-sub" style="font-size:12px;margin-top:6px">${USER_HINT}</div>
     ${auth ? `<label class="field-label">Email</label><div class="input card" style="display:flex;align-items:center;color:var(--text-2)">${esc(auth.user.email)}</div>${ui.inviter && ui.inviter.member ? `<div class="invited-by">${ICON.lock}<span>${ui.inviter.invited ? 'Invited by <b>' + esc(ui.inviter.by || 'a friend') + '</b>' : isAdmin ? '<b>Founder</b> of Sitio' : '<b>De los primeros</b> · one of the first'}${ui.inviter.invited && ui.inviter.joined ? ' · joined ' + fmtDate(Date.parse(ui.inviter.joined)) : ''}</span></div>` : ''}
-    <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="resetmail"><span>Forgot password</span><span class="val" style="font-size:12px">Email me a reset link${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button><button class="set-row" data-act="delacct"><span style="color:var(--coral-soft)">Delete account</span><span class="val"></span></button></div>`
+    <div class="settings card" style="margin-top:18px"><button class="set-row" data-act="chemail"><span>Change email</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="chpass"><span>Change password</span><span class="val">${ICON.chevRight}</span></button><button class="set-row" data-act="resetmail"><span>Forgot password</span><span class="val" style="font-size:12px">Email me a reset link${ICON.chevRight}</span></button><button class="set-row" data-act="logout"><span style="color:var(--coral-soft)">Log out</span><span class="val"></span></button><button class="set-row" data-act="delacct"><span style="color:var(--coral-soft)">Delete account</span><span class="val"></span></button></div>`
     : `<label class="field-label">Account</label><button class="card acct-cta" data-act="openauth" style="width:100%"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account or log in</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>`}
   </div>`;
 }
@@ -1109,11 +1109,12 @@ function recapBg(per, el = 0) {
 }
 const recapRow = (p, loc) => `<button class="set-row" data-act="recapshow" data-y="${p.y}" data-k="${p.k}" data-loc="${esc(loc || '')}"><span>${esc(recapName(p))}</span><span class="val">${plural(recapItems(p, loc).length, 'memory', 'memories')}${ICON.chevRight}</span></button>`;
 function recapsPage() {
-  const f = ui.recapF || (ui.recapF = { y: '', loc: '' });
+  const f = ui.recapF || (ui.recapF = { y: String(new Date().getFullYear()), loc: '' });
   const ats = db.places.flatMap(p => (p.memories || []).map(m => m.at)).filter(Boolean);
   const years = []; if (ats.length) for (let y = new Date().getFullYear(); y >= new Date(Math.min(...ats)).getFullYear(); y--) years.push(y);
   const withMem = db.cities.filter(c => db.places.some(p => p.cityId === c.id && (p.memories || []).length));
   const countries = [...new Map(withMem.filter(c => c.cc).map(c => [c.cc.toUpperCase(), c.country || c.cc.toUpperCase()])).entries()];
+  if (f.y && years.length && !years.includes(+f.y)) f.y = String(years[0]);
   const list = recapList(f.loc, f.y ? +f.y : 0);
   const locName = !f.loc ? 'All places' : f.loc.startsWith('cc:') ? ((countries.find(x => x[0] === f.loc.slice(3)) || [])[1] || 'Country') : ((db.cities.find(c => 'city:' + c.id === f.loc) || {}).name || 'City');
   const opt = (k, v, label) => { const on = (f[k] || '') === v; return `<button class="${on ? 'on' : ''}" data-act="rcpick" data-k="${k}" data-v="${esc(v)}">${esc(label)}${on ? ICON.check : ''}</button>`; };
@@ -1570,6 +1571,14 @@ function dialogView() {
       <h3 id="dlg-t">${d.taken ? 'Pick a new username' : 'Choose a username'}</h3><p>${d.taken ? '“' + esc(d.cur) + '” is already taken or not allowed. ' : ''}Usernames are unique on Sitio. ${USER_HINT}</p>
       <input class="input card" data-input="unameDraft" maxlength="20" autocapitalize="off" spellcheck="false" placeholder="e.g. liaa" value="${esc(ui.unameDraft || '')}">
       <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="closedialog">Later</button><button class="big-btn primary-btn" data-act="unamedlg">Save</button></div></div>`;
+  }
+  if (d.type === 'chemail') {
+    return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
+      <h3 id="dlg-t">Change email</h3><p>${d.sent ? 'Almost done. We’ve sent a confirmation link to <b>' + esc(d.sent) + '</b> (and a note to your current email). Your email changes once you tap the link.' : 'Enter your new email and your current password.'}</p>
+      ${d.sent ? '' : `<input class="input card" style="margin-bottom:8px" type="email" inputmode="email" autocapitalize="off" autocomplete="email" placeholder="New email" data-dlgfield="0" value="${esc((d.v || [])[0] || '')}">
+      <input class="input card" style="margin-bottom:8px" type="password" autocomplete="current-password" placeholder="Current password" data-dlgfield="1" value="${esc((d.v || [])[1] || '')}">`}
+      ${d.err ? `<p style="color:var(--coral-soft);margin:4px 0 8px">${esc(d.err)}</p>` : ''}
+      ${d.sent ? '<button class="big-btn primary-btn" style="width:100%" data-act="closedialog">OK</button>' : `<div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="chemailgo" ${d.busy ? 'disabled' : ''}>${d.busy ? 'Checking…' : 'Save'}</button></div>`}</div>`;
   }
   if (d.type === 'chpass') {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
@@ -3070,6 +3079,8 @@ uiEl.addEventListener('click', e => {
     case 'demolevel': ui.invData.allowance = ui.invData.allowance === 3 ? 5 : ui.invData.allowance === 5 ? 8 : 3; toast(ui.invData.allowance === 5 ? 'Demo: reached Local amateur, +2 invites' : ui.invData.allowance === 8 ? 'Demo: reached Spot connoisseur, +3 invites' : 'Demo: back to 3 invites', null); break;
     case 'agreetoggle': if (!e.target.closest('[data-act="terms"],[data-act="privacy"]')) { ui.authF = ui.authF || {}; ui.authF.agree = !ui.authF.agree; } break;
     case 'chpass': ui.dialog = { type: 'chpass' }; break;
+    case 'chemail': ui.dialog = { type: 'chemail' }; break;
+    case 'chemailgo': { const f = [...uiEl.querySelectorAll('[data-dlgfield]')].map(i => i.value); ui.dialog.v = f; changeEmailChecked(f[0], f[1]); return; }
     case 'chpassgo': { const f = [...uiEl.querySelectorAll('[data-dlgfield]')].map(i => i.value); ui.dialog.v = f; changePasswordChecked(f[0], f[1]); return; }
     case 'resetmail': sendResetEmail(); return;
     case 'logout': ui.dialog = { type: 'logout' }; break;
@@ -3351,6 +3362,20 @@ async function changePasswordChecked(cur, pw) {
   catch (e) { return err(/invalid login credentials/i.test(e.message) ? 'Your current password isn’t right.' : friendly(e)); }
   try { await sbFetch('/auth/v1/user', { method: 'PUT', body: JSON.stringify({ password: pw }) }, true); ui.dialog = null; toast('Password changed', null); render(); }
   catch (e) { err(friendly(e)); }
+}
+// Changing email also needs the current password; Supabase then emails a confirmation link (and tells the old address)
+async function changeEmailChecked(email, cur) {
+  const d = ui.dialog; if (!d || d.type !== 'chemail' || !auth) return;
+  const err = m => { d.err = m; d.busy = false; render(); };
+  email = (email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err('Enter a valid email.');
+  if (email === (auth.user.email || '').toLowerCase()) return err('That’s already your email.');
+  if (!cur) return err('Enter your current password.');
+  d.busy = true; d.err = null; render();
+  try { setAuth(await sbFetch('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email: auth.user.email, password: cur }) })); }
+  catch (e) { return err(/invalid login credentials/i.test(e.message) ? 'Your current password isn’t right.' : friendly(e)); }
+  try { await sbFetch('/auth/v1/user?redirect_to=' + encodeURIComponent(appUrl()), { method: 'PUT', body: JSON.stringify({ email }) }, true); d.busy = false; d.sent = email; render(); }
+  catch (e) { err(/already|registered|exists/i.test(e.message || '') ? 'That email already has a Sitio account.' : friendly(e)); }
 }
 async function sendResetEmail() {
   if (!auth) return;
