@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.48'; // also in version.txt: bump both
+const APP_VERSION = '0.6.49'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -679,7 +679,7 @@ function spotSheet(p) {
     <div class="name-row sheet-name"><h2 class="big-name">${esc(p.name)}</h2>${isTry ? '<span class="tag">TO TRY</span>' : ''}${isTry ? `<span style="margin-left:auto;flex:none;display:flex;gap:8px;align-items:center"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" style="width:40px;height:40px" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${p.fav ? GOLD_STAR : ICON.star}</button>${more}</span>` : ''}</div>
     ${isTry ? '' : `<div class="act-row">${first}${more}</div>`}
     <div class="meta meta-edit">${esc(metaLine(p))}<button class="pen" data-act="editcat" data-id="${p.id}" aria-label="Change category">${ICON.pen}</button></div>
-    ${p.via ? `<div class="via-line">${ICON.friends}${p.via.id && auth ? `<button class="via-btn" data-act="openfriend" data-id="${esc(p.via.id)}">via <b>${esc(p.via.name)}</b>${ICON.chevRight}</button>` : `<span>via <b>${esc(p.via.name)}</b></span>`}${reportLink('Spot from ' + p.via.name + ': ' + p.name)}</div>` : ''}
+    ${p.via ? `<div class="via-line">${ICON.friends}${p.via.id && auth ? `<button class="via-btn" data-act="openfriend" data-id="${esc(p.via.id)}">via <b>${esc(firstOf(p.via.id, p.via.name))}</b>${ICON.chevRight}</button>` : `<span>via <b>${esc(p.via.name)}</b></span>`}${reportLink('Spot from ' + p.via.name + ': ' + p.name)}</div>` : ''}
     ${hoursLine(p)}
     ${isTry ? '' : `<div class="price-line">${priceHtml(p.price, p)}${PRICE_WORDS[p.price] || (catsOf(p).includes('chill') ? 'Free' : '')}<button class="pen" data-act="editprice" data-id="${p.id}" aria-label="Edit price">${ICON.pen}</button></div>`}
     ${p.note ? `<button class="note card note-short ${ui.noteOpen === p.id ? 'open' : ''}" data-act="notetoggle" data-id="${p.id}">${esc(p.note)}</button><button class="note-priv" data-act="notepriv" data-id="${p.id}">${p.notePrivate ? ICON.lock + 'Only you can see this note · share with friends' : ICON.friends + 'Friends can see this note · make it private'}</button>` : '<div style="height:12px"></div>'}
@@ -825,7 +825,7 @@ function tryView() {
   list.sort((a, b) => (isNew(b) ? b.sentNew : 0) - (isNew(a) ? a.sentNew : 0));
   const rows = list.map(p => `<div class="swipe" data-swipe="${p.id}" data-try="1"><div class="acts"><div class="save">${ICON.check}Save</div><div class="del">Delete${ICON.bin}</div></div>
     <div class="fg"><div class="thumb" data-act="showtry" data-id="${p.id}" style="width:58px;height:58px">${p.photos && p.photos.length ? art(p) : ART.totry}</div>
-      <div class="row-main" data-act="showtry" data-id="${p.id}"><span class="row-name">${esc(p.name)}${isNew(p) && p.via ? ` <span class="new-pill">From ${esc(p.via.name)}</span>` : ''}</span><span class="row-meta">${esc(metaLine(p))}</span>${p.note ? `<span class="row-note">${esc(p.note)}</span>` : ''}</div>
+      <div class="row-main" data-act="showtry" data-id="${p.id}"><span class="row-name">${esc(p.name)}${isNew(p) && p.via ? ` <span class="new-pill">From ${esc(firstOf(p.via.id, p.via.name))}</span>` : ''}</span><span class="row-meta">${esc(metaLine(p))}</span>${p.note ? `<span class="row-note">${esc(p.note)}</span>` : ''}</div>
       <div class="mini-btns"><button class="round sec-btn mini star-btn ${p.fav ? 'on' : ''}" data-act="fav" data-id="${p.id}" aria-pressed="${!!p.fav}" aria-label="${p.fav ? 'Remove from favourites' : 'Add to favourites'}">${p.fav ? GOLD_STAR : ICON.star}</button><a class="round sec-btn mini" href="${db.settings.dirApp === 'apple' ? aLink(p) : gLink(p)}" target="_blank" rel="noopener" aria-label="Directions to ${esc(p.name)}">${ICON.nav}</a><button class="round x-btn mini" data-act="del" data-id="${p.id}" aria-label="Remove ${esc(p.name)}" style="color:var(--coral-soft)">${ICON.close}</button></div></div></div>`).join('');
   return `<div class="page">
     <div class="page-head head2"><div><h1 class="page-title">To try</h1><div class="page-sub">${list.length} ${list.length === 1 ? 'place' : 'places'} ${ui.globe ? 'worldwide' : 'in ' + esc(city().name)}</div></div>
@@ -844,6 +844,7 @@ function youCard() {
     <div class="you-top"><button class="you-av" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}">${auth ? (src ? `<img src="${esc(src)}" alt="">` : esc((u.name || 'You')[0].toUpperCase())) : '?'}</button>
       <div class="you-id"><button class="you-name" data-act="${auth ? 'profile' : 'openauth'}">${auth ? esc(u.name || 'You') : 'Not logged in'}</button>${lvl}</div></div>
     ${cloudOn() && !auth ? `<button class="card acct-cta glow" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
+    ${auth && !(u.first || '').trim() ? `<div class="you-first"><span>Add your first name so friends can find and tag you</span><div><input class="input card" data-input="firstDraft" maxlength="30" autocapitalize="words" autocomplete="given-name" placeholder="First name" value="${esc(ui.firstDraft || '')}"><button class="pill primary-btn" data-act="savefirst">Save</button></div></div>` : ''}
     <div class="stats"><button class="stat card" data-act="gostat" data-v="spots"><b>${nS}</b><span>${nS === 1 ? 'Spot' : 'Spots'}</span></button><button class="stat card" data-act="gostat" data-v="totry"><b style="color:var(--coral-soft)">${nT}</b><span>To try</span></button><button class="stat card" data-act="allrecaps"><b>${memCount()}</b><span>${memCount() === 1 ? 'Memory' : 'Memories'}</span></button></div>
     ${rc}
   </div>`;
@@ -948,6 +949,8 @@ function profilePage() {
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Account details</span></div>
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin:18px 0 22px">${zoomAv(u.photo && photoUrl(u.photo) ? photoUrl(u.photo) : u.avatar, u.name || 'You', 104, 'border-radius:52px;font-size:42px')}
       <label class="link-btn" style="text-decoration:underline;cursor:pointer">Change photo<input type="file" accept="image/*" hidden data-userphoto="1"></label></div>
+    <label class="field-label" for="fn">First name</label>
+    <div style="display:flex;gap:8px;margin-bottom:6px"><input id="fn" class="input card" style="flex:1" value="${esc(ui.firstDraft != null ? ui.firstDraft : (u.first || ''))}" data-input="firstDraft" maxlength="30" autocapitalize="words" autocomplete="given-name" placeholder="e.g. Lucía"><button class="big-btn primary-btn" style="width:auto;padding:0 18px;height:52px" data-act="savefirst">Save</button></div>
     <label class="field-label" for="nm">Username</label>
     <div style="display:flex;gap:8px"><input id="nm" class="input card" style="flex:1" value="${esc(ui.unameDraft != null ? ui.unameDraft : (u.name || ''))}" data-input="unameDraft" maxlength="20" autocapitalize="off" autocomplete="username" spellcheck="false"><button class="big-btn primary-btn" style="width:auto;padding:0 18px;height:52px" data-act="saveuname">Save</button></div>
     <div class="page-sub" style="font-size:12px;margin-top:6px">${USER_HINT}</div>
@@ -965,6 +968,7 @@ function authPage() {
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">${title}</span></div>
     <p class="page-sub" style="margin:4px 0 18px;line-height:1.45">${m === 'reset' ? 'Enter your email and we’ll send you a link to choose a new password.' : 'Your spots are saved online, so they’re safe and show up on any phone you log in on.'}</p>
     ${m === 'signup' ? `<label class="field-label" for="ac">Invite${ui.inviteFrom ? ' from ' + esc(ui.inviteFrom) : ''}</label><input id="ac" class="input card" data-input="authCode" value="${esc(f.code || pendingInvite())}" autocapitalize="off" spellcheck="false" placeholder="Paste your invite link or code">` : ''}
+    ${m === 'signup' ? `<label class="field-label" for="af">First name</label><input id="af" class="input card" data-input="authFirst" value="${esc(f.first || '')}" autocomplete="given-name" autocapitalize="words" maxlength="30" placeholder="e.g. Lucía"><div class="page-sub" style="font-size:12px;margin-top:6px">Shown to friends so they can find you. It doesn’t have to be unique.</div>` : ''}
     ${m === 'signup' ? `<label class="field-label" for="an">Username</label><input id="an" class="input card" data-input="authName" value="${esc(f.name || '')}" autocapitalize="off" spellcheck="false" autocomplete="username" maxlength="20" placeholder="e.g. liaa"><div id="unameState">${unameStateHtml()}</div>` : ''}
     <label class="field-label" for="ae">Email</label><input id="ae" class="input card" type="email" inputmode="email" autocapitalize="off" autocomplete="email" data-input="authEmail" value="${esc(f.email || '')}" placeholder="you@example.com">
     ${m !== 'reset' ? `<label class="field-label" for="ap">Password</label><input id="ap" class="input card" type="password" autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}" data-input="authPass" value="${esc(f.pass || '')}" placeholder="${m === 'signup' ? 'At least 6 characters' : ''}">` : ''}
@@ -1024,9 +1028,31 @@ function levelOf(n) { let i = -1; LEVELS.forEach((l, k) => { if (n >= l.min) i =
 /* ---------- Two-month recap ---------- */
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 function recapPer(y, k) { return { y, k, start: new Date(y, k * 2, 1).getTime(), end: new Date(y, k * 2 + 2, 1).getTime(), label: MONTH_NAMES[k * 2] + ' / ' + MONTH_NAMES[k * 2 + 1] }; }
+// A memory's photo: yours from this phone or your account, or a friend's (when they tagged you)
+const memUrl = m => m._owner ? friendPhoto(m._owner, m.id) : photoUrl(m.id);
+let taggedCache = null;
+function taggedMems() {
+  if (!auth || !ui.tagged) return [];
+  if (taggedCache && taggedCache.src === ui.tagged) return taggedCache.list;
+  const list = ui.tagged.filter(t => t.mid && +t.at).map(t => { const c = db.cities.find(x => x.name.toLowerCase() === (t.city || '').toLowerCase());
+    return { m: { id: t.mid, at: +t.at, _owner: t.owner }, p: { id: 't:' + t.owner + ':' + t.mid, name: t.place || 'A place', area: t.area || '', cat: t.cat, cityId: c ? c.id : null, _cityName: t.city || '' }, cc: t.cc || (c && c.cc) || '', from: t.ownerFirst || t.ownerName || 'A friend', owner: t.owner }; });
+  taggedCache = { src: ui.tagged, list }; return list;
+}
+async function loadTagged() {
+  if (!auth || !cloudOn()) return;
+  try { ui.tagged = await sbFetch('/rest/v1/rpc/sitio_tagged_memories', { method: 'POST', body: '{}' }, true) || []; try { localStorage.setItem('sitio.tagged', JSON.stringify(ui.tagged)); } catch (e) { } } catch (e) { if (!ui.tagged) ui.tagged = []; }
+  try { ui.untags = await sbFetch('/rest/v1/rpc/sitio_my_untags', { method: 'POST', body: '{}' }, true) || []; } catch (e) { ui.untags = ui.untags || []; }
+}
+try { ui.tagged = JSON.parse(localStorage.getItem('sitio.tagged')) || null; } catch (e) { }
+// Who you tagged in a memory, minus anyone who untagged themselves
+const memWith = m => (m.with || []).filter(id => !(ui.untags || []).some(u => u.mid === m.id && u.uid === id));
+const withText = ids => { const n = ids.map(id => firstOf(id, 'a friend')); return n.length <= 2 ? n.join(' and ') : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]; };
+const canTagAt = p => auth && db.settings.shareMems !== false && !isHiddenPlace(p);
 const locMatch = (p, loc) => !loc || (loc.startsWith('cc:') ? ((cityOf(p) || {}).cc || '').toUpperCase() === loc.slice(3) : 'city:' + p.cityId === loc);
 function recapItems(per, loc) {
   const out = []; db.places.filter(p => locMatch(p, loc)).forEach(p => (p.memories || []).forEach(m => { if (m.at >= per.start && m.at < per.end) out.push({ m, p }); }));
+  // Memories friends tagged you in count too
+  taggedMems().forEach(t => { if (t.m.at >= per.start && t.m.at < per.end && (!loc || (loc.startsWith('cc:') ? (t.cc || '').toUpperCase() === loc.slice(3) : 'city:' + t.p.cityId === loc))) out.push(t); });
   return out.sort((x, y) => x.m.at - y.m.at);
 }
 function recapYear(y) { return { y, k: 'y', year: true, start: new Date(y, 0, 1).getTime(), end: new Date(y + 1, 0, 1).getTime(), label: String(y) }; }
@@ -1051,7 +1077,7 @@ function tryRecap(demo, tries = 0) {
   else { if (!popReady()) { if (tries < 160) setTimeout(() => tryRecap(demo, tries + 1), 500); return; } per = dueRecaps().find(p => { if (seenOnce(recapKey(p))) return false; try { if (localStorage.getItem(recapKey(p))) return false; } catch (e) { } return recapItems(p).length; }); }
   if (!per) return;
   const items = recapItems(per); if (!items.length) return;
-  const ready = items.filter(x => photoUrl(x.m.id)).length;
+  const ready = items.filter(x => memUrl(x.m)).length;
   if ((ready < items.length && tries < 10) || ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 160) setTimeout(() => tryRecap(demo, tries + 1), 500); return; }
   if (!ready) return;
   if (!demo) { try { localStorage.setItem(recapKey(per), '1'); } catch (e) { } markOnce(recapKey(per)); }
@@ -1129,7 +1155,7 @@ function recapsPage() {
 }
 // All recaps as photo stacks: the year on top, then each two months; ones still to come are greyed with a countdown
 function recapStack(per, loc, big) {
-  const now = Date.now(), out = releaseAt(per) <= now, items = recapItems(per, loc), pics = items.map(x => photoUrl(x.m.id)).filter(Boolean).slice(0, 4);
+  const now = Date.now(), out = releaseAt(per) <= now, items = recapItems(per, loc), pics = items.map(x => memUrl(x.m)).filter(Boolean).slice(0, 4);
   const label = per.year ? String(per.y) : esc(per.label.replace(/([A-Z][a-z]{2})[a-z]+/g, '$1')).replace(' / ', '<br>');
   const isNew = out && items.length && !recapSeen(per) && now - releaseAt(per) < 30 * 864e5;
   const card = (src, k, front) => `<div class="rc-card ${front ? 'front' : 'back'}" ${front ? '' : `style="--r:${[-9, 9, -4][k]}deg;--x:${[-30, 30, 0][k] * (big ? 1.2 : 1)}px;--y:${[8, 12, 18][k]}px;--d:${.05 + k * .05}s"`}>${src ? `<img src="${src}" alt="" loading="lazy">` : ''}</div>`;
@@ -1206,7 +1232,7 @@ function notifsPage() {
   </div>`;
 }
 // Legal pages: plain-language privacy policy and terms of use (UK and EU)
-const LEGAL_UPDATED = '18 November 2026';
+const LEGAL_UPDATED = '19 November 2026';
 function legalPage(title, intro, parts) {
   const s = ([h, t]) => `<div class="section-label" style="margin:18px 0 6px">${h}</div>${(Array.isArray(t) ? t : [t]).map(x => `<p class="page-sub" style="line-height:1.55;font-size:14px;margin:0 0 8px">${x}</p>`).join('')}`;
   return `<div class="page" style="z-index:16">
@@ -1226,6 +1252,7 @@ function privacyPage() {
       '<b>Your places and lists:</b> the places you save (names, locations, notes, prices, categories, cities), your lists and your settings.',
       '<b>Memories:</b> the photos you add and the date you give them, stored privately in your account and shown to your friends unless you turn off Share memories with friends in Settings.',
       '<b>Friends:</b> who you’re friends with. Friends can see your Spots and To try (names, places, notes, prices), roughly when you added them (for example “added 2 weeks ago”, or “recently added” for a new spot) and your memory photos there with their dates. They never see spots in Hidden from friends or notes you mark private, and you can stop sharing memories any time in Settings.',
+      '<b>First name and tags:</b> the first name you give is shown to your friends and helps people find you when adding friends. When you tag friends in a memory, they see that photo in their recaps (only at spots they can already see, and only while memory sharing is on). Anyone tagged can remove themselves at any time.',
       '<b>Shared and group lists:</b> a list you mark Shared is shown to your friends with only the places they can already see. A group list is shared by you and the friends in it: each person in it sees the list, who is in it and, for each place, who added it and a copy of its basics (name, category, area, location, price, city and the note, never private notes, photos or memories). Leaving a group list removes the places you added.',
       '<b>Spots friends send you:</b> when a friend sends you a spot in Sitio, we briefly keep who sent it, to whom and the place (name, category, area, location, city, never notes or photos) so it can reach your To try. It is deleted 2 days after it arrives on your phone, or after 30 days if it never does. Each person can send a friend up to 3 spots a day.',
       '<b>Notifications:</b> only if you turn them on, a private notification address from your phone and which types you chose (memory recaps; when a friend adds you, you become friends or sends you a spot; group lists; events).',
@@ -1541,10 +1568,10 @@ function dialogView() {
       <div class="btn-grid"><button class="big-btn sec-btn" data-act="closedialog">Not now</button><button class="big-btn primary-btn" data-act="pushon">Turn on</button></div></div>`;
   }
   if (d.type === 'recap') {
-    const items = d.shared ? d.shared.items : recapItems(d.per, d.loc).filter(x => photoUrl(x.m.id)).map(x => ({ src: photoUrl(x.m.id), name: x.p.name, where: [x.p.area, cityOf(x.p) && cityOf(x.p).name].filter(Boolean).join(', '), at: x.m.at, pid: x.p.id, mid: x.m.id }));
+    const items = d.shared ? d.shared.items : recapItems(d.per, d.loc).filter(x => memUrl(x.m)).map(x => ({ src: memUrl(x.m), name: x.p.name, where: [x.p.area, (cityOf(x.p) && cityOf(x.p).name) || x.p._cityName].filter(Boolean).join(', '), at: x.m.at, pid: x.p.id, mid: x.m.id, from: x.from, owner: x.owner, with: x.owner ? [] : memWith(x.m) }));
     if (!items.length) return '';
     const nPlaces = new Set(items.map(x => x.pid || x.name)).size;
-    const cap = x => `<div class="rc-cap"><b>${esc(x.name)}</b><span>${esc(x.where)}</span><span class="rc-when">${esc(fmtWhen(x.at))}</span></div>`;
+    const cap = x => `<div class="rc-cap"><b>${esc(x.name)}</b><span>${esc(x.where)}</span><span class="rc-when">${esc(fmtWhen(x.at))}</span>${x.from ? `<span class="rc-with">👥 with ${esc(x.from)} · <button class="link-btn" data-act="untagme" data-owner="${esc(x.owner)}" data-m="${esc(x.mid)}">Remove me</button></span>` : x.with && x.with.length ? `<span class="rc-with">👥 with ${esc(withText(x.with))}</span>` : ''}</div>`;
     const who = d.shared ? (d.shared.f ? esc(d.shared.f) + '’s ' : 'A friend’s ') : '';
     const head = `<div class="rc-head"><div class="rc-k">${d.shared ? who + (d.per.year ? 'year in Sitio' : 'recap') : d.per.year ? 'Your year in Sitio' : 'Your recap'}</div><div class="rc-t ${d.per.year ? 'big' : ''}" id="rc-t">${esc(d.per.label + (!d.per.year && d.per.y !== new Date().getFullYear() ? ' ' + d.per.y : ''))}</div><div class="rc-sub">${plural(items.length, 'memory', 'memories')} · ${plural(nPlaces, 'place')}</div></div>`;
     if (!d.open) {
@@ -1682,6 +1709,20 @@ function dialogView() {
       <div style="display:flex;flex-direction:column;gap:10px;max-height:52vh;overflow-y:auto">${ms.map(m => { const u = photoUrl(m.id); return `<div class="md-row">${u ? `<img src="${u}" alt="">` : '<span class="md-ph"></span>'}<input class="input card" type="datetime-local" data-memdate="${m.id}" value="${toLocalInput(m.at)}" max="${toLocalInput(Date.now() + 864e5)}"></div>`; }).join('')}</div>
       <button class="big-btn primary-btn" style="width:100%;margin-top:14px" data-act="memdatesave">Save ${ms.length === 1 ? 'memory' : ms.length + ' memories'}</button></div>`;
   }
+  if (d.type === 'memtag') {
+    const q = byId(d.id); if (!q) return '';
+    const m0 = (q.memories || []).find(x => x.id === d.ms[0]), u0 = m0 && photoUrl(m0.id);
+    const mates = ((ui.friends && ui.friends.friends) || []).filter(f => f.status === 'accepted');
+    const qq = (d.q || '').trim().toLowerCase(), shown = mates.filter(f => !qq || (f.first || '').toLowerCase().includes(qq) || (f.name || '').toLowerCase().includes(qq));
+    const row = f => { const on = d.sel.includes(f.id); return `<button class="set-row" data-act="memtagpick" data-id="${esc(f.id)}" style="min-height:52px"><span class="fr-who"><span class="avatar fr-av">${f.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc(((f.first || f.name || '?')[0] || '?').toUpperCase())}</span><span><b>${esc(f.first || f.name)}</b>${f.first ? `<span>${esc(f.name)}</span>` : ''}</span></span><span class="check-box ${on ? 'on' : ''}">${on ? ICON.check : ''}</span></button>`; };
+    return `<div class="dialog-scrim"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left;top:calc(var(--safe-top) + 16px);transform:translateX(-50%)">
+      ${u0 ? `<div class="mt-thumb"><img src="${u0}" alt="">${d.ms.length > 1 ? `<span>+${d.ms.length - 1}</span>` : ''}</div>` : ''}
+      <h3 id="dlg-t" style="margin:0 0 4px">Who were you with?</h3><p style="margin:0 0 10px;font-size:13px">They’ll get ${d.ms.length > 1 ? 'these memories' : 'this memory'} in their recap too, even if they’re not in the photo.</p>
+      ${d.sel.length ? `<div class="mt-chips">${d.sel.map(id => `<button class="tagchip" data-act="memtagpick" data-id="${esc(id)}"><span class="avatar fr-av">${esc((firstOf(id, '?')[0] || '?').toUpperCase())}</span>${esc(firstOf(id))} ✕</button>`).join('')}</div>` : ''}
+      ${mates.length ? `<label class="search card" style="margin:4px 0 8px">${ICON.search}<input type="search" placeholder="Search friends by name" data-input="memtagQ" value="${esc(d.q || '')}"></label>
+      <div class="settings card" id="memtagres" style="max-height:30vh;overflow-y:auto">${shown.map(row).join('') || '<p style="margin:10px 14px">No friends match.</p>'}</div>` : `<div class="card note">Add friends first, then you can tag them in memories.</div>`}
+      <div class="btn-grid" style="margin-top:12px"><button class="big-btn sec-btn" data-act="memtagskip">${d.fromViewer ? 'Cancel' : 'Skip'}</button><button class="big-btn primary-btn" data-act="memtagdone">Done</button></div></div>`;
+  }
   if (d.type === 'memconfirm') {
     return `<div class="dialog-scrim" data-act="memdelno"></div><div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
       <h3 id="dlg-t">Delete this memory?</h3><p>The photo will be removed from this place and from your account. You can’t undo this.</p>
@@ -1691,10 +1732,10 @@ function dialogView() {
     const q = byId(d.id); if (!q) return '';
     const all = (q.memories || []).slice().sort((x, y) => y.at - x.at); const k = Math.max(0, all.findIndex(x => x.id === d.m)); const m = all[k]; if (!m) return '';
     return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.9)"></div><div class="mem-view" role="dialog" aria-label="Memory">
-      <div class="mv-strip" data-start="${k}">${all.map(x => { const u = photoUrl(x.id); return `<div class="mv-slide" data-m="${x.id}" data-when="${esc(x.at ? fmtWhen(x.at) : 'No date')}">${u ? `<img src="${u}" alt="">` : `<div class="mem-gone" style="height:260px;width:100%">${x.cloud ? 'Loading…' : 'This photo is on another phone'}</div>`}</div>`; }).join('')}</div>
+      <div class="mv-strip" data-start="${k}">${all.map(x => { const u = photoUrl(x.id); return `<div class="mv-slide" data-m="${x.id}" data-when="${esc(x.at ? fmtWhen(x.at) : 'No date')}" data-with="${esc(memWith(x).length ? 'with ' + withText(memWith(x)) : 'Tag who you were with')}">${u ? `<img src="${u}" alt="">` : `<div class="mem-gone" style="height:260px;width:100%">${x.cloud ? 'Loading…' : 'This photo is on another phone'}</div>`}</div>`; }).join('')}</div>
       ${(q.memories || []).length > 1 ? `<button class="mv-thumb ${coverOf(q) === m.id ? 'on' : ''}" data-act="memcover">${coverOf(q) === m.id ? ICON.check + 'Thumbnail' : 'Set as thumbnail'}</button>` : ''}
       ${all.length > 1 ? `<div class="mv-count">${all.map((x, i) => `<i class="${i === k ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button></div><div style="display:flex;gap:8px;align-items:center"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
+      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button>${canTagAt(q) && (q.memories || []).some(x => x.id === m.id) ? `<button class="mw-tag" data-act="memtag">👥 <span>${esc(memWith(m).length ? 'with ' + withText(memWith(m)) : 'Tag who you were with')}</span></button>` : ''}</div><div style="display:flex;gap:8px;align-items:center"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
   if (d.type === 'sharedlist') {
     const s = d.data, shown = s.p.slice(0, 6);
@@ -1857,6 +1898,9 @@ setTimeout(takeHandoff, 0);
 // Mutual friends (max 50). You see their Spots (and what they want to try) once you have 5 spots yourself.
 // Their spots never join your map: saving one puts it in your To try with "via …".
 const fname = n => n || 'A friend';
+// First names: friends are shown by first name (falling back to username); the username stays alongside to tell people apart
+const friendById = id => ((ui.friends && ui.friends.friends) || []).find(f => f.id === id);
+const firstOf = (id, fallback) => { const f = id && friendById(id); return (f && (f.first || f.name)) || fallback || 'A friend'; };
 // When a friend added a place, in calendar days: To try gets "Added 3 weeks ago", Spots only "Recently added" (7 days)
 function daysSince(ts) { if (!ts) return null; const a = new Date(ts), b = new Date(); a.setHours(0, 0, 0, 0); b.setHours(0, 0, 0, 0); return Math.max(0, Math.round((b - a) / 864e5)); }
 // Friends see a soft version ("Added this week"); admins see every day plus the exact date
@@ -1942,11 +1986,11 @@ function frResults(d) {
   if (v.length < 2) return '<p class="page-sub" style="font-size:13px;margin:10px 2px 0">Type at least 2 letters.</p>';
   if (d.err) return `<p class="page-sub" style="font-size:13px;margin:10px 2px 0">${esc(d.err)}</p>`;
   if (!d.res) return '<p class="page-sub" style="font-size:13px;margin:10px 2px 0">Searching…</p>';
-  if (!d.res.length) return '<p class="page-sub" style="font-size:13px;margin:10px 2px 0">No one on Sitio with a username like that.</p>';
+  if (!d.res.length) return '<p class="page-sub" style="font-size:13px;margin:10px 2px 0">No one on Sitio with a name or username like that.</p>';
   return `<div class="settings card" style="margin-top:10px">${d.res.map(u => { const r = u.rel || '';
     const btn = r === 'accepted' ? '<span class="val" style="color:var(--green)">Friends</span>' : r === 'pending:out' ? '<span class="val">Added</span>'
       : `<button class="pill primary-btn" style="height:32px;font-weight:800" data-act="${r === 'pending:in' ? 'fryes' : 'fradd'}" data-id="${esc(u.id)}" data-name="${esc(u.name)}">${ICON.plus}${r === 'pending:in' ? 'Add back' : 'Add'}</button>`;
-    return `<div class="set-row" style="min-height:56px"><span class="fr-who"><span class="avatar fr-av">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc((u.name[0] || '?').toUpperCase())}</span><span><b>${esc(u.name)}</b></span></span>${btn}</div>`; }).join('')}</div>`;
+    return `<div class="set-row" style="min-height:56px"><span class="fr-who"><span class="avatar fr-av">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : esc((u.name[0] || '?').toUpperCase())}</span><span><b>${esc(u.name)}</b>${u.first ? `<span>${esc(u.first)}</span>` : ''}</span></span>${btn}</div>`; }).join('')}</div>`;
 }
 let frTimer = null;
 function searchFriends() {
@@ -1989,7 +2033,7 @@ function friendsBody() {
   return `    ${suggestedInviter()}
     ${incoming.length ? `<div class="section-label" style="margin:14px 0 8px">Added you · ${incoming.length}</div><div class="settings card">${incoming.map(f => `<div class="set-row" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>added you</span></span></span><button class="pill primary-btn" style="height:34px;font-weight:800;white-space:nowrap" data-act="fryes" data-id="${esc(f.id)}">${ICON.plus}Add back</button></div>`).join('')}</div>` : ''}
     <div class="fr-sechead"><span class="section-label">Friends · ${mates.length}${capTxt}</span><button class="link-btn fr-addlink" data-act="addfriend">${ICON.search}Find by username</button></div>
-    ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}${friendTag(f)}</b><span>${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
+    ${mates.length ? `<div class="settings card">${mates.map(f => `<button class="set-row" data-act="openfriend" data-id="${esc(f.id)}" style="min-height:62px"><span class="fr-who">${av(f)}<span><b>${esc(f.first || fname(f.name))}${(ui.newFriendsShown || []).includes(f.id) ? ' <span class="new-pill">New friend</span>' : ''}${friendTag(f)}</b><span>${f.first ? '@' + esc(f.name) + ' · ' : ''}${plural(f.spots, 'spot')}</span></span></span>${ICON.chevRight}</button>`).join('')}</div>`
       : `<div class="empty card" style="border-radius:20px">No friends yet.<br>Find a friend by their username, or invite someone below.</div>`}
     ${sent.length ? `<div class="section-label" style="margin:14px 0 8px">You added</div><div class="settings card">${sent.map(f => `<div class="set-row" style="min-height:56px"><span class="fr-who">${av(f)}<span><b>${esc(fname(f.name))}</b><span>friends once they add you back</span></span></span><button class="link-btn" style="font-size:13px" data-act="frno" data-id="${esc(f.id)}">Undo</button></div>`).join('')}</div>` : ''}
     ${mates.length ? `<div class="settings card" style="margin-top:14px"><button class="set-row" data-act="friendsmap"><span style="display:flex;align-items:center;gap:10px">${ICON.map}See all friends’ spots on the map</span><span class="val">${ICON.chevRight}</span></button></div>` : ''}
@@ -1998,10 +2042,10 @@ function friendsBody() {
 }
 function friendPage(id) {
   const F = (ui.friends && ui.friends.friends || []).find(x => x.id === id), M = (ui.friendMaps || {})[id];
-  const who = fname((M && M.name) || (F && F.name));
+  const who = (F && F.first) || fname((M && M.name) || (F && F.name)), uname = (M && M.name) || (F && F.name) || '';
 
   const nSp = M && !M.error ? (M.locked ? M.spots : (M.places || []).filter(p => p.status === 'spot').length) : (F && F.spots) || 0, fl = levelOf(nSp);
-  const hero = `<div class="pf-hero">${zoomAv(F && F.avatar, who, 92)}<h1 class="pf-name">${esc(who)}</h1>${fl >= 0 ? `<span class="pf-lvl"><span>${LEVELS[fl].badge}</span>Level ${fl + 1} · ${esc(LEVELS[fl].name)}</span>` : ''}${friendTag(F) || (friendTagText(F) ? `<span class="fr-tag-sub">${esc(friendTagText(F))}</span>` : '')}</div>`;
+  const hero = `<div class="pf-hero">${zoomAv(F && F.avatar, who, 92)}<h1 class="pf-name">${esc(who)}</h1>${uname && uname !== who ? `<span class="pf-uname">@${esc(uname)}</span>` : ''}${fl >= 0 ? `<span class="pf-lvl"><span>${LEVELS[fl].badge}</span>Level ${fl + 1} · ${esc(LEVELS[fl].name)}</span>` : ''}${friendTag(F) || (friendTagText(F) ? `<span class="fr-tag-sub">${esc(friendTagText(F))}</span>` : '')}</div>`;
   const wrap = inner => `<div class="sheet pf-sheet" role="dialog" aria-label="${esc(who)}" data-swipeclose="closefprof"><div class="grab"></div><button class="round sec-btn sheet-x right" data-act="closefprof" aria-label="Close">${ICON.close}</button>${hero}${inner}</div>`;
   if (!M) return wrap('<p class="page-sub" style="text-align:center">Loading…</p>');
   if (M.error) return wrap(`<div class="card note">${esc(M.error)}</div>`);
@@ -2034,7 +2078,7 @@ function friendPage(id) {
     ${remove}`);
 }
 function friendSheet(f) {
-  const p = f.p, who = fname(f.ownerName), cur = (f.city && f.city.currency) || '€', isTry = p.status === 'totry';
+  const p = f.p, who = f.owner && friendById(f.owner) ? firstOf(f.owner) : fname(f.ownerName), cur = (f.city && f.city.currency) || '€', isTry = p.status === 'totry';
   const mine = db.places.find(x => (p.googleId && x.googleId === p.googleId) || (x.name === p.name && Math.abs((x.lat || 0) - p.lat) < 0.0005));
   return `<div class="sheet" role="dialog" aria-label="${esc(p.name)}" data-swipeclose="${ui.fprof ? 'closeall' : 'closesheet'}"><div class="grab"></div>
     ${ui.fprof ? `<button class="round sec-btn sheet-x right" data-act="closeall" aria-label="Close">${ICON.close}</button><button class="link-btn fr-back" data-act="fprofback">${ICON.back}${esc(fname(((ui.friends && ui.friends.friends || []).find(x => x.id === ui.fprof) || {}).name || who))}</button>` : ''}
@@ -2129,7 +2173,7 @@ async function checkMember() {
     memberState = ok !== false;
     if (memberState) { try { localStorage.removeItem('sitio.pendingInvite'); } catch (e) { } }
   } catch (e) { memberState = true; } // invite system not set up or offline: never lock people out
-  render(); if (memberState) { sync(); if (!ui.invData) loadInvites(); loadFriends(); setTimeout(maybeAskInviter, 1500); setTimeout(takeShares, 2500); }
+  render(); if (memberState) { sync(); if (!ui.invData) loadInvites(); loadFriends(); setTimeout(loadTagged, 1200); setTimeout(maybeAskInviter, 1500); setTimeout(takeShares, 2500); }
 }
 // A spot shared by link can be looked at on the map without an account (Sitio itself stays invite-only)
 const guestPlace = s => ({ id: 'guest', name: s.n, cat: s.c, cats: s.cs && s.cs.length ? s.cs : [s.c], cuisine: s.q, area: s.a, lat: s.la, lng: s.ln, googleId: s.g || null, status: 'spot', photos: [], hours: null });
@@ -2336,7 +2380,7 @@ function render() {
     mv.scrollLeft = (+mv.dataset.start || 0) * mv.clientWidth;
     let t = null; mv.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => {
       const i = Math.round(mv.scrollLeft / mv.clientWidth), sl = mv.children[i]; if (!sl || !ui.dialog || ui.dialog.type !== 'memory') return;
-      ui.dialog.m = sl.dataset.m; const w = uiEl.querySelector('.mw-t'); if (w) w.textContent = sl.dataset.when;
+      ui.dialog.m = sl.dataset.m; const w = uiEl.querySelector('.mw-t'); if (w) w.textContent = sl.dataset.when; const tw = uiEl.querySelector('.mw-tag span'); if (tw) tw.textContent = sl.dataset.with;
       const tb = uiEl.querySelector('.mv-thumb'), q = byId(ui.dialog.id); if (tb && q) { const on = coverOf(q) === sl.dataset.m; tb.classList.toggle('on', on); tb.innerHTML = on ? ICON.check + 'Thumbnail' : 'Set as thumbnail'; }
       uiEl.querySelectorAll('.mv-count i').forEach((d, k) => d.classList.toggle('on', k === i)); }, 80); });
   }
@@ -2644,7 +2688,7 @@ function recapFromHash(hash, tries = 0) {
   if (location.hash) history.replaceState(null, '', location.pathname);
   const per = m[2] === 'y' ? recapYear(+m[1]) : recapPer(+m[1], +m[2]);
   const go = (t = 0) => {
-    if ((releaseAt(per) > Date.now() && !isAdmin) || !recapItems(per).some(x => photoUrl(x.m.id))) { if (t < 30) setTimeout(() => go(t + 1), 500); return; }
+    if ((releaseAt(per) > Date.now() && !isAdmin) || !recapItems(per).some(x => memUrl(x.m))) { if (t < 30) setTimeout(() => go(t + 1), 500); return; }
     if (ui.dialog && ui.dialog.type === 'recap') return;
     ui.sheet = null; ui.page = null; ui.tab = 'home'; ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
   };
@@ -2976,10 +3020,15 @@ uiEl.addEventListener('click', e => {
     case 'frmapone': { const f = ui.fspot; if (!f || typeof f.p.lat !== 'number') return; ui.fprof = null; ui.page = null; ui.prevPage = null; ui.dialog = null; ui.tab = 'home'; ui.world = false; ui.focusF = f; ui.sheet = 'friendspot'; ui.selected = null; lastMapKey = ''; render(); mapApi.focus({ lat: f.p.lat, lng: f.p.lng }); return; }
     case 'trymapone': ui.dialog = null; ui.tab = 'home'; ui.filter = ['totry']; ui.selected = id; ui.sheet = 'spot'; if (p && hasCoords(p)) mapApi.focus(p); break;
     case 'notetoggle': ui.noteOpen = ui.noteOpen === id ? null : id; break;
-    case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } ui.dialog = null; setTimeout(memoryPushAsk, 1200); break; }
-    case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
+    case 'memdatesave': { const q = byId(ui.dialog.id); if (q) { uiEl.querySelectorAll('[data-memdate]').forEach(inp => { const m = (q.memories || []).find(x => x.id === inp.dataset.memdate); const t = fromLocalInput(inp.value); if (m && t) m.at = t; }); save(); lastMapKey = ''; const n = ui.dialog.ms.length, last = q.memories.find(m => m.id === ui.dialog.ms[0]); toast(n === 1 && last ? 'Memory saved · ' + fmtWhen(last.at) : n + ' memories saved', null); } { const dd = ui.dialog, mates = ((ui.friends && ui.friends.friends) || []).filter(f => f.status === 'accepted'); ui.dialog = q && canTagAt(q) && mates.length && !dd.redate ? { type: 'memtag', id: q.id, ms: dd.ms.slice(), sel: [] } : null; } setTimeout(memoryPushAsk, 1200); break; }
+    case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m], redate: true }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
+    case 'memtag': { const q = byId(ui.dialog.id), m = q && (q.memories || []).find(x => x.id === ui.dialog.m); if (!m) return; ui.dialog = { type: 'memtag', id: q.id, ms: [m.id], sel: memWith(m).slice(), fromViewer: true, back: { type: 'memory', id: q.id, m: m.id } }; if (!ui.friends) loadFriends(); break; }
+    case 'memtagpick': { const d = ui.dialog; d.q = (uiEl.querySelector('[data-input="memtagQ"]') || {}).value || d.q; d.sel = d.sel.includes(id) ? d.sel.filter(x => x !== id) : d.sel.concat(id); break; }
+    case 'memtagskip': ui.dialog = ui.dialog.back || null; break;
+    case 'memtagdone': { const d = ui.dialog, q = byId(d.id); if (q) { (q.memories || []).forEach(m => { if (d.ms.includes(m.id)) { const keepUntag = (m.with || []).filter(x => !d.sel.includes(x) && !memWith(m).includes(x)); m.with = d.sel.concat(keepUntag); if (!m.with.length) delete m.with; } }); save(); toast(d.sel.length ? 'Tagged ' + withText(d.sel) : 'No one tagged', null); } ui.dialog = d.back || null; break; }
+    case 'untagme': { const owner = t.dataset.owner, mid = t.dataset.m; ui.tagged = (ui.tagged || []).filter(x => !(x.owner === owner && x.mid === mid)); taggedCache = null; try { localStorage.setItem('sitio.tagged', JSON.stringify(ui.tagged)); } catch (e) { } sbFetch('/rest/v1/rpc/sitio_untag', { method: 'POST', body: JSON.stringify({ owner, mid }) }, true).catch(e => flash(friendly(e))); toast('Removed from your recaps', null); if (ui.dialog && ui.dialog.type === 'recap') ui.dialog = null; break; }
     case 'recapsoon': toast(t.dataset.v, null); return;
     case 'rcmenu': ui.rcMenu = ui.rcMenu === t.dataset.v ? null : t.dataset.v; break;
     case 'rcpick': ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[t.dataset.k] = t.dataset.v; ui.rcMenu = null; break;
@@ -3083,6 +3132,7 @@ uiEl.addEventListener('click', e => {
     case 'unamepick': ui.authF = ui.authF || {}; ui.authF.name = t.dataset.v; { const i = uiEl.querySelector('[data-input="authName"]'); if (i) i.value = t.dataset.v; } checkUnameLive(); return;
     case 'settingspage': ui.prevPage = null; ui.page = 'settings'; setTimeout(uploadMemories, 200); break;
     case 'memsbannerx': ui.memsBanner = false; break;
+    case 'savefirst': { const v = ((uiEl.querySelector('[data-input="firstDraft"]') || {}).value || ui.firstDraft || '').trim().slice(0, 30); if (!v) { flash('Add your first name.'); return; } db.user.first = v; ui.firstDraft = null; save(); toast('Saved: ' + v, null); break; }
     case 'memsok': db.settings.memsNotice = 1; save(); ui.dialog = null; break;
     case 'memshare': db.settings.shareMems = t.dataset.v === '1'; db.settings.memsNotice = 1; save(); ui.dialog = null; toast(db.settings.shareMems ? 'Friends can see your memories' : 'Your memories stay just yours', null); break;
     case 'openfriend': if (!auth || !id) return; if (ui.page && ui.page.friend) ui.page = null; ui.fprof = id; ui.frTryAll = null; if (ui.sheet === 'friendspot') { ui.sheet = null; ui.fspot = null; } if (!ui.friends) loadFriends(); loadFriendMap(id); break;
@@ -3129,6 +3179,8 @@ uiEl.addEventListener('input', e => {
   if (k === 'addNote') ui.add.note = v;
   if (k === 'userName') { db.user.name = v; save(); }
   if (k === 'unameDraft') ui.unameDraft = v;
+  if (k === 'firstDraft') ui.firstDraft = v;
+  if (k === 'memtagQ' && ui.dialog && ui.dialog.type === 'memtag') { ui.dialog.q = v; render(); }
   if (k === 'groupAddQ' && ui.dialog && ui.dialog.type === 'groupadd') { ui.dialog.q = v; const box = $('#groupaddres'), g = groupOf(ui.dialog.groupId); if (box && g) box.innerHTML = groupAddRows(g, v.trim().toLowerCase()); }
   if (k === 'listAddQ' && ui.dialog && ui.dialog.type === 'listadd') { ui.dialog.q = v; const box = $('#listaddres'), l = listOf(ui.dialog.listId); if (box && l) box.innerHTML = listAddRows(l, v.trim().toLowerCase()); }
   if (k === 'cityQf') { ui.cityQ = v; render(); }
@@ -3139,7 +3191,7 @@ uiEl.addEventListener('input', e => {
   if (k === 'recapY' || k === 'recapLoc') { ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[k === 'recapY' ? 'y' : 'loc'] = v; render(); }
   if (k === 'adminCityQ') { ui.adminCityQ = v; render(); }
   if (k === 'cityQ') { clearTimeout(cityTimer); cityTimer = setTimeout(() => citySuggest(v), 250); }
-  if (k === 'authName' || k === 'authEmail' || k === 'authPass') { ui.authF = ui.authF || {}; ui.authF[{ authName: 'name', authEmail: 'email', authPass: 'pass' }[k]] = v; if (k === 'authName') checkUnameLive(); }
+  if (k === 'authName' || k === 'authEmail' || k === 'authPass' || k === 'authFirst') { ui.authF = ui.authF || {}; ui.authF[{ authName: 'name', authEmail: 'email', authPass: 'pass', authFirst: 'first' }[k]] = v; if (k === 'authName') checkUnameLive(); }
 });
 // File pickers: the screen can redraw while the photo picker is open (sync, timers), which used to
 // throw away the hidden input and lose the photos. One permanent picker outside the screen fixes that.
@@ -3262,6 +3314,7 @@ async function doAuth() {
   const msg = (text, ok) => { ui.authMsg = { text, ok }; render(); };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return msg('Enter a valid email.');
   if (m !== 'reset' && (f.pass || '').length < 6) return msg('Your password needs at least 6 characters.');
+  if (m === 'signup' && !(f.first || '').trim()) return msg('Add your first name.');
   if (m === 'signup' && !USER_RE.test((f.name || '').trim())) return msg('Pick a username: ' + USER_HINT);
   if (m === 'signup' && !f.agree) return msg('Please confirm you’re 16 or over and agree to the Terms of use and Privacy policy.');
   if (m === 'signup') {
@@ -3280,12 +3333,13 @@ async function doAuth() {
     } else {
       const name = (f.name || '').trim();
       const s = m === 'signup'
-        ? await sbFetch('/auth/v1/signup', { method: 'POST', body: JSON.stringify({ email, password: f.pass, data: { name } }) })
+        ? await sbFetch('/auth/v1/signup', { method: 'POST', body: JSON.stringify({ email, password: f.pass, data: { name, first: (f.first || '').trim().slice(0, 30) } }) })
         : await sbFetch('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password: f.pass }) });
-      if (m === 'signup' && name) db.user.name = name;
+      if (m === 'signup' && name) { db.user.name = name; db.user.first = (f.first || '').trim().slice(0, 30); }
       if (!s || !s.access_token) { save(); ui.authMode = 'login'; ui.authMsg = { ok: true, text: 'Almost there: check your email and tap the link to confirm, then log in here.' }; }
       else {
         if (!db.user.name && s.user && s.user.user_metadata && s.user.user_metadata.name) db.user.name = s.user.user_metadata.name;
+        if (!db.user.first && s.user && s.user.user_metadata && s.user.user_metadata.first) db.user.first = s.user.user_metadata.first;
         setAuth(s); memberState = null; ui.suspended = false; setTimeout(checkMember, 50); prepareHandoff(email, f.pass); try { if (!+localStorage.getItem('sitio.opens')) localStorage.setItem('sitio.opens', '1'); } catch (e2) { } if (m === 'signup' && name) db.usernameOk = ''; save(); ui.page = null; ui.authF = {}; ui.authMsg = null;
         toast(m === 'signup' ? 'Account created. Your spots are saved.' : 'Logged in', null);
         setTimeout(maybeFirstTour, 900);

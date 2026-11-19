@@ -1106,3 +1106,19 @@ body.light { --glass-bg: rgba(255,255,255,0.56); --glass: blur(11px) saturate(17
 .gx.soon .rc-card { filter: grayscale(1) brightness(.45) blur(1.5px); }
 .gx.soon .gx-sub { color: var(--gold); }
 .gx-new { position: absolute; top: -8px; right: -10px; z-index: 6; font-size: 10px; font-weight: 800; padding: 3px 7px; border-radius: 8px; background: var(--gold); color: #1A1406; }
+/* First names and tagging */
+.pf-uname { font-size: 13px; font-weight: 700; color: var(--text-2); margin-top: -4px; }
+.you-first { margin: 12px 0 0; padding: 10px; border-radius: 14px; background: rgba(var(--gold-rgb),.10); border: 1px solid rgba(var(--gold-rgb),.35); }
+.you-first > span { display: block; font-size: 12.5px; font-weight: 700; margin: 0 2px 8px; }
+.you-first > div { display: flex; gap: 8px; }
+.you-first .input { flex: 1; height: 42px; min-width: 0; }
+.you-first .pill { height: 42px; font-weight: 800; }
+.mt-thumb { position: relative; width: 100%; height: 150px; border-radius: 16px; overflow: hidden; margin-bottom: 12px; }
+.mt-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.mt-thumb span { position: absolute; right: 8px; bottom: 8px; padding: 3px 8px; border-radius: 10px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 800; }
+.mt-chips { display: flex; flex-wrap: wrap; }
+.tagchip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px 0 4px; border-radius: 16px; background: rgba(127,216,198,.16); border: 1px solid rgba(127,216,198,.5); color: var(--text); font: inherit; font-size: 13px; font-weight: 800; margin: 0 6px 6px 0; }
+.tagchip .avatar { width: 24px; height: 24px; font-size: 11px; }
+.mw-tag { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px 0 0; color: #7FD8C6; font: inherit; font-size: 13px; font-weight: 700; text-align: left; }
+.rc-with { display: block; margin-top: 4px; font-size: 12.5px; font-weight: 700; color: #7FD8C6; }
+.rc-with .link-btn { font-size: 12px; color: rgba(255,255,255,.7); text-decoration: underline; }
