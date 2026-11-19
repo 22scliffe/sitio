@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.40'; // also in version.txt: bump both
+const APP_VERSION = '0.6.41'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -527,7 +527,7 @@ function tabbar() {
     const ic = iconName === 'totry' ? icon('totry', on ? '#FF5A4E' : 'none', on ? '#FF5A4E' : 'currentColor') : icon(iconName, on ? 'currentColor' : 'none');
     return `<button class="${on ? 'on' : ''}" data-act="tab" data-tab="${id}" aria-label="${label}">${ic}${label}${extra}</button>`;
   };
-  return `<nav class="tabbar glass" aria-label="Main">${t('home', 'Home', 'home')}${t('spots', 'Spots', 'spots')}${t('totry', 'To try', 'totry', n && ui.tab !== 'totry' ? `<span class="badge">${n}</span>` : '')}${t('friends', 'Friends', 'friendsTab', friendsTodo() && ui.tab !== 'friends' ? '<span class="badge dot" aria-label="Something new in Friends"></span>' : '')}</nav>`;
+  return `<nav class="tabbar glass" aria-label="Main">${t('home', 'Home', 'home')}${t('spots', 'Spots', 'spots')}${t('totry', 'To try', 'totry', n && ui.tab !== 'totry' ? `<span class="badge">${n}</span>` : '')}${t('friends', 'Friends', 'friendsTab', (friendsTodo() || recapNew()) && ui.tab !== 'friends' ? '<span class="badge dot" aria-label="Something new in Friends"></span>' : '')}</nav>`;
 }
 
 function homeView() {
@@ -836,15 +836,27 @@ function tryView() {
 }
 
 function youCard() {
-  const all = db.places; const u = db.user;
-  const av = u.photo && photoUrl(u.photo) ? `<img src="${photoUrl(u.photo)}" alt="">` : (u.avatar ? `<img src="${u.avatar}" alt="">` : esc((u.name || 'You')[0].toUpperCase()));
-  const row = (label, val, act) => `<button class="set-row" data-act="${act}"><span>${label}</span><span class="val">${val}${ICON.chevRight}</span></button>`;
-  const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
+  const all = db.places, u = db.user, nS = all.filter(p => p.status === 'spot').length, nT = all.filter(p => p.status === 'totry').length;
+  const src = u.photo && photoUrl(u.photo) ? photoUrl(u.photo) : u.avatar;
+  const li = levelOf(spotCount()), lvl = li >= 0 ? `<button class="you-lvl" data-act="levels"><span>${LEVELS[li].badge}</span>Level ${li + 1} · ${esc(LEVELS[li].name)}${ICON.chevRight}</button>` : `<button class="you-lvl start" data-act="levels"><span>🌱</span>Add a spot to level up${ICON.chevRight}</button>`;
+  const rc = recapLine();
   return `<div class="you-card card">
-    <div class="you-top" data-act="${auth ? 'profile' : 'openauth'}" style="display:flex;align-items:center;gap:14px"><button class="avatar acct-av" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}" style="padding:0;color:var(--text)">${auth ? av : esc('?')}</button><div><div style="font-size:24px;font-weight:800">${auth ? esc(u.name || 'You') : 'Not logged in'}</div>${(() => { const li = levelOf(spotCount()); return li >= 0 ? `<button class="lvl-chip" data-act="levels"><span class="lvl-ico">${LEVELS[li].badge}</span><span class="lvl-txt"><span class="lvl-lv">Level ${li + 1}</span><span class="lvl-nm">${LEVELS[li].name}</span></span>${ICON.chevRight}</button>` : `<button class="lvl-chip start" data-act="levels"><span class="lvl-ico">🌱</span><span class="lvl-txt"><span class="lvl-lv">Level 0</span><span class="lvl-nm">Add a spot to level up</span></span>${ICON.chevRight}</button>`; })()}</div></div>
+    <div class="you-top"><button class="you-av" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}">${auth ? (src ? `<img src="${esc(src)}" alt="">` : esc((u.name || 'You')[0].toUpperCase())) : '?'}</button>
+      <div class="you-id"><button class="you-name" data-act="${auth ? 'profile' : 'openauth'}">${auth ? esc(u.name || 'You') : 'Not logged in'}</button>${lvl}</div></div>
     ${cloudOn() && !auth ? `<button class="card acct-cta glow" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
-    <div class="stats"><button class="stat card" data-act="gostat" data-v="spots"><b>${all.filter(p => p.status === 'spot').length}</b><span>Spots</span></button><button class="stat card" data-act="gostat" data-v="totry"><b style="color:var(--coral-soft)">${all.filter(p => p.status === 'totry').length}</b><span>To try</span></button><button class="stat card" data-act="cities"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></button></div>
+    <div class="you-stats"><button data-act="gostat" data-v="spots"><b>${nS}</b><span>${nS === 1 ? 'Spot' : 'Spots'}</span></button><button data-act="gostat" data-v="totry"><b>${nT}</b><span>To try</span></button><button data-act="cities"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></button></div>
+    ${rc}
   </div>`;
+}
+// Memory recaps live on your card: what's ready, what's next, "New" until you've watched it
+function recapNew() { if (!auth) return false; try { return recapList().some(p => !recapSeen(p) && Date.now() - releaseAt(p) < 30 * 864e5); } catch (e) { return false; } }
+function recapLine() {
+  if (!auth) return '';
+  const ready = recapList(), now = new Date(), cur = recapPer(now.getFullYear(), Math.floor(now.getMonth() / 2)), next = releaseAt(cur) > Date.now() ? cur : null;
+  const unseen = ready.filter(p => !recapSeen(p) && Date.now() - releaseAt(p) < 30 * 864e5)[0];
+  const r = next && new Date(releaseAt(next));
+  const sub = unseen ? recapName(unseen) + ' is ready' : ready.length ? (next ? recapName(next) + ' out ' + ordinal(r.getDate()) + ' ' + MONTH_NAMES[r.getMonth()].slice(0, 3) : plural(ready.length, 'recap') + ' to watch again') : next ? 'Your first one: ' + recapName(next) + ', out ' + ordinal(r.getDate()) + ' ' + MONTH_NAMES[r.getMonth()].slice(0, 3) : 'Add photo memories to get one';
+  return `<button class="you-recap ${unseen ? 'new' : ''}" data-act="${unseen ? 'recapshow' : 'allrecaps'}" ${unseen ? `data-y="${unseen.y}" data-k="${unseen.k}" data-loc=""` : ''}><span class="yr-ic">📸</span><span class="yr-txt"><b>Memory recaps</b><span>${esc(sub)}</span></span>${unseen ? '<span class="yr-new">New</span>' : ''}${ICON.chevRight}</button>`;
 }
 function settingsPage() {
   const all = db.places; const u = db.user;
@@ -853,8 +865,6 @@ function settingsPage() {
   const tog = (label, sub, key) => `<div class="set-row"><span style="display:flex;flex-direction:column;gap:2px"><span>${label}</span>${sub ? `<span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span>` : ''}</span><button class="toggle ${db.settings[key] ? 'on' : ''}" data-act="toggle" data-key="${key}" aria-pressed="${!!db.settings[key]}" aria-label="${label}"></button></div>`;
   return `<div class="page" style="z-index:14">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px;flex:none" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Settings</span></div>
-    <div class="section-label" style="margin-bottom:8px">Memory recaps</div>
-    <div class="settings card rc-glow" style="margin-bottom:18px">${recapList('', new Date().getFullYear()).map(p => recapRow(p)).join('')}<button class="set-row" data-act="allrecaps"><span>Past recaps</span><span class="val">${recapList().filter(p => p.y < new Date().getFullYear()).length ? plural(recapList().filter(p => p.y < new Date().getFullYear()).length, 'recap') : 'All years'}${ICON.chevRight}</span></button>${recapSoonRows()}</div>
     <div class="section-label" style="margin-bottom:8px">Settings</div>
     <div class="settings card">
       ${row('Quick tour', 'See how Sitio works', 'tourreplay')}
@@ -935,7 +945,7 @@ function profilePage() {
   const u = db.user; const av = u.photo && photoUrl(u.photo) ? `<img src="${photoUrl(u.photo)}" alt="">` : (u.avatar ? `<img src="${u.avatar}" alt="">` : esc((u.name || 'You')[0].toUpperCase()));
   return `<div class="page" style="z-index:15">
     <div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Account details</span></div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin:18px 0 22px"><div class="avatar" style="width:104px;height:104px;border-radius:52px;font-size:42px">${av}</div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin:18px 0 22px">${zoomAv(u.photo && photoUrl(u.photo) ? photoUrl(u.photo) : u.avatar, u.name || 'You', 104, 'border-radius:52px;font-size:42px')}
       <label class="link-btn" style="text-decoration:underline;cursor:pointer">Change photo<input type="file" accept="image/*" hidden data-userphoto="1"></label></div>
     <label class="field-label" for="nm">Username</label>
     <div style="display:flex;gap:8px"><input id="nm" class="input card" style="flex:1" value="${esc(ui.unameDraft != null ? ui.unameDraft : (u.name || ''))}" data-input="unameDraft" maxlength="20" autocapitalize="off" autocomplete="username" spellcheck="false"><button class="big-btn primary-btn" style="width:auto;padding:0 18px;height:52px" data-act="saveuname">Save</button></div>
@@ -1020,6 +1030,7 @@ function recapItems(per, loc) {
 }
 function recapYear(y) { return { y, k: 'y', year: true, start: new Date(y, 0, 1).getTime(), end: new Date(y + 1, 0, 1).getTime(), label: String(y) }; }
 const recapKey = per => 'sitio.recap.' + per.y + '-' + per.k;
+const recapSeen = per => { try { if (localStorage.getItem(recapKey(per))) return true; } catch (e) { } return seenOnce(recapKey(per)); };
 // Which recaps are due: the year one from 30 Dec (or in January if missed); a two-month one on its last day (or later if missed)
 function dueRecaps(now = new Date()) {
   const y = now.getFullYear(), mo = now.getMonth(), k = Math.floor(mo / 2), out = [];
@@ -1921,7 +1932,8 @@ function friendPage(id) {
   const F = (ui.friends && ui.friends.friends || []).find(x => x.id === id), M = (ui.friendMaps || {})[id];
   const who = fname((M && M.name) || (F && F.name));
 
-  const hero = `<div class="pf-hero">${zoomAv(F && F.avatar, who, 92)}<h1 class="pf-name">${esc(who)}</h1>${friendTag(F) || (friendTagText(F) ? `<span class="fr-tag-sub">${esc(friendTagText(F))}</span>` : '')}</div>`;
+  const nSp = M && !M.error ? (M.locked ? M.spots : (M.places || []).filter(p => p.status === 'spot').length) : (F && F.spots) || 0, fl = levelOf(nSp);
+  const hero = `<div class="pf-hero">${zoomAv(F && F.avatar, who, 92)}<h1 class="pf-name">${esc(who)}</h1>${fl >= 0 ? `<span class="pf-lvl"><span>${LEVELS[fl].badge}</span>Level ${fl + 1} · ${esc(LEVELS[fl].name)}</span>` : ''}${friendTag(F) || (friendTagText(F) ? `<span class="fr-tag-sub">${esc(friendTagText(F))}</span>` : '')}</div>`;
   const wrap = inner => `<div class="sheet pf-sheet" role="dialog" aria-label="${esc(who)}" data-swipeclose="closefprof"><div class="grab"></div><button class="round sec-btn sheet-x right" data-act="closefprof" aria-label="Close">${ICON.close}</button>${hero}${inner}</div>`;
   if (!M) return wrap('<p class="page-sub" style="text-align:center">Loading…</p>');
   if (M.error) return wrap(`<div class="card note">${esc(M.error)}</div>`);
@@ -2143,7 +2155,7 @@ window.SITIO_LANG = db.settings.lang === 'es' ? 'es' : 'en'; document.documentEl
 if (window.MutationObserver && window.SITIO_I18N) new MutationObserver(() => { if (window.SITIO_LANG === 'es') window.SITIO_I18N.apply(uiEl); }).observe(uiEl, { childList: true, subtree: true });
 let lastMapKey = ''; const scrollMem = {};
 const REDUCED_MOTION = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } })();
-let lastTabShown = null;
+let lastTabShown = null; const animStart = {};
 function render() {
   window.SITIO_LANG = db.settings.lang === 'es' ? 'es' : 'en';
   document.body.classList.toggle('light', !db.settings.darkMap);
@@ -2234,8 +2246,10 @@ function render() {
   const oldPage = uiEl.querySelector(':scope > [data-sk^="p:"]'), oldPageKey = oldPage ? oldPage.dataset.sk : '';
   uiEl.innerHTML = h;
   ANIM.forEach(s => { const o = before[s], n = uiEl.querySelector(':scope > ' + s);
-    if (o && n) n.style.animation = 'none';
-    else if (o && !n && !REDUCED_MOTION) { o.classList.add('leaving'); o.style.pointerEvents = 'none'; uiEl.appendChild(o); setTimeout(() => o.remove(), 260); } });
+    // If it's still sliding in when the content updates (e.g. a profile finishing loading), carry on from the same point instead of jumping
+    if (o && n) { const t0 = animStart[s] || 0, el = performance.now() - t0; if (el < 320 && !REDUCED_MOTION) n.style.animationDelay = (-el) + 'ms'; else n.style.animation = 'none'; }
+    else if (!o && n) animStart[s] = performance.now();
+    if (o && !n && !REDUCED_MOTION) { o.classList.add('leaving'); o.style.pointerEvents = 'none'; uiEl.appendChild(o); setTimeout(() => o.remove(), 260); } });
   const newPage = uiEl.querySelector(':scope > [data-sk^="p:"]'), newPageKey = newPage ? newPage.dataset.sk : '';
   if (newPage && newPageKey !== 'p:null' && newPageKey !== oldPageKey && !REDUCED_MOTION) newPage.classList.add('page-in');
   else if (oldPage && oldPageKey !== 'p:null' && (!newPage || newPageKey === 'p:null') && !REDUCED_MOTION) { if (oldPage.style.transform) { oldPage.style.transition = 'transform .2s ease-out'; requestAnimationFrame(() => { oldPage.style.transform = 'translateX(100%)'; }); } else oldPage.classList.add('page-out'); oldPage.style.pointerEvents = 'none'; uiEl.appendChild(oldPage); setTimeout(() => oldPage.remove(), 240); }
@@ -2895,7 +2909,7 @@ uiEl.addEventListener('click', e => {
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
-    case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k; ui.dialog = { type: 'recap', per: k === 'y' ? recapYear(y) : recapPer(y, +k), loc: t.dataset.loc || '', open: false, intro: true, introAt: Date.now() }; break; }
+    case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k, per0 = k === 'y' ? recapYear(y) : recapPer(y, +k); try { localStorage.setItem(recapKey(per0), '1'); } catch (e) { } markOnce(recapKey(per0)); ui.dialog = { type: 'recap', per: per0, loc: t.dataset.loc || '', open: false, intro: true, introAt: Date.now() }; break; }
     case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; break;
     case 'recapsend': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog); return;
     case 'recapdemo': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog, DEMO_RECAP); return;
