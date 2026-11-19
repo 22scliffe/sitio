@@ -1167,3 +1167,10 @@ body.light { --glass-bg: rgba(255,255,255,0.45); --glass: blur(9px) saturate(170
 .cat-multi.ck.on { color: var(--text); }
 .cat-multi.ck.on b { background: var(--text); border-color: var(--text); color: var(--bg); }
 .cat-multi.ck.on b .icon { opacity: 1; }
+
+/* Recap stacks (0.6.58): phones over-blur filtered layers, so the released front photo gets no blur,
+   just a soft dark wash behind the label so the text stays readable */
+.gx .rc-card.front img { filter: none; transform: none; }
+.gx .rc-card.front::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(0,0,0,.38) 0%, rgba(0,0,0,.12) 60%, rgba(0,0,0,0) 100%); pointer-events: none; }
+.gx.soon .rc-card.front img { filter: grayscale(.85) brightness(.45); }
+.gx.soon .rc-card.front::after { display: none; }
