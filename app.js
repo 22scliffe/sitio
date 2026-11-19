@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.49'; // also in version.txt: bump both
+const APP_VERSION = '0.6.50'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -3033,7 +3033,7 @@ uiEl.addEventListener('click', e => {
     case 'rcmenu': ui.rcMenu = ui.rcMenu === t.dataset.v ? null : t.dataset.v; break;
     case 'rcpick': ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[t.dataset.k] = t.dataset.v; ui.rcMenu = null; break;
     case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k, per0 = k === 'y' ? recapYear(y) : recapPer(y, +k); try { localStorage.setItem(recapKey(per0), '1'); } catch (e) { } markOnce(recapKey(per0)); ui.dialog = { type: 'recap', per: per0, loc: t.dataset.loc || '', open: false, intro: true, introAt: Date.now() }; break; }
-    case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; break;
+    case 'allrecaps': ui.dialog = null; ui.prevPage = ui.page; ui.page = 'recaps'; ui.recapF = null; ui.rcMenu = null; break;
     case 'recapsend': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog); return;
     case 'recapdemo': if (ui.dialog && ui.dialog.type === 'recap') sendRecap(ui.dialog, DEMO_RECAP); return;
     case 'pushon': ui.dialog = null; db.settings.nRecaps = true; save(); enablePush(); break;

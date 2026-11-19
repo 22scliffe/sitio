@@ -1122,3 +1122,9 @@ body.light { --glass-bg: rgba(255,255,255,0.56); --glass: blur(11px) saturate(17
 .mw-tag { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px 0 0; color: #7FD8C6; font: inherit; font-size: 13px; font-weight: 700; text-align: left; }
 .rc-with { display: block; margin-top: 4px; font-size: 12.5px; font-weight: 700; color: #7FD8C6; }
 .rc-with .link-btn { font-size: 12px; color: rgba(255,255,255,.7); text-decoration: underline; }
+/* Year stacks: a slow gold glow around the white border (muted and blurred while it's still to come) */
+@keyframes yrGlow { 0%, 100% { box-shadow: 0 14px 34px rgba(0,0,0,.55), 0 0 12px rgba(245,184,61,.30); } 50% { box-shadow: 0 14px 34px rgba(0,0,0,.55), 0 0 30px rgba(245,184,61,.65), 0 0 6px rgba(255,236,190,.6); } }
+@keyframes yrGlowSoft { 0%, 100% { box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 0 8px rgba(245,184,61,.15); } 50% { box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 0 22px rgba(245,184,61,.35); } }
+.gx.year .rc-card.front { border-color: #FFF6DE; animation: rcFront .45s cubic-bezier(.2,.9,.3,1.2) both, yrGlow 3.2s ease-in-out .5s infinite; }
+.gx.year.soon .rc-card.front { animation: rcFront .45s cubic-bezier(.2,.9,.3,1.2) both, yrGlowSoft 3.6s ease-in-out .5s infinite; }
+@media (prefers-reduced-motion: reduce) { .gx.year .rc-card.front { animation: none !important; } }
