@@ -1052,3 +1052,25 @@ body.light {
 .you-recap .yr-new { font-size: 10px; font-weight: 800; padding: 3px 7px; border-radius: 8px; background: var(--gold); color: #1A1406; }
 .you-recap .icon { width: 14px; height: 14px; opacity: .55; }
 .pf-lvl { margin-top: -2px; }
+/* Claude-style dock and buttons: a smoky tint you can still see through (clouded, not greyed out) */
+:root {
+  --glass-bg: rgba(44,44,46,0.62);
+  --glass: blur(18px) saturate(160%);
+  --glass-border: 1px solid rgba(255,255,255,0.11);
+  --glass-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 30px rgba(0,0,0,0.35);
+}
+.tabbar button.on { background: rgba(255,255,255,0.12); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+body.light .tabbar button.on { background: rgba(0,0,0,0.07); box-shadow: none; }
+.round.glass, .filter-pill.glass, .open-chip.glass { box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 6px 18px rgba(0,0,0,0.30); }
+/* Recap rows: dropdown menus like the map filter */
+.rc-menu { top: 52px; left: 0; width: 220px; max-height: 50vh; overflow-y: auto; }
+.pill.active { background: rgba(var(--fg),0.16); }
+/* Level line: a soft gold shimmer and glow */
+@keyframes lvlShine { 0% { background-position: 200% 50%; } 100% { background-position: -100% 50%; } }
+@keyframes lvlGlow { 0%, 100% { text-shadow: 0 0 0 rgba(var(--gold-rgb),0); } 50% { text-shadow: 0 0 10px rgba(var(--gold-rgb),.45); } }
+.you-lvl:not(.start) { background: linear-gradient(100deg, var(--gold) 0%, var(--gold) 40%, #FFF3C9 50%, var(--gold) 60%, var(--gold) 100%); background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: lvlShine 4.5s ease-in-out infinite, lvlGlow 3s ease-in-out infinite; }
+.you-lvl:not(.start) span { -webkit-text-fill-color: initial; }
+.you-lvl:not(.start) .icon { color: var(--gold); }
+body.light .you-lvl:not(.start) { background-image: linear-gradient(100deg, var(--gold) 0%, var(--gold) 40%, #E8C46A 50%, var(--gold) 60%, var(--gold) 100%); }
+@media (prefers-reduced-motion: reduce) { .you-lvl { animation: none !important; } }
+.you-lvl { white-space: nowrap; font-size: 12.5px; max-width: 100%; }
