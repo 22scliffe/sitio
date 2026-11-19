@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.51'; // also in version.txt: bump both
+const APP_VERSION = '0.6.52'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1050,7 +1050,7 @@ const withText = ids => { const n = ids.map(id => firstOf(id, 'a friend')); retu
 // Memory viewer: the people tagged, one per row, or "Tag friends" when nobody is
 function mwPeople(m) {
   const ids = m.id ? memWith(m) : (m.with || []);
-  if (!ids.length) return `<button class="mw-tagbtn" data-act="memtag">👥 Tag friends</button>`;
+  if (!ids.length) return `<button class="mw-tagbtn" data-act="memtag">👥 Tag friends ${ICON.pen}</button>`;
   const row = id => { const f = friendById(id) || {}; return `<div class="mw-person"><span class="avatar fr-av">${f.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc((firstOf(id, '?')[0] || '?').toUpperCase())}</span><span>${esc(firstOf(id))}${f.first && f.name ? ` <small>@${esc(f.name)}</small>` : ''}</span></div>`; };
   return `<button class="mw-plabel" data-act="memtag">👥 Tagged ${ICON.pen}</button><div class="mw-people">${ids.map(row).join('')}</div>`;
 }
@@ -1444,8 +1444,8 @@ function addSheet() {
     <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${catsOf(a).includes(c.id) ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${catsOf(a).includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
     <button class="link-btn cat-multi" data-act="addmulti">${a.multi || catsOf(a).length > 1 ? 'Just one category' : 'Select more than one'}</button>
     ${cuisineChips}
-    <label class="field-label">Photos</label>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${pics}<label class="add-photo" style="height:76px;border-radius:14px;cursor:pointer">${ICON.plus}Add yours<input type="file" accept="image/*" hidden data-addphoto="1"></label></div>
+    <label class="field-label">Memories</label>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${pics}<label class="add-photo" style="height:76px;border-radius:14px;cursor:pointer">${ICON.plus}Add your photos<input type="file" accept="image/*" hidden data-addphoto="1"></label></div>
     <label class="field-label" for="a-note">Your note</label>
     <textarea id="a-note" class="input card" rows="1" placeholder="What to order, when to go…" data-input="addNote" maxlength="500">${esc(a.note)}</textarea>
     <div class="add-actions"><button class="big-btn primary-btn" data-act="addsave">Save to Spots</button><button class="big-btn coral-btn cta-glow" data-act="addtry">Add to To try</button></div>
@@ -1591,7 +1591,7 @@ function dialogView() {
     return `<div class="dialog-scrim rc-scrim" data-act="closedialog" style="--el:${d.introAt ? Date.now() - d.introAt : 0}ms"></div>${recapBg(d.per, d.introAt ? Date.now() - d.introAt : 0)}<div class="recap open" role="dialog" aria-labelledby="rc-t">${head}
       <div class="rc-strip">${items.map(x => `<div class="rc-slide"><div class="rc-photo"><img src="${x.src}" alt=""></div>${cap(x)}</div>`).join('')}</div>
       ${items.length > 1 ? `<div class="mv-count rc-dots">${items.map((x, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      ${d.shared ? `<div style="text-align:center;margin-top:-6px">${reportLink('Shared recap from ' + (d.shared.f || 'someone'))}</div>` : ''}${!d.shared ? `<button class="link-btn" style="margin:-4px auto 0;color:rgba(255,255,255,.75)" data-act="recapsend">${ICON.share} Share this recap</button>` : ''}${!d.shared && isAdmin && auth ? `<button class="link-btn" style="margin:-8px auto 0;color:#FFD66B" data-act="recapdemo">Show this to everyone once (demo)</button>` : ''}
+      ${d.shared ? `<div style="text-align:center;margin-top:-6px">${reportLink('Shared recap from ' + (d.shared.f || 'someone'))}</div>` : ''}${!d.shared ? `<button class="link-btn" style="margin:-4px auto 0;color:rgba(255,255,255,.75)" data-act="recapsend">${ICON.share} Share this recap</button>` : ''}
       <button class="big-btn primary-btn" style="width:100%" data-act="closedialog">Done</button></div>`;
   }
   if (d.type === 'levelup') {
@@ -1738,11 +1738,11 @@ function dialogView() {
   if (d.type === 'memory') {
     const q = byId(d.id); if (!q) return '';
     const all = (q.memories || []).slice().sort((x, y) => y.at - x.at); const k = Math.max(0, all.findIndex(x => x.id === d.m)); const m = all[k]; if (!m) return '';
-    return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.9)"></div><div class="mem-view" role="dialog" aria-label="Memory">
+    return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.9)"></div><div class="mem-view" role="dialog" aria-label="Memory" data-swipedown="1">
       <div class="mv-strip" data-start="${k}">${all.map(x => { const u = photoUrl(x.id); return `<div class="mv-slide" data-m="${x.id}" data-when="${esc(x.at ? fmtWhen(x.at) : 'No date')}" data-with="${esc(memWith(x).join(','))}">${u ? `<img src="${u}" alt="">` : `<div class="mem-gone" style="height:260px;width:100%">${x.cloud ? 'Loading…' : 'This photo is on another phone'}</div>`}</div>`; }).join('')}</div>
       ${(q.memories || []).length > 1 ? `<button class="mv-thumb ${coverOf(q) === m.id ? 'on' : ''}" data-act="memcover">${coverOf(q) === m.id ? ICON.check + 'Thumbnail' : 'Set as thumbnail'}</button>` : ''}
       ${all.length > 1 ? `<div class="mv-count">${all.map((x, i) => `<i class="${i === k ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button><div class="mw-people-wrap">${canTagAt(q) && (q.memories || []).some(x => x.id === m.id) ? mwPeople(m) : ''}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
+      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button><div class="mw-people-wrap">${canTagAt(q) && (q.memories || []).some(x => x.id === m.id) ? mwPeople(m) : ''}</div></div>${(q.memories || []).some(x => x.id === m.id) ? `<button class="round sec-btn mv-del" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button>` : ''}</div></div><button class="round sec-btn mv-x" data-act="closedialog" aria-label="Close">${ICON.close}</button>`;
   }
   if (d.type === 'sharedlist') {
     const s = d.data, shown = s.p.slice(0, 6);
@@ -2393,6 +2393,23 @@ function render() {
   }
   if (focus) { const el = uiEl.querySelector(`[data-input="${focus}"]`); if (el) { el.focus(); try { el.setSelectionRange(selStart, selStart); } catch (e) { } } }
 }
+/* swipe down to close the memory viewer (delegated, survives re-renders) */
+(function () {
+  let sx = 0, sy = 0, dy = 0, axis = null, on = false;
+  const view = () => document.querySelector('.mem-view[data-swipedown]:not(.leaving)');
+  const set = (y, anim) => { const v = view(); if (!v) return; const sc = v.previousElementSibling; v.style.transition = sc.style.transition = anim ? 'transform .22s ease, opacity .22s ease' : 'none'; v.style.setProperty('--dy', y + 'px'); sc.style.opacity = String(Math.max(0.2, 1 - y / 400)); };
+  document.addEventListener('touchstart', e => { on = !!(e.target.closest && e.target.closest('.mem-view[data-swipedown]')); if (!on) return; const p = e.touches[0]; sx = p.clientX; sy = p.clientY; dy = 0; axis = null; }, { passive: true });
+  document.addEventListener('touchmove', e => {
+    if (!on) return; const p = e.touches[0], ddx = p.clientX - sx, ddy = p.clientY - sy;
+    if (!axis && Math.abs(ddx) + Math.abs(ddy) > 8) axis = Math.abs(ddy) > Math.abs(ddx) ? 'y' : 'x';
+    if (axis !== 'y') return; e.preventDefault(); dy = Math.max(0, ddy); set(dy, false);
+  }, { passive: false });
+  document.addEventListener('touchend', () => {
+    if (!on || axis !== 'y') { on = false; return; } on = false;
+    if (dy > 90) { const v = view(); set(window.innerHeight, true); if (v) { v.style.opacity = '0'; v.previousElementSibling.style.opacity = '0'; } setTimeout(() => { if (ui.dialog && ui.dialog.type === 'memory') { ui.dialog = null; render(); } }, 200); }
+    else set(0, true);
+  });
+})();
 function flash(text, ms = 3500) { ui.flash = text; render(); clearTimeout(flash.t); flash.t = setTimeout(() => { ui.flash = null; render(); }, ms); }
 function toast(text, undo, ok = true) { ui.toast = { text, undo, ok }; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { ui.toast = null; render(); }, 5000); }
 

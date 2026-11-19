@@ -1136,3 +1136,11 @@ body.light { --glass-bg: rgba(255,255,255,0.56); --glass: blur(11px) saturate(17
 .mw-person .avatar { width: 32px; height: 32px; font-size: 14px; border-radius: 16px; border: 1.5px solid rgba(127,216,198,.8); flex: none; }
 .mw-person small { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.6); }
 .mw-tagbtn { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; border: 0; background: none; padding: 0; font: inherit; font-size: 14px; font-weight: 800; color: #7FD8C6; }
+
+/* memory viewer: X top-right, small delete, swipe down (0.6.52) */
+.mem-view { transform: translateY(calc(-50% + var(--dy, 0px))); touch-action: pan-x; }
+.mv-x { position: fixed; z-index: 42; top: calc(env(safe-area-inset-top, 0px) + 12px); right: 16px; width: 40px; height: 40px; color: #fff; background: rgba(255,255,255,0.12); -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%); border: 1px solid rgba(255,255,255,0.22); }
+.mv-del { width: 34px; height: 34px; flex: 0 0 34px; align-self: flex-end; color: var(--coral-soft); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); }
+.mv-del .icon { width: 16px; height: 16px; }
+.mv-thumb { right: auto; left: 12px; }
+.mw-tagbtn .icon { width: 14px; height: 14px; vertical-align: -2px; margin-left: 2px; }
