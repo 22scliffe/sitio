@@ -243,7 +243,7 @@
     'Netherlands': 'Países Bajos', 'Switzerland': 'Suiza', 'Mexico': 'México', 'Euro': 'Euro', 'Pound': 'Libra', 'Dollar': 'Dólar', 'Aus dollar': 'Dólar australiano', 'Swiss franc': 'Franco suizo',
     'Yen / yuan': 'Yen / yuan', 'Krona / krone': 'Corona', 'Rupee': 'Rupia', 'Real': 'Real', 'Lira': 'Lira', 'Shekel': 'Séquel', 'Rand': 'Rand', 'Won': 'Won', 'Baht': 'Baht',
     'Złoty': 'Esloti', 'Forint': 'Florín', 'Koruna': 'Corona checa', 'Leu': 'Leu', 'Dirham': 'Dírham', 'Dirham (MA)': 'Dírham (MA)', 'Rupiah': 'Rupia indonesia',
-    'My spots': 'Mis sitios', 'Select more than one': 'Elegir más de una', 'Just one category': 'Solo una categoría', 'Ambience': 'Ambiente', 'Sport': 'Deporte', 'Vibe': 'Estilo',
+    'My spots': 'Mis sitios', 'Select more than one': 'Elegir más de una', 'Select multiple': 'Elegir varias', 'Just one category': 'Solo una categoría', 'Ambience': 'Ambiente', 'Sport': 'Deporte', 'Vibe': 'Estilo',
     'Calm': 'Tranquilo', 'Energetic': 'Animado', 'Crowded': 'Concurrido', 'Private': 'Privado', 'Cosy': 'Acogedor', 'Live music': 'Música en directo', 'Football': 'Fútbol', 'Padel': 'Pádel',
     'Tennis': 'Tenis', 'Running': 'Running', 'Gym': 'Gimnasio', 'Basketball': 'Baloncesto', 'Climbing': 'Escalada', 'Swimming': 'Natación', 'Yoga': 'Yoga', 'Cycling': 'Ciclismo',
     'Scenic': 'Con vistas', 'Public': 'Público', 'Quiet': 'Tranquilo', 'Nature': 'Naturaleza', 'Social': 'Social', 'Big': 'Grande', 'Small': 'Pequeño', 'Back to My spots': 'Volver a Mis sitios', 'Next': 'Siguiente', 'Updated': 'Actualizado',

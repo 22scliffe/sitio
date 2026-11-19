@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.53'; // also in version.txt: bump both
+const APP_VERSION = '0.6.54'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1442,7 +1442,7 @@ function addSheet() {
     <div class="loc-line">${a.googleId ? `<span class="muted">✓ Location from Google</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button>` : a.custom ? `<span style="color:var(--green)">✓ Pin dropped</span><button class="link-btn" data-act="droppin">${ICON.pin}Move pin</button></div><div class="muted" style="font-size:12px;font-weight:600;margin-top:2px">Tap × to remove the pin and search Google instead` : `<span class="muted">Not on Google Maps?</span><button class="link-btn" data-act="droppin">${ICON.pin}Drop a pin</button>`}</div>
     <label class="field-label">Category</label>
     <div class="cat-grid">${CATS.map(c => `<button class="sec-btn ${catsOf(a).includes(c.id) ? 'on' : ''}" data-act="addcat" data-v="${c.id}" aria-pressed="${catsOf(a).includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
-    <button class="link-btn cat-multi" data-act="addmulti">${a.multi || catsOf(a).length > 1 ? 'Just one category' : 'Select more than one'}</button>
+    <button class="link-btn cat-multi" data-act="addmulti">${a.multi || catsOf(a).length > 1 ? 'Just one category' : 'Select multiple'}</button>
     ${cuisineChips}
     <label class="field-label">Memories</label>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">${pics}<label class="add-photo" style="height:76px;border-radius:14px;cursor:pointer">${ICON.plus}Add your photos<input type="file" accept="image/*" hidden data-addphoto="1"></label></div>
@@ -1607,7 +1607,7 @@ function dialogView() {
     return `<div class="dialog-scrim" data-act="closedialog"></div><div class="dialog" role="dialog" aria-labelledby="dlg-t" style="text-align:left">
       <h3 id="dlg-t">Categories for ${esc(p.name)}</h3>
       <div class="cat-grid" style="margin-top:10px">${CATS.map(c => `<button class="sec-btn ${d.cats.includes(c.id) ? 'on' : ''}" data-act="ecat" data-v="${c.id}" aria-pressed="${d.cats.includes(c.id)}">${ICON.cat[c.id]}${c.name}</button>`).join('')}</div>
-      <button class="link-btn cat-multi" data-act="emulti">${d.multi || d.cats.length > 1 ? 'Just one category' : 'Select more than one'}</button>
+      <button class="link-btn cat-multi" data-act="emulti">${d.multi || d.cats.length > 1 ? 'Just one category' : 'Select multiple'}</button>
       ${detailChips(d.cats, cuisList(d), 'ecuis')}
       <div class="btn-grid" style="margin-top:16px"><button class="big-btn sec-btn" data-act="closedialog">Cancel</button><button class="big-btn primary-btn" data-act="ecatsave">Save</button></div></div>`;
   }
