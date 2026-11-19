@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.45'; // also in version.txt: bump both
+const APP_VERSION = '0.6.46'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1055,6 +1055,7 @@ function tryRecap(demo, tries = 0) {
   if ((ready < items.length && tries < 10) || ui.dialog || ui.install || ui.sheet || ui.page || ui.tour != null) { if (tries < 160) setTimeout(() => tryRecap(demo, tries + 1), 500); return; }
   if (!ready) return;
   if (!demo) { try { localStorage.setItem(recapKey(per), '1'); } catch (e) { } markOnce(recapKey(per)); }
+  if (!demo) ui.tab = 'home';
   ui.dialog = { type: 'recap', per, open: false, intro: true, introAt: Date.now() }; render();
 }
 const releaseAt = per => per.year || per.k === 5 ? new Date(per.y, 11, 30).getTime() : new Date(per.y, per.k * 2 + 2, 0).getTime();
