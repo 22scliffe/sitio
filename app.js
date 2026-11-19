@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.42'; // also in version.txt: bump both
+const APP_VERSION = '0.6.43'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -844,7 +844,7 @@ function youCard() {
     <div class="you-top"><button class="you-av" data-act="${auth ? 'profile' : 'openauth'}" aria-label="${auth ? 'Account details' : 'Log in or create account'}">${auth ? (src ? `<img src="${esc(src)}" alt="">` : esc((u.name || 'You')[0].toUpperCase())) : '?'}</button>
       <div class="you-id"><button class="you-name" data-act="${auth ? 'profile' : 'openauth'}">${auth ? esc(u.name || 'You') : 'Not logged in'}</button>${lvl}</div></div>
     ${cloudOn() && !auth ? `<button class="card acct-cta glow" data-act="openauth"><span style="display:flex;flex-direction:column;gap:3px;text-align:left"><b>Create an account</b><span>Save your spots online and use them on any phone</span></span>${ICON.chevRight}</button>` : ''}
-    <div class="stats"><button class="stat card" data-act="gostat" data-v="spots"><b>${nS}</b><span>${nS === 1 ? 'Spot' : 'Spots'}</span></button><button class="stat card" data-act="gostat" data-v="totry"><b style="color:var(--coral-soft)">${nT}</b><span>To try</span></button><button class="stat card" data-act="cities"><b>${db.cities.length}</b><span>${db.cities.length === 1 ? 'City' : 'Cities'}</span></button></div>
+    <div class="stats"><button class="stat card" data-act="gostat" data-v="spots"><b>${nS}</b><span>${nS === 1 ? 'Spot' : 'Spots'}</span></button><button class="stat card" data-act="gostat" data-v="totry"><b style="color:var(--coral-soft)">${nT}</b><span>To try</span></button><button class="stat card" data-act="allrecaps"><b>${memCount()}</b><span>${memCount() === 1 ? 'Memory' : 'Memories'}</span></button></div>
     ${rc}
   </div>`;
 }
@@ -881,7 +881,7 @@ function settingsPage() {
       ${row('Report a problem', '', 'report')}
       ${row('Language / Idioma', db.settings.lang === 'es' ? 'Español' : 'English', 'langpage')}
     </div>
-    ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('All users', '', 'admin')}</div>` : ''}
+    ${isAdmin && auth ? `<div class="section-label" style="margin:18px 0 8px">Admin</div><div class="settings card">${row('Admin', 'Users, world map, activity', 'adminhub')}</div>` : ''}
     <p class="page-sub" style="font-size:11px;margin-top:16px;opacity:.6" id="diag">${diag()}</p>
     <p class="page-sub" style="font-size:12px;margin-top:8px;line-height:1.5">${auth ? 'Logged in as ' + esc(auth.user.email) + ' · ' + (/^error/.test(syncState) ? 'Couldn’t reach your account just now. Your changes are safe on this phone and will sync when you’re back online.' : 'Your spots are saved to your account.') : 'Your spots are only on this phone until you create an account.'}</p>
   </div>`;
@@ -1262,6 +1262,41 @@ function termsPage() {
   ]);
 }
 const fmtDate = t => t ? new Date(t).toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric' }) : '–';
+function adminHubPage() {
+  const row = (icon, label, sub, act) => `<button class="set-row" data-act="${act}" style="min-height:64px"><span style="display:flex;align-items:center;gap:12px"><span style="font-size:22px">${icon}</span><span style="display:flex;flex-direction:column;gap:2px;text-align:left"><span>${label}</span><span style="font-size:12px;font-weight:600;color:var(--text-2)">${sub}</span></span></span><span class="val">${ICON.chevRight}</span></button>`;
+  return `<div class="page" style="z-index:14"><div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="settingspage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Admin</span></div>
+    <p class="page-sub" style="margin-bottom:14px">Only admins can see this.</p>
+    <div class="settings card">${row('👥', 'All users', 'Accounts, their places and invites', 'admin')}${row('🌍', 'World map', 'Every place saved by everyone', 'adminworld')}${row('⚡', 'Recent activity', 'Spots, friendships, levels and invites', 'adminact')}</div></div>`;
+}
+// Admin: what's been happening across Sitio, newest first (level-ups worked out from each person's running spot count)
+const ACT_KINDS = [['all', 'All'], ['spot', 'Spots'], ['friends', 'Friends'], ['level', 'Levels'], ['invite', 'Invites sent'], ['joined', 'Joined'], ['sent', 'Spots sent']];
+function relAgo(t) { const m = Math.round((Date.now() - t) / 60000); if (m < 1) return 'just now'; if (m < 60) return m + ' min ago'; const h = Math.round(m / 60); if (h < 24) return h + ' h ago'; const d = Math.round(h / 24); if (d < 7) return d + (d === 1 ? ' day ago' : ' days ago'); return fmtDate(t); }
+function adminActPage() {
+  const head = `<div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">Recent activity</span></div>`;
+  if (ui.actErr) return `<div class="page" style="z-index:15">${head}<div class="card note">${esc(ui.actErr)}</div></div>`;
+  if (!ui.actData) return `<div class="page" style="z-index:15">${head}<p class="page-sub">Loading…</p></div>`;
+  const ev = [];
+  ui.actData.forEach(e => { const at = Date.parse(e.at); if (!at) return; ev.push(Object.assign({}, e, { t: at }));
+    if (e.kind === 'spot') { const li = LEVELS.findIndex(l => l.min === e.total); if (li >= 0) ev.push({ kind: 'level', t: at + 1, a_name: e.a_name, li }); } });
+  ev.sort((x, y) => y.t - x.t);
+  const f = ui.actF || 'all', shown = ev.filter(e => f === 'all' || e.kind === f).slice(0, 200);
+  const nm = n => `<b>${esc(n || 'Someone')}</b>`;
+  const line = e => e.kind === 'spot' ? ['📍', `${nm(e.a_name)} saved ${esc(e.place || 'a spot')}${e.city ? ' in ' + esc(e.city) : ''}`]
+    : e.kind === 'friends' ? ['🤝', `${nm(e.a_name)} and ${nm(e.b_name)} became friends`]
+    : e.kind === 'level' ? [LEVELS[e.li].badge, `${nm(e.a_name)} reached Level ${e.li + 1} · ${esc(LEVELS[e.li].name)}`]
+    : e.kind === 'invite' ? ['✉️', `${nm(e.a_name)} created an invite link`]
+    : e.kind === 'joined' ? ['🎉', `${nm(e.a_name)} joined from ${nm(e.b_name)}’s invite`]
+    : ['📨', `${nm(e.a_name)} sent ${nm(e.b_name)} ${esc(e.place || 'a spot')}`];
+  return `<div class="page" style="z-index:15">${head}
+    <div class="pf-chips" style="margin:0 -2px 12px">${ACT_KINDS.map(([k, l]) => `<button class="pill ${f === k ? 'primary-btn' : 'sec-btn'}" data-act="actfilter" data-v="${k}">${l}${k !== 'all' ? ' · ' + ev.filter(e => e.kind === k).length : ''}</button>`).join('')}</div>
+    ${shown.length ? `<div class="settings card">${shown.map(e => { const [ic, txt] = line(e); return `<div class="set-row act-row"><span class="act-ic">${ic}</span><span class="act-txt"><span>${txt}</span><span class="act-at">${esc(relAgo(e.t))}</span></span></div>`; }).join('')}</div>` : '<div class="empty card" style="border-radius:20px">Nothing here yet.</div>'}
+  </div>`;
+}
+async function loadActivity() {
+  try { ui.actData = await sbFetch('/rest/v1/rpc/sitio_admin_activity', { method: 'POST', body: JSON.stringify({ lim: 300 }) }, true); ui.actErr = null; }
+  catch (e) { ui.actErr = e.status === 404 ? 'Run admin-activity.sql in Supabase to switch this on.' : friendly(e); }
+  render();
+}
 function adminPage() {
   const users = ui.adminData;
   const head = `<div class="page-head" style="justify-content:flex-start"><button class="round sec-btn" style="width:44px;height:44px" data-act="closepage" aria-label="Back">${ICON.back}</button><span style="font-size:22px;font-weight:800">All users</span></div>`;
@@ -1270,7 +1305,6 @@ function adminPage() {
   const cnt = (d, st) => ((d && d.places) || []).filter(p => p.status === st).length;
   return `<div class="page" style="z-index:15">${head}
     <p class="page-sub" style="margin-bottom:14px">${users.length} ${users.length === 1 ? 'account' : 'accounts'} · only you can see this</p>
-    <button class="card acct-cta" data-act="worldmap" style="width:100%;margin:0 0 14px"><span style="display:flex;align-items:center;gap:12px;text-align:left"><span style="font-size:26px">🌍</span><span style="display:flex;flex-direction:column;gap:3px"><b>World map</b><span>Every place saved by everyone, on one map</span></span></span>${ICON.chevRight}</button>
     <div class="settings card">${users.map(u => `<button class="set-row" data-act="adminuser" data-id="${esc(u.user_id)}" style="min-height:72px"><span style="display:flex;align-items:center;gap:12px;min-width:0"><span class="avatar" style="width:44px;height:44px;border-radius:22px;font-size:17px;flex:none">${u.data && u.data.user && u.data.user.avatar && /^data:image\//.test(u.data.user.avatar) ? `<img src="${u.data.user.avatar}" alt="">` : esc(((u.data && u.data.user && u.data.user.name) || u.email || '?')[0].toUpperCase())}</span><span style="display:flex;flex-direction:column;gap:3px;text-align:left;min-width:0"><span style="font-weight:800;font-size:16px;overflow:hidden;text-overflow:ellipsis">${esc((u.data && u.data.user && u.data.user.name) || 'No username yet')}</span><span style="font-size:12px;font-weight:600;color:var(--text-2);overflow:hidden;text-overflow:ellipsis">${esc(u.email || '(no email)')}</span><span style="font-size:12px;font-weight:600;color:var(--text-3)">Joined ${fmtDate(u.created_at)} · ${u.data ? cnt(u.data, 'spot') + (cnt(u.data, 'spot') === 1 ? ' spot · ' : ' spots · ') + cnt(u.data, 'totry') + ' to try · ' + ((u.data.cities || []).length) + ((u.data.cities || []).length === 1 ? ' city' : ' cities') : 'nothing synced yet'}</span></span></span><span class="val">${ICON.chevRight}</span></button>`).join('')}</div>
   </div>`;
 }
@@ -2208,6 +2242,8 @@ function render() {
   else if (ui.page && ui.page.list) { const l = listOf(ui.page.list); if (l) h += listPage(l); else ui.page = null; }
   else if (ui.page && ui.page.group) { const g = groupOf(ui.page.group); if (g) h += groupPage(g); else ui.page = null; }
   else if (ui.page === 'admin') h += adminPage();
+  else if (ui.page === 'adminhub') h += adminHubPage();
+  else if (ui.page === 'adminact') h += adminActPage();
   else if (false) {
     const au = (ui.adminData || []).find(x => x.user_id === ui.page.adminUser), ap = au && au.data && (au.data.places || []).find(x => x.id === ui.page.place);
     const ac = au && au.data && (au.data.cities || []).find(x => x.id === ui.page.city);
@@ -2954,7 +2990,11 @@ uiEl.addEventListener('click', e => {
       location.href = 'mailto:' + CONTACT + '?subject=' + encodeURIComponent('Report on Sitio') + '&body=' + encodeURIComponent(body); return;
     }
     case 'notifs': ui.prevPage = ui.page; ui.page = 'notifs'; refreshPushState(); break;
-    case 'admin': ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
+    case 'adminhub': ui.prevPage = null; ui.page = 'adminhub'; break;
+    case 'adminact': ui.prevPage = 'adminhub'; ui.page = 'adminact'; ui.actData = null; ui.actErr = null; loadActivity(); break;
+    case 'actfilter': ui.actF = t.dataset.v; break;
+    case 'adminworld': if (!ui.adminData) { loadAdmin().then(() => { if (ui.adminData) { ui.world = true; ui.savedFilter = ui.filter; ui.filter = []; ui.menu = null; ui.wSel = null; lastMapKey = ''; render(); setTimeout(() => mapApi.fit(worldList().filter(p => matches(p, ui.filter))), 80); } }); flash('Loading everyone’s places…'); return; } ui.world = true; ui.savedFilter = ui.filter; ui.filter = []; ui.menu = null; ui.wSel = null; lastMapKey = ''; render(); setTimeout(() => mapApi.fit(worldList().filter(p => matches(p, ui.filter))), 80); return;
+    case 'admin': if (ui.page === 'adminhub') ui.prevPage = 'adminhub'; ui.page = 'admin'; ui.adminData = null; ui.adminErr = null; loadAdmin(); break;
     case 'adminuser': loadAdminInv(id); ui.page = { adminUser: id }; ui.adminCityQ = ''; break;
     case 'closeadmin': ui.adminSheet = null; ui.wSel = null; break;
     case 'worldmap': ui.world = true; ui.savedFilter = ui.filter; ui.filter = []; ui.menu = null; ui.wSel = null; lastMapKey = ''; render(); setTimeout(() => mapApi.fit(worldList().filter(p => matches(p, ui.filter))), 80); return;
