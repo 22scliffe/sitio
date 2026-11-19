@@ -1154,8 +1154,8 @@ body.light { --glass-bg: rgba(255,255,255,0.45); --glass: blur(9px) saturate(170
 .gx.soon .rc-card img { filter: grayscale(1) brightness(.45) blur(1.5px); transform: scale(1.04); }
 .gx.soon .rc-card:empty { filter: brightness(.6); }
 .gx.soon .rc-card { border-color: rgba(255,255,255,.55); }
-.gx .rc-card.front img { filter: blur(1.2px); transform: scale(1.04); }
-.gx.soon .rc-card.front img { filter: grayscale(.85) brightness(.45) blur(1.8px); }
+.gx .rc-card.front img { filter: blur(.6px); transform: scale(1.04); }
+.gx.soon .rc-card.front img { filter: grayscale(.85) brightness(.45) blur(.9px); }
 @keyframes yrGlow { 0%, 100% { box-shadow: 0 14px 34px rgba(0,0,0,.55), 0 0 18px rgba(245,184,61,.50); } 50% { box-shadow: 0 14px 34px rgba(0,0,0,.55), 0 0 44px rgba(245,184,61,.90), 0 0 10px rgba(255,236,190,.85); } }
 @keyframes yrGlowSoft { 0%, 100% { box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 0 14px rgba(245,184,61,.35); } 50% { box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 0 34px rgba(245,184,61,.70), 0 0 8px rgba(255,220,150,.5); } }
 .gx.year.soon .rc-card.front { border-color: rgba(255,240,205,.8); }
