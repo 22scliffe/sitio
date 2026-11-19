@@ -1128,3 +1128,11 @@ body.light { --glass-bg: rgba(255,255,255,0.56); --glass: blur(11px) saturate(17
 .gx.year .rc-card.front { border-color: #FFF6DE; animation: rcFront .45s cubic-bezier(.2,.9,.3,1.2) both, yrGlow 3.2s ease-in-out .5s infinite; }
 .gx.year.soon .rc-card.front { animation: rcFront .45s cubic-bezier(.2,.9,.3,1.2) both, yrGlowSoft 3.6s ease-in-out .5s infinite; }
 @media (prefers-reduced-motion: reduce) { .gx.year .rc-card.front { animation: none !important; } }
+/* Memory viewer: tagged friends, one per row */
+.mw-plabel { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; border: 0; background: none; padding: 0; font: inherit; font-size: 11px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; color: #7FD8C6; }
+.mw-plabel .icon { width: 13px; height: 13px; }
+.mw-people { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.mw-person { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 800; color: #fff; }
+.mw-person .avatar { width: 32px; height: 32px; font-size: 14px; border-radius: 16px; border: 1.5px solid rgba(127,216,198,.8); flex: none; }
+.mw-person small { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.6); }
+.mw-tagbtn { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; border: 0; background: none; padding: 0; font: inherit; font-size: 14px; font-weight: 800; color: #7FD8C6; }

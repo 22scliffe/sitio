@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.50'; // also in version.txt: bump both
+const APP_VERSION = '0.6.51'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1047,6 +1047,13 @@ try { ui.tagged = JSON.parse(localStorage.getItem('sitio.tagged')) || null; } ca
 // Who you tagged in a memory, minus anyone who untagged themselves
 const memWith = m => (m.with || []).filter(id => !(ui.untags || []).some(u => u.mid === m.id && u.uid === id));
 const withText = ids => { const n = ids.map(id => firstOf(id, 'a friend')); return n.length <= 2 ? n.join(' and ') : n.slice(0, -1).join(', ') + ' and ' + n[n.length - 1]; };
+// Memory viewer: the people tagged, one per row, or "Tag friends" when nobody is
+function mwPeople(m) {
+  const ids = m.id ? memWith(m) : (m.with || []);
+  if (!ids.length) return `<button class="mw-tagbtn" data-act="memtag">👥 Tag friends</button>`;
+  const row = id => { const f = friendById(id) || {}; return `<div class="mw-person"><span class="avatar fr-av">${f.avatar ? `<img src="${esc(f.avatar)}" alt="">` : esc((firstOf(id, '?')[0] || '?').toUpperCase())}</span><span>${esc(firstOf(id))}${f.first && f.name ? ` <small>@${esc(f.name)}</small>` : ''}</span></div>`; };
+  return `<button class="mw-plabel" data-act="memtag">👥 Tagged ${ICON.pen}</button><div class="mw-people">${ids.map(row).join('')}</div>`;
+}
 const canTagAt = p => auth && db.settings.shareMems !== false && !isHiddenPlace(p);
 const locMatch = (p, loc) => !loc || (loc.startsWith('cc:') ? ((cityOf(p) || {}).cc || '').toUpperCase() === loc.slice(3) : 'city:' + p.cityId === loc);
 function recapItems(per, loc) {
@@ -1732,10 +1739,10 @@ function dialogView() {
     const q = byId(d.id); if (!q) return '';
     const all = (q.memories || []).slice().sort((x, y) => y.at - x.at); const k = Math.max(0, all.findIndex(x => x.id === d.m)); const m = all[k]; if (!m) return '';
     return `<div class="dialog-scrim" data-act="closedialog" style="background:rgba(0,0,0,0.9)"></div><div class="mem-view" role="dialog" aria-label="Memory">
-      <div class="mv-strip" data-start="${k}">${all.map(x => { const u = photoUrl(x.id); return `<div class="mv-slide" data-m="${x.id}" data-when="${esc(x.at ? fmtWhen(x.at) : 'No date')}" data-with="${esc(memWith(x).length ? 'with ' + withText(memWith(x)) : 'Tag who you were with')}">${u ? `<img src="${u}" alt="">` : `<div class="mem-gone" style="height:260px;width:100%">${x.cloud ? 'Loading…' : 'This photo is on another phone'}</div>`}</div>`; }).join('')}</div>
+      <div class="mv-strip" data-start="${k}">${all.map(x => { const u = photoUrl(x.id); return `<div class="mv-slide" data-m="${x.id}" data-when="${esc(x.at ? fmtWhen(x.at) : 'No date')}" data-with="${esc(memWith(x).join(','))}">${u ? `<img src="${u}" alt="">` : `<div class="mem-gone" style="height:260px;width:100%">${x.cloud ? 'Loading…' : 'This photo is on another phone'}</div>`}</div>`; }).join('')}</div>
       ${(q.memories || []).length > 1 ? `<button class="mv-thumb ${coverOf(q) === m.id ? 'on' : ''}" data-act="memcover">${coverOf(q) === m.id ? ICON.check + 'Thumbnail' : 'Set as thumbnail'}</button>` : ''}
       ${all.length > 1 ? `<div class="mv-count">${all.map((x, i) => `<i class="${i === k ? 'on' : ''}"></i>`).join('')}</div>` : ''}
-      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button>${canTagAt(q) && (q.memories || []).some(x => x.id === m.id) ? `<button class="mw-tag" data-act="memtag">👥 <span>${esc(memWith(m).length ? 'with ' + withText(memWith(m)) : 'Tag who you were with')}</span></button>` : ''}</div><div style="display:flex;gap:8px;align-items:center"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
+      <div class="mem-meta"><div><b>${esc(q.name)}</b><button class="mem-when" ${(q.memories || []).some(x => x.id === m.id) ? 'data-act="memredate"' : 'disabled'}><span class="mw-t">${m.at ? esc(fmtWhen(m.at)) : 'No date'}</span> ${(q.memories || []).some(x => x.id === m.id) ? ICON.pen : ''}</button><div class="mw-people-wrap">${canTagAt(q) && (q.memories || []).some(x => x.id === m.id) ? mwPeople(m) : ''}</div></div><div style="display:flex;gap:8px;align-items:center"><button class="round sec-btn" style="width:44px;height:44px;color:var(--coral-soft)" data-act="memdel" aria-label="Delete memory">${ICON.bin}</button><button class="round sec-btn" style="width:44px;height:44px" data-act="closedialog" aria-label="Close">${ICON.close}</button></div></div></div>`;
   }
   if (d.type === 'sharedlist') {
     const s = d.data, shown = s.p.slice(0, 6);
@@ -2380,7 +2387,7 @@ function render() {
     mv.scrollLeft = (+mv.dataset.start || 0) * mv.clientWidth;
     let t = null; mv.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(() => {
       const i = Math.round(mv.scrollLeft / mv.clientWidth), sl = mv.children[i]; if (!sl || !ui.dialog || ui.dialog.type !== 'memory') return;
-      ui.dialog.m = sl.dataset.m; const w = uiEl.querySelector('.mw-t'); if (w) w.textContent = sl.dataset.when; const tw = uiEl.querySelector('.mw-tag span'); if (tw) tw.textContent = sl.dataset.with;
+      ui.dialog.m = sl.dataset.m; const w = uiEl.querySelector('.mw-t'); if (w) w.textContent = sl.dataset.when; const tw = uiEl.querySelector('.mw-people-wrap'); if (tw && tw.children.length) tw.innerHTML = mwPeople({ with: (sl.dataset.with || '').split(',').filter(Boolean) });
       const tb = uiEl.querySelector('.mv-thumb'), q = byId(ui.dialog.id); if (tb && q) { const on = coverOf(q) === sl.dataset.m; tb.classList.toggle('on', on); tb.innerHTML = on ? ICON.check + 'Thumbnail' : 'Set as thumbnail'; }
       uiEl.querySelectorAll('.mv-count i').forEach((d, k) => d.classList.toggle('on', k === i)); }, 80); });
   }
