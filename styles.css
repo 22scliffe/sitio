@@ -1178,3 +1178,8 @@ body.light { --glass-bg: rgba(255,255,255,0.45); --glass: blur(9px) saturate(170
 /* 0.6.59: a hint of blur on released front photos; upcoming ones back to their original blur */
 .gx .rc-card.front img { filter: blur(.3px); transform: scale(1.02); }
 .gx.soon .rc-card.front img { filter: grayscale(1) brightness(.45) blur(1.5px); transform: scale(1.04); }
+
+/* 0.6.60: monthly stacks get no blur (just the soft shade); year stacks keep a hint */
+.gx .rc-card.front img { filter: none; transform: none; }
+.gx.year .rc-card.front img { filter: blur(.3px); transform: scale(1.02); }
+.gx.soon .rc-card.front img { filter: grayscale(1) brightness(.45) blur(1.5px); transform: scale(1.04); }
