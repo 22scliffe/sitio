@@ -5,7 +5,7 @@
 const CFG = window.SITIO_CONFIG || {};
 const { CATS, CUISINES, PRICE_WORDS, ICON, ART, SAMPLE } = window.SITIO;
 const STORE_KEY = 'sitio.v1';
-const APP_VERSION = '0.6.47'; // also in version.txt: bump both
+const APP_VERSION = '0.6.48'; // also in version.txt: bump both
 // One-time things (tour, recaps, level ups, notification asks) are remembered in the account, not just on this
 // phone, so removing and re-adding the app doesn't show them again. Pop-ups wait until the account has loaded.
 const seenOnce = k => !!((db.settings && db.settings.seen) || {})[k];
@@ -1124,8 +1124,28 @@ function recapsPage() {
     <div class="row-btns" style="position:relative;flex-wrap:nowrap"><button class="pill sec-btn ${ui.rcMenu === 'y' ? 'active' : ''}" data-act="rcmenu" data-v="y">${esc(f.y || 'All years')}${ICON.chevDown}</button><button class="pill sec-btn ${ui.rcMenu === 'loc' ? 'active' : ''}" data-act="rcmenu" data-v="loc">${esc(locName)}${ICON.chevDown}</button>
       ${ui.rcMenu === 'y' ? `<div class="menu rc-menu" role="menu">${opt('y', '', 'All years')}${years.map(y => opt('y', String(y), String(y))).join('')}</div>` : ''}
       ${ui.rcMenu === 'loc' ? `<div class="menu rc-menu" role="menu" style="left:auto;right:0">${opt('loc', '', 'All places')}${countries.length ? `<div class="sep"></div><div class="menu-head">Countries</div>${countries.map(([cc, n]) => opt('loc', 'cc:' + cc, n)).join('')}` : ''}${withMem.length ? `<div class="sep"></div><div class="menu-head">Cities</div>${withMem.map(c => opt('loc', 'city:' + c.id, c.name)).join('')}` : ''}</div>` : ''}</div>
-    ${list.length ? Object.keys(byYear).sort((x, y) => y - x).map(y => `<div class="section-label" style="margin:14px 0 8px">${y}</div><div class="settings card">${byYear[y].map(p => recapRow(p, f.loc)).join('')}</div>`).join('') : `<div class="empty card" style="border-radius:20px;margin-top:12px">No recaps here yet.<br>They’re released on the last day of every two months.</div>`}
+    ${recapGrid(f, years)}
   </div>`;
+}
+// All recaps as photo stacks: the year on top, then each two months; ones still to come are greyed with a countdown
+function recapStack(per, loc, big) {
+  const now = Date.now(), out = releaseAt(per) <= now, items = recapItems(per, loc), pics = items.map(x => photoUrl(x.m.id)).filter(Boolean).slice(0, 4);
+  const label = per.year ? String(per.y) : esc(per.label.replace(/([A-Z][a-z]{2})[a-z]+/g, '$1')).replace(' / ', '<br>');
+  const isNew = out && items.length && !recapSeen(per) && now - releaseAt(per) < 30 * 864e5;
+  const card = (src, k, front) => `<div class="rc-card ${front ? 'front' : 'back'}" ${front ? '' : `style="--r:${[-9, 9, -4][k]}deg;--x:${[-30, 30, 0][k] * (big ? 1.2 : 1)}px;--y:${[8, 12, 18][k]}px;--d:${.05 + k * .05}s"`}>${src ? `<img src="${src}" alt="" loading="lazy">` : ''}</div>`;
+  const backs = (pics.length > 1 ? pics.slice(1) : [null, null]).slice(0, 3).map((u, k) => card(u, k)).reverse().join('');
+  const sub = !out ? (per.year ? 'Your year · ' : '') + 'Coming ' + inDays(releaseAt(per)) : plural(items.length, 'memory', 'memories');
+  return `<div class="gx ${big ? 'year' : ''} ${out ? '' : 'soon'}"><button class="gx-stack" ${out && items.length ? `data-act="recapshow" data-y="${per.y}" data-k="${per.k}" data-loc="${esc(loc || '')}"` : `data-act="recapsoon" data-v="${esc(sub)}"`} aria-label="${esc(per.label)}">${backs}${card(pics[0], 0, true)}<span class="gx-label">${label}</span>${isNew ? '<span class="gx-new">New</span>' : ''}</button><span class="gx-sub">${esc(sub)}</span></div>`;
+}
+function recapGrid(f, years) {
+  const now = Date.now(), ys = f.y ? [+f.y] : years;
+  if (!ys.length) return `<div class="empty card" style="border-radius:20px;margin-top:12px">No recaps yet.<br>Add photo memories to your spots and every two months you’ll get a recap.</div>`;
+  return ys.map(y => {
+    const pers = []; for (let k = 5; k >= 0; k--) { const p = recapPer(y, k); const items = recapItems(p, f.loc).length; if (items || (releaseAt(p) > now && p.start <= now)) pers.push(p); }
+    const yr = recapYear(y), showYr = recapItems(yr, f.loc).length || releaseAt(yr) > now;
+    if (!pers.length && !showYr) return '';
+    return `${ys.length > 1 ? `<div class="section-label" style="margin:22px 0 0">${y}</div>` : ''}${showYr ? `<div class="gx-top">${recapStack(yr, f.loc, true)}</div>` : ''}<div class="gx-grid">${pers.map(p => recapStack(p, f.loc)).join('')}</div>`;
+  }).join('') || `<div class="empty card" style="border-radius:20px;margin-top:12px">No recaps here yet.</div>`;
 }
 function showLevelUp(i, demo) {
   const d = { type: 'levelup', i, demo }; ui.dialog = d; render();
@@ -2960,6 +2980,7 @@ uiEl.addEventListener('click', e => {
     case 'memredate': ui.dialog = { type: 'memdate', id: ui.dialog.id, ms: [ui.dialog.m] }; break;
     case 'memview': ui.dialog = { type: 'memory', id, m: t.dataset.m }; break;
     case 'memdel': ui.dialog = { type: 'memconfirm', id: ui.dialog.id, m: ui.dialog.m }; break;
+    case 'recapsoon': toast(t.dataset.v, null); return;
     case 'rcmenu': ui.rcMenu = ui.rcMenu === t.dataset.v ? null : t.dataset.v; break;
     case 'rcpick': ui.recapF = ui.recapF || { y: '', loc: '' }; ui.recapF[t.dataset.k] = t.dataset.v; ui.rcMenu = null; break;
     case 'recapshow': { const y = +t.dataset.y, k = t.dataset.k, per0 = k === 'y' ? recapYear(y) : recapPer(y, +k); try { localStorage.setItem(recapKey(per0), '1'); } catch (e) { } markOnce(recapKey(per0)); ui.dialog = { type: 'recap', per: per0, loc: t.dataset.loc || '', open: false, intro: true, introAt: Date.now() }; break; }

@@ -1092,3 +1092,17 @@ body.light .lvl-shine { background-image: linear-gradient(100deg, var(--gold) 0%
 /* Slightly clearer glass: same smoky tint, less blur */
 :root { --glass-bg: rgba(44,44,46,0.56); --glass: blur(11px) saturate(170%); }
 body.light { --glass-bg: rgba(255,255,255,0.56); --glass: blur(11px) saturate(170%); }
+/* All recaps: photo stacks */
+.gx-top { display: flex; justify-content: center; margin-top: 18px; }
+.gx-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 26px 10px; margin-top: 24px; justify-items: center; }
+.gx { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.gx-stack { position: relative; width: 118px; height: 150px; border: 0; background: none; padding: 0; color: #fff; }
+.gx.year .gx-stack { width: 160px; height: 205px; }
+.gx-stack .rc-card { border-width: 3px; border-radius: 18px; }
+.gx-stack .rc-card:empty { background: linear-gradient(150deg, #3A3A42, #22222A); }
+.gx-label { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); z-index: 5; text-align: center; font-size: 24px; font-weight: 800; line-height: 1.05; color: #fff; text-shadow: 0 3px 18px rgba(0,0,0,.7), 0 1px 3px rgba(0,0,0,.6); pointer-events: none; }
+.gx.year .gx-label { font-size: 48px; letter-spacing: -1px; }
+.gx-sub { font-size: 12px; font-weight: 700; color: var(--text-2); text-align: center; }
+.gx.soon .rc-card { filter: grayscale(1) brightness(.45) blur(1.5px); }
+.gx.soon .gx-sub { color: var(--gold); }
+.gx-new { position: absolute; top: -8px; right: -10px; z-index: 6; font-size: 10px; font-weight: 800; padding: 3px 7px; border-radius: 8px; background: var(--gold); color: #1A1406; }
