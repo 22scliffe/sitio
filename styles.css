@@ -1159,3 +1159,11 @@ body.light { --glass-bg: rgba(255,255,255,0.45); --glass: blur(9px) saturate(170
 @keyframes yrGlow { 0%, 100% { box-shadow: 0 14px 34px rgba(0,0,0,.55), 0 0 18px rgba(245,184,61,.50); } 50% { box-shadow: 0 14px 34px rgba(0,0,0,.55), 0 0 44px rgba(245,184,61,.90), 0 0 10px rgba(255,236,190,.85); } }
 @keyframes yrGlowSoft { 0%, 100% { box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 0 14px rgba(245,184,61,.35); } 50% { box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 0 34px rgba(245,184,61,.70), 0 0 8px rgba(255,220,150,.5); } }
 .gx.year.soon .rc-card.front { border-color: rgba(255,240,205,.8); }
+
+/* "Select multiple" tick box (0.6.57) */
+.cat-multi.ck { display: flex; width: fit-content; align-items: center; gap: 7px; margin: 2px -6px 0 auto; padding: 8px 6px; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 700; color: var(--text-2); white-space: nowrap; }
+.cat-multi.ck b { width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid rgba(var(--fg),0.35); display: inline-flex; align-items: center; justify-content: center; flex: 0 0 16px; }
+.cat-multi.ck b .icon { width: 11px; height: 11px; opacity: 0; stroke-width: 3; }
+.cat-multi.ck.on { color: var(--text); }
+.cat-multi.ck.on b { background: var(--text); border-color: var(--text); color: var(--bg); }
+.cat-multi.ck.on b .icon { opacity: 1; }
